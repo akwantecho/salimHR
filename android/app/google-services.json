@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "136120877119",
+    "project_id": "salim-585ff",
+    "storage_bucket": "salim-585ff.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:136120877119:android:b9b340127ae8574879b88a",
+        "android_client_info": {
+          "package_name": "com.akwan.salimerp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDHR6xRgtAY4oxnjFjNlTZwqWtS-tPxFi4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
