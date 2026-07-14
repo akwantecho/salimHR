@@ -43,18 +43,32 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  /// Determine the appropriate UserRole from the user's roles and permissions
+  /// Determine which navigation shell to show from the user's roles and
+  /// permissions. This picks the *layout*; individual features/actions inside
+  /// each shell are gated per-permission via `context.can(...)`.
+  ///
+  /// Priority: privileged management roles first (Admin/Manager get the
+  /// manager shell even if they also hold clinical permissions), then clinical
+  /// users (specialist role or any clinical permission), then a
+  /// management-permission fallback, else worker.
   static UserRole _detectRole(User user) {
-    // Admin/Manager role → manager view
-    if (user.isManager || user.hasRole('Admin') || user.hasRole('Manager')) {
+    if (user.hasAnyRole(const ['Admin', 'Manager'])) {
       return UserRole.manager;
     }
-    // Specialist role → specialist view
-    if (user.hasRole('Specialist') || user.hasPermission('patients.manage')) {
+    // Receptionist MUST be checked before isClinical: the seeded Receptionist
+    // role carries clinical permissions (patients.manage, appointments.manage,
+    // treatment_plans.manage), so without this it would fall through to the
+    // specialist shell instead of the front-desk one.
+    if (user.hasRole('Receptionist')) {
+      return UserRole.receptionist;
+    }
+    if (user.isClinical) {
       return UserRole.specialist;
     }
-    // Default → worker view
-    return UserRole.worker;
+    if (user.hasAnyPermission(Perms.management)) {
+      return UserRole.manager;
+    }
+    return UserRole.receptionist;
   }
 
   Future<void> _handleLogin() async {
@@ -1153,8 +1167,11 @@ class MoreScreen extends StatelessWidget {
     String t(String ar, String en) => tr(context, ar: ar, en: en);
 
     final roleColor = _roleColor(role);
-    // Use actual user name from API if available
-    final userName = user?.name ?? t('مستخدم', 'User');
+    // Locale-aware user name (Arabic name when the app is in Arabic).
+    final userName =
+        user?.localizedName(app.locale.languageCode) ?? t('مستخدم', 'User');
+    final initials = _initials(userName);
+    const danger = Color(0xFFEF4444);
 
     return CustomScrollView(
       slivers: [
@@ -1171,37 +1188,37 @@ class MoreScreen extends StatelessWidget {
                     end: AlignmentDirectional.bottomEnd,
                     colors: [
                       roleColor,
-                      roleColor.withOpacity(0.7),
+                      Color.lerp(roleColor, const Color(0xFF000000), 0.22)!,
                     ],
                   ),
                   borderRadius: BorderRadius.circular(ds.radii.xLarge),
                   boxShadow: [
                     BoxShadow(
-                      color: roleColor.withOpacity(0.3),
-                      blurRadius: 12,
-                      offset: const Offset(0, 6),
+                      color: roleColor.withOpacity(0.35),
+                      blurRadius: 24,
+                      offset: const Offset(0, 12),
                     ),
                   ],
                 ),
                 child: Row(
                   children: [
-                    // Avatar
+                    // Avatar — user initials on a soft translucent disc.
                     Container(
                       width: ds.spacing.xl * 2,
                       height: ds.spacing.xl * 2,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFFFFF).withOpacity(0.2),
+                        color: const Color(0xFFFFFFFF).withOpacity(0.22),
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: const Color(0xFFFFFFFF).withOpacity(0.3),
+                          color: const Color(0xFFFFFFFF).withOpacity(0.35),
                           width: 2,
                         ),
                       ),
                       child: Center(
-                        child: DSLineIcon(
-                          type: LineIconType.bookmark,
+                        child: DSText(
+                          initials,
+                          role: DSTextRole.headline,
                           color: const Color(0xFFFFFFFF),
-                          size: ds.spacing.xl,
                         ),
                       ),
                     ),
@@ -1214,31 +1231,40 @@ class MoreScreen extends StatelessWidget {
                             userName,
                             role: DSTextRole.headline,
                             color: const Color(0xFFFFFFFF),
-                          ),
-                          SizedBox(height: ds.spacing.xs / 2),
-                          Container(
-                            padding: EdgeInsetsDirectional.symmetric(
-                              horizontal: ds.spacing.sm,
-                              vertical: ds.spacing.xs / 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFFFFF).withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(ds.radii.pill),
-                            ),
-                            child: DSText(
-                              _roleName(role, isEn: app.locale.languageCode == 'en'),
-                              role: DSTextRole.caption,
-                              color: const Color(0xFFFFFFFF),
-                            ),
+                            maxLines: 1,
                           ),
                           SizedBox(height: ds.spacing.xs),
-                          DSText(
-                            user?.createdAt != null
-                                ? t('نشط منذ ${user!.createdAt!.year}', 'Active since ${user.createdAt!.year}')
-                                : (user?.email ?? ''),
-                            role: DSTextRole.caption,
-                            color: const Color(0xFFFFFFFF).withOpacity(0.8),
+                          Row(
+                            children: [
+                              Container(
+                                padding: EdgeInsetsDirectional.symmetric(
+                                  horizontal: ds.spacing.sm,
+                                  vertical: ds.spacing.xs / 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color:
+                                      const Color(0xFFFFFFFF).withOpacity(0.22),
+                                  borderRadius:
+                                      BorderRadius.circular(ds.radii.pill),
+                                ),
+                                child: DSText(
+                                  _roleName(role,
+                                      isEn: app.locale.languageCode == 'en'),
+                                  role: DSTextRole.label,
+                                  color: const Color(0xFFFFFFFF),
+                                ),
+                              ),
+                            ],
                           ),
+                          if (user?.createdAt != null) ...[
+                            SizedBox(height: ds.spacing.xs),
+                            DSText(
+                              t('نشط منذ ${user!.createdAt!.year}',
+                                  'Active since ${user.createdAt!.year}'),
+                              role: DSTextRole.caption,
+                              color: const Color(0xFFFFFFFF).withOpacity(0.85),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -1247,21 +1273,21 @@ class MoreScreen extends StatelessWidget {
               ),
               SizedBox(height: ds.spacing.lg),
 
-              // Email Card
-              _ProfileStatCard(
-                title: t('البريد', 'Email'),
-                value: user?.email ?? '-',
-                icon: LineIconType.chat,
+              // Contact — static info row (not tappable).
+              _ProfileMenuItem(
+                title: t('البريد الإلكتروني', 'Email'),
+                subtitle: user?.email ?? '-',
+                icon: LineIconType.envelope,
                 color: const Color(0xFF10B981),
               ),
               SizedBox(height: ds.spacing.lg),
 
-              // Menu Items
+              // Settings
               SectionHeader(title: t('الإعدادات', 'Settings')),
               _ProfileMenuItem(
                 title: t('تعديل الملف الشخصي', 'Edit Profile'),
                 subtitle: t('الاسم، البريد', 'Name, email'),
-                icon: LineIconType.bookmark,
+                icon: LineIconType.user,
                 color: const Color(0xFF6366F1),
                 onTap: () => app.showProfileSub(ProfileSubScreen.editProfile),
               ),
@@ -1282,7 +1308,7 @@ class MoreScreen extends StatelessWidget {
               _ProfileMenuItem(
                 title: t('الأمان', 'Security'),
                 subtitle: t('تغيير كلمة المرور', 'Change password'),
-                icon: LineIconType.home,
+                icon: LineIconType.lock,
                 color: const Color(0xFF14B8A6),
                 onTap: () => app.showProfileSub(ProfileSubScreen.changePassword),
               ),
@@ -1293,14 +1319,14 @@ class MoreScreen extends StatelessWidget {
               _ProfileMenuItem(
                 title: t('حول التطبيق', 'About App'),
                 subtitle: t('الإصدار والشروط والخصوصية', 'Version, terms & privacy'),
-                icon: LineIconType.heart,
+                icon: LineIconType.info,
                 color: const Color(0xFF6366F1),
                 onTap: () => app.showProfileSub(ProfileSubScreen.about),
               ),
               SizedBox(height: ds.spacing.lg),
 
               // Logout Button
-              GestureDetector(
+              _Pressable(
                 onTap: () {
                   // Unregister FCM token before logout
                   context.firebasePushService.unregisterToken();
@@ -1311,25 +1337,23 @@ class MoreScreen extends StatelessWidget {
                 child: Container(
                   padding: EdgeInsetsDirectional.all(ds.spacing.md),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEF4444).withOpacity(0.1),
+                    color: danger.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(ds.radii.large),
-                    border: Border.all(
-                      color: const Color(0xFFEF4444).withOpacity(0.3),
-                    ),
+                    border: Border.all(color: danger.withOpacity(0.25)),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       DSLineIcon(
-                        type: LineIconType.home,
-                        color: const Color(0xFFEF4444),
+                        type: LineIconType.logout,
+                        color: danger,
                         size: ds.spacing.lg,
                       ),
                       SizedBox(width: ds.spacing.sm),
                       DSText(
                         t('تسجيل الخروج', 'Logout'),
                         role: DSTextRole.title,
-                        color: const Color(0xFFEF4444),
+                        color: danger,
                       ),
                     ],
                   ),
@@ -1343,11 +1367,21 @@ class MoreScreen extends StatelessWidget {
     );
   }
 
+  /// First letters of the first two words, uppercased — used for the avatar.
+  String _initials(String name) {
+    final parts =
+        name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return '؟';
+    final buffer = StringBuffer(parts.first.characters.first);
+    if (parts.length > 1) buffer.write(parts[1].characters.first);
+    return buffer.toString().toUpperCase();
+  }
+
   Color _roleColor(UserRole? role) {
     switch (role) {
       case UserRole.manager:
         return const Color(0xFF6366F1); // Indigo
-      case UserRole.worker:
+      case UserRole.receptionist:
         return const Color(0xFF10B981); // Emerald
       case UserRole.specialist:
         return const Color(0xFFF59E0B); // Amber
@@ -1360,75 +1394,13 @@ class MoreScreen extends StatelessWidget {
     switch (role) {
       case UserRole.manager:
         return isEn ? 'Manager' : 'مدير';
-      case UserRole.worker:
-        return isEn ? 'Worker' : 'موظف';
+      case UserRole.receptionist:
+        return isEn ? 'Receptionist' : 'موظف الاستقبال';
       case UserRole.specialist:
         return isEn ? 'Specialist' : 'أخصائي';
       default:
         return isEn ? 'Unset' : 'غير محدد';
     }
-  }
-}
-
-class _ProfileStatCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final LineIconType icon;
-  final Color color;
-
-  const _ProfileStatCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final ds = DSProvider.of(context);
-    return Container(
-      padding: EdgeInsetsDirectional.all(ds.spacing.md),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(ds.radii.large),
-        border: Border.all(color: color.withOpacity(0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: EdgeInsetsDirectional.all(ds.spacing.xs),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(ds.radii.medium),
-                ),
-                child: DSLineIcon(
-                  type: icon,
-                  color: color,
-                  size: ds.spacing.md,
-                ),
-              ),
-              Flexible(
-                child: DSText(
-                  value,
-                  role: DSTextRole.headline,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: ds.spacing.sm),
-          DSText(
-            title,
-            role: DSTextRole.caption,
-            color: ds.colors.textSecondary,
-          ),
-        ],
-      ),
-    );
   }
 }
 
@@ -1452,6 +1424,13 @@ class _LanguageSwitchCard extends StatelessWidget {
         color: ds.colors.surface,
         borderRadius: BorderRadius.circular(ds.radii.large),
         border: Border.all(color: ds.colors.border),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withOpacity(0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -1464,7 +1443,7 @@ class _LanguageSwitchCard extends StatelessWidget {
             ),
             child: Center(
               child: DSLineIcon(
-                type: LineIconType.chart,
+                type: LineIconType.globe,
                 color: const Color(0xFF8B5CF6),
                 size: ds.spacing.md,
               ),
@@ -1554,70 +1533,117 @@ class _ProfileMenuItem extends StatelessWidget {
   final String subtitle;
   final LineIconType icon;
   final Color color;
-  final VoidCallback onTap;
+
+  /// When null the row renders as static info (no chevron, no press feedback).
+  final VoidCallback? onTap;
 
   const _ProfileMenuItem({
     required this.title,
     required this.subtitle,
     required this.icon,
     required this.color,
-    required this.onTap,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final ds = DSProvider.of(context);
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsetsDirectional.all(ds.spacing.md),
-        decoration: BoxDecoration(
-          color: ds.colors.surface,
-          borderRadius: BorderRadius.circular(ds.radii.large),
-          border: Border.all(color: ds.colors.border),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: ds.spacing.xl,
-              height: ds.spacing.xl,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(ds.radii.medium),
+    final row = Container(
+      padding: EdgeInsetsDirectional.all(ds.spacing.md),
+      decoration: BoxDecoration(
+        color: ds.colors.surface,
+        borderRadius: BorderRadius.circular(ds.radii.large),
+        border: Border.all(color: ds.colors.border),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withOpacity(0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: ds.spacing.xl,
+            height: ds.spacing.xl,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(ds.radii.medium),
+            ),
+            child: Center(
+              child: DSLineIcon(
+                type: icon,
+                color: color,
+                size: ds.spacing.md,
               ),
-              child: Center(
-                child: DSLineIcon(
-                  type: icon,
-                  color: color,
-                  size: ds.spacing.md,
+            ),
+          ),
+          SizedBox(width: ds.spacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                DSText(
+                  title,
+                  role: DSTextRole.title,
+                  maxLines: 1,
                 ),
-              ),
+                SizedBox(height: ds.spacing.xs / 2),
+                DSText(
+                  subtitle,
+                  role: DSTextRole.caption,
+                  color: ds.colors.textSecondary,
+                  maxLines: 1,
+                ),
+              ],
             ),
-            SizedBox(width: ds.spacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  DSText(
-                    title,
-                    role: DSTextRole.title,
-                  ),
-                  SizedBox(height: ds.spacing.xs / 2),
-                  DSText(
-                    subtitle,
-                    role: DSTextRole.caption,
-                    color: ds.colors.textSecondary,
-                  ),
-                ],
-              ),
-            ),
+          ),
+          if (onTap != null) ...[
+            SizedBox(width: ds.spacing.sm),
             DSLineIcon(
-              type: LineIconType.calendar,
+              type: LineIconType.chevronForward,
               color: ds.colors.textMuted,
               size: ds.spacing.md,
             ),
           ],
-        ),
+        ],
+      ),
+    );
+
+    if (onTap == null) return row;
+    return _Pressable(onTap: onTap!, child: row);
+  }
+}
+
+/// Subtle tactile scale-down on press. Works without a Material ancestor
+/// (the app uses [DSTheme], not Material).
+class _Pressable extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+
+  const _Pressable({required this.child, required this.onTap});
+
+  @override
+  State<_Pressable> createState() => _PressableState();
+}
+
+class _PressableState extends State<_Pressable> {
+  bool _down = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    return GestureDetector(
+      onTap: widget.onTap,
+      onTapDown: (_) => setState(() => _down = true),
+      onTapUp: (_) => setState(() => _down = false),
+      onTapCancel: () => setState(() => _down = false),
+      child: AnimatedScale(
+        scale: _down ? 0.97 : 1.0,
+        duration: ds.animation.fast,
+        curve: Curves.easeOut,
+        child: widget.child,
       ),
     );
   }
@@ -2510,11 +2536,48 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends State<SplashScreen>
+    with TickerProviderStateMixin {
+  late final AnimationController _entrance;
+  late final AnimationController _pulse;
+  late final Animation<double> _fade;
+  late final Animation<double> _scale;
+
   @override
   void initState() {
     super.initState();
+
+    // Logo + text entrance: fade in while scaling up with a slight overshoot.
+    _entrance = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _fade = CurvedAnimation(
+      parent: _entrance,
+      curve: const Interval(0.0, 0.6, curve: Curves.easeIn),
+    );
+    _scale = Tween<double>(begin: 0.72, end: 1.0).animate(
+      CurvedAnimation(parent: _entrance, curve: Curves.easeOutBack),
+    );
+
+    // Gentle continuous breathing pulse on the logo after it lands.
+    _pulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    );
+
+    _entrance.forward().whenComplete(() {
+      if (mounted) _pulse.repeat(reverse: true);
+    });
+
     WidgetsBinding.instance.addPostFrameCallback((_) => _initSession());
+  }
+
+  @override
+  void dispose() {
+    _entrance.dispose();
+    _pulse.dispose();
+    super.dispose();
   }
 
   Future<void> _initSession() async {
@@ -2533,7 +2596,7 @@ class _SplashScreenState extends State<SplashScreen> {
         if (savedRole != null && mounted) {
           final role = UserRole.values.firstWhere(
             (r) => r.name == savedRole,
-            orElse: () => UserRole.worker,
+            orElse: () => UserRole.receptionist,
           );
 
           // Re-register FCM token for push notifications
@@ -2562,32 +2625,45 @@ class _SplashScreenState extends State<SplashScreen> {
     return Container(
       color: const Color(0xFF003C4B),
       child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset(
-              'assets/logo/salimhr bg.png',
-              width: ds.spacing.xl * 5,
-              height: ds.spacing.xl * 5,
-              fit: BoxFit.contain,
-            ),
-            SizedBox(height: ds.spacing.lg),
-            DSText(
-              tr(context, ar: 'نظام ادارة الموظفين', en: 'Salim HR'),
-              role: DSTextRole.display,
-              color: const Color(0xFFFFFFFF),
-            ),
-            SizedBox(height: ds.spacing.xs),
-            DSText(
-              tr(
-                context,
-                ar: 'إدارة متكاملة للعيادات',
-                en: 'Complete Clinic Management',
+        child: FadeTransition(
+          opacity: _fade,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ScaleTransition(
+                scale: _scale,
+                child: AnimatedBuilder(
+                  animation: _pulse,
+                  builder: (context, child) => Transform.scale(
+                    scale: 1.0 + (_pulse.value * 0.04),
+                    child: child,
+                  ),
+                  child: Image.asset(
+                    'assets/logo/salimhr bg.png',
+                    width: ds.spacing.xl * 5,
+                    height: ds.spacing.xl * 5,
+                    fit: BoxFit.contain,
+                  ),
+                ),
               ),
-              role: DSTextRole.caption,
-              color: const Color(0xFFFFFFFF).withOpacity(0.7),
-            ),
-          ],
+              SizedBox(height: ds.spacing.lg),
+              DSText(
+                tr(context, ar: 'نظام ادارة الموظفين', en: 'Salim HR'),
+                role: DSTextRole.display,
+                color: const Color(0xFFFFFFFF),
+              ),
+              SizedBox(height: ds.spacing.xs),
+              DSText(
+                tr(
+                  context,
+                  ar: 'إدارة متكاملة للعيادات',
+                  en: 'Complete Clinic Management',
+                ),
+                role: DSTextRole.caption,
+                color: const Color(0xFFFFFFFF).withOpacity(0.7),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -55,4 +55,26 @@ class DSColors {
       highlight: Color(0xFFE0F2FE), // info soft
     );
   }
+
+  /// Optional dark theme. Surfaces are redesigned (not inverted); the cyan
+  /// brand is brightened for contrast on dark navy. See DESIGN.md.
+  factory DSColors.dark() {
+    return const DSColors(
+      background: Color(0xFF0B1220), // navy page
+      surface: Color(0xFF111C2E),
+      surfaceAlt: Color(0xFF1B2A41),
+      primary: Color(0xFF38BDF8), // brightened brand
+      secondary: Color(0xFF38BDF8),
+      accent: Color(0xFF12283A), // quiet/soft primary on dark
+      accentMuted: Color(0xFF243449),
+      success: Color(0xFF22C55E),
+      warning: Color(0xFFF59E0B),
+      danger: Color(0xFFFB7185),
+      textPrimary: Color(0xFFE7EEF7),
+      textSecondary: Color(0xFF93A4BC),
+      textMuted: Color(0xFF64748B),
+      border: Color(0xFF243449),
+      highlight: Color(0xFF12283A),
+    );
+  }
 }

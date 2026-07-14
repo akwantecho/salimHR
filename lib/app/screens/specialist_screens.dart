@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 
+import '../../design_system/components/featured_card.dart';
 import '../../design_system/components/line_icons.dart';
+import '../../design_system/components/quick_action_grid.dart';
 import '../../design_system/ds_provider.dart';
 import '../../design_system/primitives/ds_button.dart';
 import '../../design_system/primitives/ds_card.dart';
@@ -13,6 +15,7 @@ import '../../utils/time_format.dart';
 import '../app_state.dart';
 import '../i18n.dart';
 import '../ui/blocks.dart';
+import 'my_schedule_screen.dart';
 import 'specialist_session_detail.dart';
 
 // ==================== SPECIALIST HOME SCREEN ====================
@@ -133,7 +136,9 @@ class _SpecialistHomeScreenState extends State<SpecialistHomeScreen> {
     }
 
     final user = context.authService.currentUser;
-    final firstName = _firstName(user?.name);
+    final localeCode = AppScope.of(context).locale.languageCode;
+    final firstName =
+        _firstName(user == null ? null : user.localizedName(localeCode));
     final greeting = t(_arabicGreeting(), _englishGreeting());
 
     final nextSession = _todayAppointments
@@ -156,6 +161,30 @@ class _SpecialistHomeScreenState extends State<SpecialistHomeScreen> {
                 greeting: greeting,
                 name: firstName,
                 roleLabel: t('أخصائي', 'Specialist'),
+              ),
+              SizedBox(height: ds.spacing.lg),
+
+              // Headline metric — today's sessions
+              FeaturedCard(
+                label: t('جلسات اليوم', "Today's Sessions"),
+                value: '${_appointmentStats['total'] ?? 0}',
+                footer: Row(
+                  children: [
+                    DSText(
+                      t('قادمة ${_appointmentStats['upcoming'] ?? 0}',
+                          'Upcoming ${_appointmentStats['upcoming'] ?? 0}'),
+                      role: DSTextRole.caption,
+                      color: ds.colors.surface.withOpacity(0.9),
+                    ),
+                    SizedBox(width: ds.spacing.md),
+                    DSText(
+                      t('مكتملة ${_appointmentStats['completed'] ?? 0}',
+                          'Done ${_appointmentStats['completed'] ?? 0}'),
+                      role: DSTextRole.caption,
+                      color: ds.colors.surface.withOpacity(0.9),
+                    ),
+                  ],
+                ),
               ),
               SizedBox(height: ds.spacing.lg),
 
@@ -242,25 +271,33 @@ class _SpecialistHomeScreenState extends State<SpecialistHomeScreen> {
 
               // Quick links
               SectionHeader(title: t('روابط سريعة', 'Quick Links')),
-              Row(
-                children: [
-                  Expanded(
-                    child: _QuickLinkCard(
-                      label: t('راتبي', 'My Salary'),
-                      icon: LineIconType.chart,
-                      color: const Color(0xFF10B981),
-                      onTap: () =>
-                          app.showSpecialistSub(SpecialistSubScreen.salary),
-                    ),
+              QuickActionGrid(
+                actions: [
+                  QuickAction(
+                    label: t('راتبي', 'Salary'),
+                    icon: LineIconType.chart,
+                    onTap: () =>
+                        app.showSpecialistSub(SpecialistSubScreen.salary),
                   ),
-                  SizedBox(width: ds.spacing.sm),
-                  Expanded(
-                    child: _QuickLinkCard(
-                      label: t('الملاحظات', 'Notes'),
-                      icon: LineIconType.chat,
-                      color: const Color(0xFF6366F1),
-                      onTap: () => app
-                          .showSpecialistSub(SpecialistSubScreen.noteRequest),
+                  QuickAction(
+                    label: t('الملاحظات', 'Notes'),
+                    icon: LineIconType.chat,
+                    onTap: () =>
+                        app.showSpecialistSub(SpecialistSubScreen.noteRequest),
+                  ),
+                  QuickAction(
+                    label: t('إجازة', 'Leave'),
+                    icon: LineIconType.bookmark,
+                    onTap: () =>
+                        app.showSpecialistSub(SpecialistSubScreen.leaveRequest),
+                  ),
+                  QuickAction(
+                    label: t('جدولي', 'Schedule'),
+                    icon: LineIconType.calendar,
+                    onTap: () => Navigator.of(context).push<void>(
+                      PageRouteBuilder(
+                        pageBuilder: (context, _, _) => const MyScheduleScreen(),
+                      ),
                     ),
                   ),
                 ],
@@ -362,66 +399,6 @@ class _GreetingHero extends StatelessWidget {
   }
 }
 
-class _QuickLinkCard extends StatelessWidget {
-  final String label;
-  final LineIconType icon;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _QuickLinkCard({
-    required this.label,
-    required this.icon,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final ds = DSProvider.of(context);
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: EdgeInsetsDirectional.all(ds.spacing.md),
-        decoration: BoxDecoration(
-          color: ds.colors.surface,
-          borderRadius: BorderRadius.circular(ds.radii.large),
-          border: Border.all(color: color.withOpacity(0.25)),
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: ds.spacing.xl,
-              height: ds.spacing.xl,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: DSLineIcon(
-                  type: icon,
-                  color: color,
-                  size: ds.spacing.md,
-                ),
-              ),
-            ),
-            SizedBox(width: ds.spacing.md),
-            Expanded(
-              child: DSText(label, role: DSTextRole.title),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 // ==================== SESSIONS SCREEN ====================
 

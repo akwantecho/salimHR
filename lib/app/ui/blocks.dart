@@ -41,9 +41,11 @@ class _ShimmerLoadingState extends State<ShimmerLoading>
     final ds = DSProvider.of(context);
     return AnimatedBuilder(
       animation: _controller,
-      builder: (context, _) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      builder: (context, _) => SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           // Stat cards row
           Row(
             children: [
@@ -69,7 +71,8 @@ class _ShimmerLoadingState extends State<ShimmerLoading>
           _ShimmerBox(height: 72, radius: ds.radii.large, phase: _controller.value),
           SizedBox(height: ds.spacing.sm),
           _ShimmerBox(height: 72, radius: ds.radii.large, phase: _controller.value),
-        ],
+          ],
+        ),
       ),
     );
   }

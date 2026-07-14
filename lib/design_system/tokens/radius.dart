@@ -6,10 +6,10 @@ class DSRadii {
   final double pill;
 
   const DSRadii({
-    this.small = 6,
-    this.medium = 10,
-    this.large = 14,
-    this.xLarge = 24,
+    this.small = 12,
+    this.medium = 16,
+    this.large = 20,
+    this.xLarge = 28,
     this.pill = 9999,
   });
 }

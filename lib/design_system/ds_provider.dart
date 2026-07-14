@@ -53,6 +53,27 @@ class DSTheme {
     );
   }
 
+  factory DSTheme.dark({
+    TextDirection direction = TextDirection.rtl,
+    Locale locale = const Locale('ar'),
+  }) {
+    final colors = DSColors.dark();
+    return DSTheme(
+      colors: colors,
+      typography: DSTypography.arabicDefault(
+        colors.textPrimary,
+        colors.textSecondary,
+      ),
+      spacing: const DSSpacing(),
+      radii: const DSRadii(),
+      shadows: DSShadows.soft(colors.textPrimary),
+      animation: const DSAnimation(),
+      opacity: const DSOpacity(),
+      textDirection: direction,
+      locale: locale,
+    );
+  }
+
   DSTheme withDirection(TextDirection direction) {
     return DSTheme(
       colors: colors,

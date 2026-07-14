@@ -1,29 +1,38 @@
 import 'package:flutter/widgets.dart';
 
 import '../../design_system/components/line_icons.dart';
+import '../../design_system/components/quick_action_grid.dart';
 import '../../design_system/ds_provider.dart';
 import '../../design_system/primitives/ds_text.dart';
 import '../../models/models.dart';
 import '../../services/api_provider.dart';
+import '../app_state.dart';
 import '../i18n.dart';
 import '../ui/blocks.dart';
 import 'inventory_request_screen.dart';
 import 'inventory_stocktake_screen.dart';
+import 'receptionist_appointments.dart';
+import 'receptionist_common.dart';
+import 'receptionist_patients.dart';
+import 'specialist_requests.dart';
 
-// ==================== WORKER HOME SCREEN ====================
+// ==================== RECEPTIONIST HOME (APPOINTMENTS HUB) ====================
 
-class WorkerHomeScreen extends StatefulWidget {
-  const WorkerHomeScreen({super.key});
+/// Tab 0 for the front desk: today's schedule + quick actions + salary card.
+/// Every already-buildable feature is one tap away here so the shell stays a
+/// tidy four tabs (Appointments / Patients / Billing / More).
+class ReceptionistHomeScreen extends StatefulWidget {
+  const ReceptionistHomeScreen({super.key});
 
   @override
-  State<WorkerHomeScreen> createState() => _WorkerHomeScreenState();
+  State<ReceptionistHomeScreen> createState() => _ReceptionistHomeScreenState();
 }
 
-class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
+class _ReceptionistHomeScreenState extends State<ReceptionistHomeScreen> {
   bool _isLoading = true;
   String? _error;
   PayrollItem? _salary;
-  List<InventoryRequest> _recentRequests = [];
+  List<ReceptionAppointment> _today = [];
 
   @override
   void initState() {
@@ -31,28 +40,30 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
+  String _todayDate() {
+    final now = DateTime.now();
+    return '${now.year.toString().padLeft(4, '0')}-'
+        '${now.month.toString().padLeft(2, '0')}-'
+        '${now.day.toString().padLeft(2, '0')}';
+  }
+
   Future<void> _load() async {
     setState(() {
       _isLoading = true;
       _error = null;
     });
-
     try {
       final user = context.authService.currentUser;
       final employeeId = user?.employeeId;
-      final payrollService = context.payrollService;
-      final inventoryService = context.inventoryService;
+      final payroll = context.payrollService;
+      final reception = context.receptionService;
 
-      // Fetch salary if employee is linked
       if (employeeId != null) {
-        _salary = await payrollService.getEmployeeSalary(employeeId: employeeId);
+        _salary = await payroll.getEmployeeSalary(employeeId: employeeId);
       }
 
-      // Fetch recent inventory requests
-      await inventoryService.fetchMyRequests();
+      _today = await reception.getAppointments(date: _todayDate());
       if (!mounted) return;
-      _recentRequests = inventoryService.myRequests.take(3).toList();
-
       setState(() => _isLoading = false);
     } catch (e) {
       if (!mounted) return;
@@ -63,41 +74,40 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
     }
   }
 
+  Future<void> _push(Widget Function(VoidCallback onBack) build) async {
+    await Navigator.of(context).push<void>(
+      PageRouteBuilder(
+        pageBuilder: (ctx, _, _) => build(() => Navigator.of(ctx).pop()),
+      ),
+    );
+    if (mounted) _load();
+  }
+
+  void _openAppointment(ReceptionAppointment appt) {
+    Navigator.of(context).push<void>(
+      PageRouteBuilder(
+        pageBuilder: (ctx, _, _) => ReceptionAppointmentDetailScreen(
+          appointment: appt,
+          onBack: () => Navigator.of(ctx).pop(),
+          onChanged: _load,
+        ),
+      ),
+    ).then((_) {
+      if (mounted) _load();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final ds = DSProvider.of(context);
     String t(String ar, String en) => tr(context, ar: ar, en: en);
 
-    if (_isLoading) {
-      return const ShimmerLoading();
-    }
-
+    if (_isLoading) return const ShimmerLoading();
     if (_error != null) {
-      return _ErrorView(error: _error!, onRetry: _load);
+      return ReceptionErrorView(error: _error!, onRetry: _load);
     }
 
-    final quickActions = [
-      _QuickAction(
-        label: t('تحديث مخزون', 'Update Stock'),
-        icon: LineIconType.chart,
-        color: const Color(0xFF6366F1),
-      ),
-      _QuickAction(
-        label: t('طلب شراء', 'Purchase'),
-        icon: LineIconType.calendar,
-        color: const Color(0xFF10B981),
-      ),
-      _QuickAction(
-        label: t('إجازة', 'Leave'),
-        icon: LineIconType.bookmark,
-        color: const Color(0xFFF59E0B),
-      ),
-      _QuickAction(
-        label: t('عذر طبي', 'Medical'),
-        icon: LineIconType.heart,
-        color: const Color(0xFF8B5CF6),
-      ),
-    ];
+    final app = AppScope.of(context);
 
     return CustomScrollView(
       slivers: [
@@ -105,64 +115,80 @@ class _WorkerHomeScreenState extends State<WorkerHomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Salary Summary Card
-              _WorkerSalaryCard(salary: _salary),
+              _ReceptionistSalaryCard(salary: _salary),
               SizedBox(height: ds.spacing.lg),
-
-              // Quick Actions
               SectionHeader(title: t('إجراءات سريعة', 'Quick Actions')),
-              Row(
-                children: [
-                  for (int i = 0; i < quickActions.length; i++) ...[
-                    if (i > 0) SizedBox(width: ds.spacing.sm),
-                    Expanded(
-                      child: _QuickActionCard(action: quickActions[i]),
+              QuickActionGrid(
+                actions: [
+                  QuickAction(
+                    label: t('حجز موعد', 'Book'),
+                    icon: LineIconType.calendar,
+                    onTap: () =>
+                        _push((onBack) => AppointmentBookingScreen(onBack: onBack)),
+                  ),
+                  QuickAction(
+                    label: t('مريض جديد', 'New Patient'),
+                    icon: LineIconType.bookmark,
+                    onTap: () =>
+                        _push((onBack) => PatientFormScreen(onBack: onBack)),
+                  ),
+                  QuickAction(
+                    label: t('تحصيل', 'Collect'),
+                    icon: LineIconType.chart,
+                    // Jump to the Billing tab (index 2).
+                    onTap: () => app.setTab(UserRole.receptionist, 2),
+                  ),
+                  QuickAction(
+                    label: t('طلب مخزون', 'Request'),
+                    icon: LineIconType.heart,
+                    onTap: () =>
+                        _push((onBack) => InventoryRequestScreen(onBack: onBack)),
+                  ),
+                  QuickAction(
+                    label: t('جرد', 'Stocktake'),
+                    icon: LineIconType.chart,
+                    onTap: () => _push(
+                      (onBack) => InventoryStocktakeScreen(onBack: onBack),
                     ),
-                  ],
+                  ),
+                  QuickAction(
+                    label: t('إجازة', 'Leave'),
+                    icon: LineIconType.bookmark,
+                    onTap: () =>
+                        _push((onBack) => LeaveRequestScreen(onBack: onBack)),
+                  ),
                 ],
               ),
               SizedBox(height: ds.spacing.lg),
-
-              // Recent Requests
-              SectionHeader(
-                title: t('آخر الطلبات', 'Recent Requests'),
-                actionLabel: t('عرض الكل', 'View All'),
-                onAction: () {},
-              ),
+              SectionHeader(title: t('مواعيد اليوم', "Today's Appointments")),
             ],
           ),
         ),
-        if (_recentRequests.isEmpty)
+        if (_today.isEmpty)
           SliverToBoxAdapter(
-            child: Center(
-              child: Padding(
-                padding: EdgeInsetsDirectional.all(ds.spacing.lg),
-                child: DSText(
-                  t('لا توجد طلبات', 'No requests yet'),
-                  role: DSTextRole.caption,
-                  color: ds.colors.textSecondary,
-                ),
-              ),
+            child: ReceptionEmpty(
+              message: t('لا مواعيد اليوم', 'No appointments today'),
             ),
           )
         else
           SliverSeparatedList(
             itemBuilder: (context, index) {
-              final req = _recentRequests[index];
-              final statusColor = _requestStatusColor(req.status);
-              return RequestTile(
-                title: t('طلب مخزون #${req.id}', 'Inventory Request #${req.id}'),
-                subtitle: req.notes ?? t('${req.items?.length ?? 0} أصناف', '${req.items?.length ?? 0} items'),
-                status: _requestStatusLabel(context, req.status),
-                statusColor: statusColor,
+              final a = _today[index];
+              return GestureDetector(
+                onTap: () => _openAppointment(a),
+                child: RequestTile(
+                  title: a.patientName ?? t('مريض', 'Patient'),
+                  subtitle:
+                      '${a.startTime ?? ''} · ${a.serviceName ?? t('خدمة', 'Service')}',
+                  status: appointmentStatusLabel(context, a.status),
+                  statusColor: appointmentStatusColor(a.status),
+                ),
               );
             },
-            itemCount: _recentRequests.length,
+            itemCount: _today.length,
             spacing: ds.spacing.sm,
           ),
-        SliverToBoxAdapter(
-          child: SizedBox(height: ds.spacing.lg),
-        ),
+        SliverToBoxAdapter(child: SizedBox(height: ds.spacing.lg)),
       ],
     );
   }
@@ -255,7 +281,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Action row — open the two new sub-screens
+              // Action row — open the two sub-screens
               Row(
                 children: [
                   Expanded(
@@ -392,16 +418,18 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 }
 
-// ==================== WORKER REQUESTS SCREEN ====================
+// ==================== RECEPTIONIST REQUESTS SCREEN ====================
 
-class WorkerRequestsScreen extends StatefulWidget {
-  const WorkerRequestsScreen({super.key});
+class ReceptionistRequestsScreen extends StatefulWidget {
+  const ReceptionistRequestsScreen({super.key});
 
   @override
-  State<WorkerRequestsScreen> createState() => _WorkerRequestsScreenState();
+  State<ReceptionistRequestsScreen> createState() =>
+      _ReceptionistRequestsScreenState();
 }
 
-class _WorkerRequestsScreenState extends State<WorkerRequestsScreen> {
+class _ReceptionistRequestsScreenState
+    extends State<ReceptionistRequestsScreen> {
   bool _isLoading = true;
   String? _error;
 
@@ -683,7 +711,7 @@ class _SalaryScreenState extends State<SalaryScreen> {
               child: Padding(
                 padding: EdgeInsetsDirectional.all(ds.spacing.lg),
                 child: DSText(
-                  t('لا يوجد سجل مدفوعات', 'No payment history'),
+                  t('لا يوجد سجل مdfوعات', 'No payment history'),
                   role: DSTextRole.caption,
                   color: ds.colors.textSecondary,
                 ),
@@ -771,58 +799,14 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ds = DSProvider.of(context);
-    String t(String ar, String en) => tr(context, ar: ar, en: en);
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          DSLineIcon(
-            type: LineIconType.bell,
-            color: const Color(0xFFEF4444),
-            size: ds.spacing.xl,
-          ),
-          SizedBox(height: ds.spacing.md),
-          DSText(
-            t('حدث خطأ', 'An error occurred'),
-            role: DSTextRole.title,
-            color: const Color(0xFFEF4444),
-          ),
-          SizedBox(height: ds.spacing.sm),
-          DSText(
-            error,
-            role: DSTextRole.caption,
-            color: ds.colors.textSecondary,
-          ),
-          SizedBox(height: ds.spacing.lg),
-          GestureDetector(
-            onTap: onRetry,
-            child: Container(
-              padding: EdgeInsetsDirectional.symmetric(
-                horizontal: ds.spacing.lg,
-                vertical: ds.spacing.sm,
-              ),
-              decoration: BoxDecoration(
-                color: ds.colors.primary,
-                borderRadius: BorderRadius.circular(ds.radii.medium),
-              ),
-              child: DSText(
-                t('إعادة المحاولة', 'Retry'),
-                role: DSTextRole.label,
-                color: const Color(0xFFFFFFFF),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    return ReceptionErrorView(error: error, onRetry: onRetry);
   }
 }
 
-class _WorkerSalaryCard extends StatelessWidget {
+class _ReceptionistSalaryCard extends StatelessWidget {
   final PayrollItem? salary;
 
-  const _WorkerSalaryCard({this.salary});
+  const _ReceptionistSalaryCard({this.salary});
 
   @override
   Widget build(BuildContext context) {
@@ -941,78 +925,6 @@ class _SalaryMiniStat extends StatelessWidget {
           color: const Color(0xFFFFFFFF),
         ),
       ],
-    );
-  }
-}
-
-class _QuickAction {
-  final String label;
-  final LineIconType icon;
-  final Color color;
-
-  _QuickAction({
-    required this.label,
-    required this.icon,
-    required this.color,
-  });
-}
-
-class _QuickActionCard extends StatelessWidget {
-  final _QuickAction action;
-
-  const _QuickActionCard({required this.action});
-
-  @override
-  Widget build(BuildContext context) {
-    final ds = DSProvider.of(context);
-    return Container(
-      padding: EdgeInsetsDirectional.all(ds.spacing.sm),
-      decoration: BoxDecoration(
-        color: action.color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(ds.radii.large),
-        border: Border.all(
-          color: action.color.withOpacity(0.2),
-        ),
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: ds.spacing.xl,
-            height: ds.spacing.xl,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: AlignmentDirectional.topStart,
-                end: AlignmentDirectional.bottomEnd,
-                colors: [
-                  action.color,
-                  action.color.withOpacity(0.7),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(ds.radii.medium),
-              boxShadow: [
-                BoxShadow(
-                  color: action.color.withOpacity(0.3),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Center(
-              child: DSLineIcon(
-                type: action.icon,
-                color: const Color(0xFFFFFFFF),
-                size: ds.spacing.md,
-              ),
-            ),
-          ),
-          SizedBox(height: ds.spacing.xs),
-          DSText(
-            action.label,
-            role: DSTextRole.caption,
-            color: action.color,
-          ),
-        ],
-      ),
     );
   }
 }
@@ -1459,4 +1371,3 @@ class _PaymentHistoryCard extends StatelessWidget {
     );
   }
 }
-

@@ -31,21 +31,35 @@ class InventoryItem extends Equatable {
   });
 
   factory InventoryItem.fromJson(Map<String, dynamic> json) {
+    // Some endpoints (e.g. the clinic-wide inventory) omit numeric fields or
+    // send them as strings, so parse defensively instead of hard-casting.
+    int toInt(dynamic v, [int fallback = 0]) {
+      if (v is int) return v;
+      if (v is num) return v.toInt();
+      if (v is String) return int.tryParse(v) ?? fallback;
+      return fallback;
+    }
+
+    int? toIntOrNull(dynamic v) => v == null ? null : toInt(v);
+
     return InventoryItem(
-      id: json['id'] as int,
-      clinicId: json['clinic_id'] as int,
-      name: json['name'] as String,
+      id: toInt(json['id']),
+      clinicId: toInt(json['clinic_id']),
+      name: json['name'] as String? ?? '',
       sku: json['sku'] as String?,
       description: json['description'] as String?,
-      quantity: json['quantity'] as int,
-      minQuantity: json['min_quantity'] as int?,
+      quantity: toInt(json['quantity']),
+      minQuantity: toIntOrNull(json['min_quantity']),
       unitPrice: (json['unit_price'] as num?)?.toDouble(),
       unit: json['unit'] as String?,
       category: json['category'] as String?,
       lastRestocked: json['last_restocked'] != null
-          ? DateTime.parse(json['last_restocked'] as String)
+          ? DateTime.tryParse(json['last_restocked'] as String)
           : null,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      createdAt: json['created_at'] != null
+          ? (DateTime.tryParse(json['created_at'] as String) ??
+              DateTime.fromMillisecondsSinceEpoch(0))
+          : DateTime.fromMillisecondsSinceEpoch(0),
     );
   }
 

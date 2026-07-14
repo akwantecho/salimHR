@@ -8,6 +8,9 @@ import '../../models/models.dart';
 import '../../services/api_provider.dart';
 import '../../utils/time_format.dart';
 import '../i18n.dart';
+import 'diagnosis_picker_screen.dart';
+import 'patient_detail_screen.dart';
+import 'treatment_plan_screen.dart';
 
 /// Detail screen for a single appointment with two outcome actions:
 /// "End session" (status=completed) and "No show" (status=no_show).
@@ -135,6 +138,68 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                         _StatusBadge(status: _appointment.status),
                         SizedBox(height: ds.spacing.md),
                         _PatientCard(appointment: _appointment),
+                        if (_appointment.patientId != null) ...[
+                          SizedBox(height: ds.spacing.sm),
+                          DSButton(
+                            label: t('ملف المريض', 'Patient File'),
+                            variant: DSButtonVariant.ghost,
+                            expanded: true,
+                            leading: DSLineIcon(
+                              type: LineIconType.bookmark,
+                              color: ds.colors.primary,
+                              size: ds.spacing.md,
+                            ),
+                            onPressed: () => Navigator.of(context).push<void>(
+                              PageRouteBuilder(
+                                pageBuilder: (context, _, _) =>
+                                    PatientDetailScreen(
+                                  patientId: _appointment.patientId!,
+                                  patientName: _appointment.patientName,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                        if (_appointment.treatmentPlanId != null) ...[
+                          SizedBox(height: ds.spacing.sm),
+                          DSButton(
+                            label: t('خطة العلاج', 'Treatment Plan'),
+                            variant: DSButtonVariant.ghost,
+                            expanded: true,
+                            leading: DSLineIcon(
+                              type: LineIconType.calendar,
+                              color: ds.colors.primary,
+                              size: ds.spacing.md,
+                            ),
+                            onPressed: () => Navigator.of(context).push<void>(
+                              PageRouteBuilder(
+                                pageBuilder: (context, _, _) =>
+                                    TreatmentPlanScreen(
+                                  planId: _appointment.treatmentPlanId!,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                        SizedBox(height: ds.spacing.sm),
+                        DSButton(
+                          label: t('التشخيص', 'Diagnosis'),
+                          variant: DSButtonVariant.ghost,
+                          expanded: true,
+                          leading: DSLineIcon(
+                            type: LineIconType.heart,
+                            color: ds.colors.primary,
+                            size: ds.spacing.md,
+                          ),
+                          onPressed: () => Navigator.of(context).push<void>(
+                            PageRouteBuilder(
+                              pageBuilder: (context, _, _) =>
+                                  DiagnosisPickerScreen(
+                                appointmentId: _appointment.id,
+                              ),
+                            ),
+                          ),
+                        ),
                         SizedBox(height: ds.spacing.md),
                         _InfoCard(appointment: _appointment),
                         if (_error != null) ...[

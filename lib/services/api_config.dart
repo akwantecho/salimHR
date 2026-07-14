@@ -3,11 +3,16 @@
 /// Configure the base URL based on your environment.
 /// For local development with XAMPP, use your machine's IP address.
 class ApiConfig {
-  // Change this to your Laravel server URL
-  // For Android emulator use: 10.0.2.2
-  // For iOS simulator use: localhost or 127.0.0.1
-  // For physical device use: your machine's IP (e.g., 192.168.1.x)
-  static const String baseUrl = 'https://salimerp-gihjjyv1.on-forge.com';
+  // Base URL. Overridable at build/run time without editing code:
+  //   flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000
+  //   flutter build apk --dart-define=API_BASE_URL=https://staging.example.com
+  // Falls back to production when the define is absent.
+  //   Android emulator: 10.0.2.2 · iOS simulator: localhost/127.0.0.1
+  //   Physical device: your machine's LAN IP (e.g. 192.168.1.x)
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'https://salimerp.on-forge.com',
+  );
 
   // API prefix
   static const String apiPrefix = '/api';

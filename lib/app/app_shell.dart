@@ -10,9 +10,11 @@ import 'app_state.dart';
 import 'i18n.dart';
 import 'screens/common_screens.dart';
 import 'screens/manager_screens.dart';
+import 'screens/receptionist_billing.dart';
+import 'screens/receptionist_patients.dart';
+import 'screens/receptionist_screens.dart';
 import 'screens/specialist_requests.dart';
 import 'screens/specialist_screens.dart';
-import 'screens/worker_screens.dart';
 
 class AppRoot extends StatelessWidget {
   const AppRoot({super.key});
@@ -27,20 +29,42 @@ class AppRouter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
+
+    final Widget child;
     if (app.showSplash) {
-      return SplashScreen(
+      child = SplashScreen(
+        key: const ValueKey('splash'),
         onDone: app.finishSplash,
         onRestoreRole: app.setRole,
       );
-    }
-    if (app.role == null) {
-      return LoginScreen(
+    } else if (app.role == null) {
+      child = LoginScreen(
+        key: const ValueKey('login'),
         onRoleSelected: app.setRole,
         onLangChange: app.setLocale,
         currentLang: app.locale.languageCode,
       );
+    } else {
+      child = RoleShell(key: ValueKey('shell-${app.role!.name}'), role: app.role!);
     }
-    return RoleShell(role: app.role!);
+
+    // Cross-fade between splash / login / home so state swaps aren't abrupt.
+    // The custom layoutBuilder expands children to fill — the default stacks
+    // them with loose constraints, which collapses RoleShell's Positioned.fill
+    // Stack to zero size (black screen).
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 350),
+      switchInCurve: Curves.easeOut,
+      switchOutCurve: Curves.easeIn,
+      layoutBuilder: (currentChild, previousChildren) => Stack(
+        fit: StackFit.expand,
+        children: [
+          ...previousChildren,
+          if (currentChild != null) currentChild,
+        ],
+      ),
+      child: child,
+    );
   }
 }
 
@@ -53,15 +77,32 @@ class RoleShell extends StatefulWidget {
   State<RoleShell> createState() => _RoleShellState();
 }
 
-class _RoleShellState extends State<RoleShell> {
+class _RoleShellState extends State<RoleShell>
+    with SingleTickerProviderStateMixin {
   bool _showAddPopup = false;
+
+  // Plays once when the shell first mounts (after login or session restore):
+  // a deep cover with the centered logo scales up and fades out, revealing
+  // the home screen — continuing the splash logo into the app.
+  late final AnimationController _launch;
 
   @override
   void initState() {
     super.initState();
+    _launch = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 720),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.notificationsService.fetchUnreadCount();
+      _launch.forward();
     });
+  }
+
+  @override
+  void dispose() {
+    _launch.dispose();
+    super.dispose();
   }
 
   UserRole get role => widget.role;
@@ -78,12 +119,12 @@ class _RoleShellState extends State<RoleShell> {
           BottomNavItem(label: t('التقارير', 'Reports'), icon: LineIconType.chart),
           BottomNavItem(label: t('ملفي', 'Profile'), icon: LineIconType.bookmark),
         ];
-      case UserRole.worker:
+      case UserRole.receptionist:
         return [
-          BottomNavItem(label: t('الرئيسية', 'Home'), icon: LineIconType.home),
-          BottomNavItem(label: t('المخزون', 'Inventory'), icon: LineIconType.chart),
-          BottomNavItem(label: t('الرواتب', 'Salary'), icon: LineIconType.heart),
-          BottomNavItem(label: t('ملفي', 'Profile'), icon: LineIconType.bookmark),
+          BottomNavItem(label: t('المواعيد', 'Appointments'), icon: LineIconType.home),
+          BottomNavItem(label: t('المرضى', 'Patients'), icon: LineIconType.bookmark),
+          BottomNavItem(label: t('الفوترة', 'Billing'), icon: LineIconType.chart),
+          BottomNavItem(label: t('ملفي', 'Profile'), icon: LineIconType.heart),
         ];
       case UserRole.specialist:
         return [
@@ -104,11 +145,11 @@ class _RoleShellState extends State<RoleShell> {
           2 => const ManagerReportsScreen(),
           _ => const MoreScreen(),
         };
-      case UserRole.worker:
+      case UserRole.receptionist:
         return switch (index) {
-          0 => const WorkerHomeScreen(),
-          1 => const InventoryScreen(),
-          2 => const SalaryScreen(),
+          0 => const ReceptionistHomeScreen(),
+          1 => const ReceptionistPatientsScreen(),
+          2 => const BillingScreen(),
           _ => const MoreScreen(),
         };
       case UserRole.specialist:
@@ -121,32 +162,14 @@ class _RoleShellState extends State<RoleShell> {
     }
   }
 
-  String _title(BuildContext context, UserRole role, int index) {
-    String t(String ar, String en) => tr(context, ar: ar, en: en);
-    switch (role) {
-      case UserRole.manager:
-        return [
-          t('أهلاً مدير', 'Welcome Manager'),
-          t('الموافقات', 'Approvals'),
-          t('التقارير', 'Reports'),
-          t('ملفي', 'Profile'),
-        ][index];
-      case UserRole.worker:
-        return [
-          t('أهلاً موظف', 'Welcome'),
-          t('المخزون', 'Inventory'),
-          t('راتبي', 'Salary'),
-          t('ملفي', 'Profile'),
-        ][index];
-      case UserRole.specialist:
-        return [
-          t('أهلاً أخصائي', 'Welcome'),
-          t('جلساتي', 'My Sessions'),
-          t('الحضور', 'Attendance'),
-          t('ملفي', 'Profile'),
-        ][index];
-    }
+  /// Time-of-day greeting, locale-aware.
+  String _greeting(BuildContext context) {
+    final h = DateTime.now().hour;
+    if (h < 12) return tr(context, ar: 'صباح الخير', en: 'Good morning');
+    if (h < 17) return tr(context, ar: 'مساء الخير', en: 'Good afternoon');
+    return tr(context, ar: 'مساء النور', en: 'Good evening');
   }
+
 
   Widget _specialistSubScreen(BuildContext context, AppState app) {
     final onBack = app.hideSpecialistSub;
@@ -200,6 +223,10 @@ class _RoleShellState extends State<RoleShell> {
     final viewPadding = MediaQuery.viewPaddingOf(context);
     final isSpecialist = role == UserRole.specialist;
 
+    final user = context.authService.currentUser;
+    final displayName = user?.localizedName(app.locale.languageCode) ??
+        tr(context, ar: 'مستخدم', en: 'User');
+
     // Show notifications screen if active
     if (app.showNotificationsScreen) {
       return NotificationsScreen(
@@ -218,9 +245,17 @@ class _RoleShellState extends State<RoleShell> {
       return _specialistSubScreen(context, app);
     }
 
-    // The FAB nav protrudes above the bar, so reserve a bit more bottom
-    // padding for the body to keep content out from under it.
-    final bottomReserve = isSpecialist ? navHeight + ds.spacing.xl : navHeight;
+    // Profile is always the last tab; it has its own hero header, so the
+    // shared top bar (which repeats the user's name) is hidden there.
+    final isProfile = current == items.length - 1;
+
+    // The floating nav sits `viewPadding.bottom` above the screen edge and is
+    // `navHeight` tall, so the body must clear both plus a small gap — otherwise
+    // the last item (e.g. Logout) slides under the nav.
+    final bottomReserve = viewPadding.bottom +
+        navHeight +
+        ds.spacing.md +
+        (isSpecialist ? ds.spacing.xl : 0);
 
     return Container(
       color: ds.colors.background,
@@ -239,20 +274,21 @@ class _RoleShellState extends State<RoleShell> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ListenableBuilder(
-                      listenable: context.notificationsService,
-                      builder: (context, _) => TopBarCustom(
-                        title: _title(context, role, current),
-                        subtitle: tr(context,
-                            ar: 'تطبيق العيادة - الوصول حسب الصلاحيات',
-                            en: 'Clinic app - role-based access'),
-                        onNotifications: () {
-                          app.showNotifications();
-                        },
-                        notificationCount: context.notificationsService.unreadCount,
+                    if (!isProfile) ...[
+                      ListenableBuilder(
+                        listenable: context.notificationsService,
+                        builder: (context, _) => TopBarCustom(
+                          title: displayName,
+                          subtitle: _greeting(context),
+                          onNotifications: () {
+                            app.showNotifications();
+                          },
+                          notificationCount:
+                              context.notificationsService.unreadCount,
+                        ),
                       ),
-                    ),
-                    SizedBox(height: ds.spacing.md),
+                      SizedBox(height: ds.spacing.md),
+                    ],
                     Expanded(
                       child: _screen(role, current),
                     ),
@@ -302,8 +338,57 @@ class _RoleShellState extends State<RoleShell> {
                 onDismiss: () => setState(() => _showAddPopup = false),
               ),
             ),
+
+          // Launch reveal: logo cover that fades out over the home screen.
+          _LaunchReveal(controller: _launch),
         ],
       ),
+    );
+  }
+}
+
+/// A deep-colored cover with the centered app logo that scales up and fades
+/// out once, revealing the screen beneath. Ignores pointer input and removes
+/// itself when the animation completes.
+class _LaunchReveal extends StatelessWidget {
+  final AnimationController controller;
+
+  const _LaunchReveal({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        final v = controller.value;
+        if (v >= 1.0) return const SizedBox.shrink();
+        // Cover fades out over the whole run; logo eases up and grows slightly.
+        final coverOpacity = (1.0 - v).clamp(0.0, 1.0);
+        final logoOpacity = (1.0 - (v * 1.4)).clamp(0.0, 1.0);
+        final logoScale = 1.0 + (Curves.easeOut.transform(v) * 0.25);
+        return IgnorePointer(
+          child: Opacity(
+            opacity: coverOpacity,
+            child: Container(
+              color: const Color(0xFF003C4B),
+              alignment: Alignment.center,
+              child: Opacity(
+                opacity: logoOpacity,
+                child: Transform.scale(
+                  scale: logoScale,
+                  child: Image.asset(
+                    'assets/logo/salimhr bg.png',
+                    width: ds.spacing.xl * 4,
+                    height: ds.spacing.xl * 4,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

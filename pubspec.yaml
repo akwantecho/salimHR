@@ -76,9 +76,28 @@ flutter:
     - assets/icons/heroicons/heart.svg
     - assets/icons/heroicons/bookmark.svg
     - assets/icons/heroicons/arrow-back.svg
+    - assets/icons/heroicons/user.svg
+    - assets/icons/heroicons/chevron-forward.svg
+    - assets/icons/heroicons/lock.svg
+    - assets/icons/heroicons/envelope.svg
+    - assets/icons/heroicons/logout.svg
+    - assets/icons/heroicons/globe.svg
+    - assets/icons/heroicons/info.svg
     - assets/logo/salimhr bg.png
 
   fonts:
+    - family: Thmanyah Sans
+      fonts:
+        - asset: assets/fonts/thmanyahsans/otf/thmanyahsans-Light.otf
+          weight: 300
+        - asset: assets/fonts/thmanyahsans/otf/thmanyahsans-Regular.otf
+          weight: 400
+        - asset: assets/fonts/thmanyahsans/otf/thmanyahsans-Medium.otf
+          weight: 500
+        - asset: assets/fonts/thmanyahsans/otf/thmanyahsans-Bold.otf
+          weight: 700
+        - asset: assets/fonts/thmanyahsans/otf/thmanyahsans-Black.otf
+          weight: 900
     - family: Cairo
       fonts:
         - asset: assets/fonts/Cairo/Cairo-Regular.ttf

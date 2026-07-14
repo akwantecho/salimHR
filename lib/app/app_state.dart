@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
-enum UserRole { manager, worker, specialist }
+enum UserRole { manager, receptionist, specialist }
 
 enum ProfileSubScreen { none, editProfile, changePassword, about, privacyPolicy, termsOfService, deleteAccount }
 
@@ -28,7 +28,7 @@ class AppState extends ChangeNotifier {
   SpecialistSubScreen specialistSubScreen = SpecialistSubScreen.none;
   final Map<UserRole, int> _tabByRole = {
     UserRole.manager: 0,
-    UserRole.worker: 0,
+    UserRole.receptionist: 0,
     UserRole.specialist: 0,
   };
 

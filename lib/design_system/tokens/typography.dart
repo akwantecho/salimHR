@@ -20,13 +20,14 @@ class DSTypography {
 
   factory DSTypography.arabicDefault(Color primaryText, Color secondaryText) {
     const fontFallback = <String>[
+      'Cairo',
       'NotoSansArabic',
       'NotoSans',
     ];
 
-    const baseFont = 'Cairo';
-    const double displaySize = 30; // 3xl
-    const double headlineSize = 24; // 2xl
+    const baseFont = 'Thmanyah Sans';
+    const double displaySize = 26; // 3xl — trimmed for tighter, clearer hero text
+    const double headlineSize = 22; // 2xl
     const double titleSize = 18; // xl
     const double bodySize = 14; // base/sm
     const double captionSize = 12; // xs
@@ -35,7 +36,7 @@ class DSTypography {
     return DSTypography(
       display: TextStyle(
         fontSize: displaySize,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w700,
         height: 32 / displaySize,
         color: primaryText,
         fontFamily: baseFont,
@@ -44,7 +45,7 @@ class DSTypography {
       ),
       headline: TextStyle(
         fontSize: headlineSize,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w700,
         height: 32 / headlineSize,
         color: primaryText,
         fontFamily: baseFont,
