@@ -1,5 +1,9 @@
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/foundation.dart' show debugPrint, Uint8List;
 import 'package:flutter/widgets.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../../models/user_document.dart';
 
 import 'dart:async';
 
@@ -9,6 +13,7 @@ import '../../design_system/primitives/ds_card.dart';
 import '../../design_system/primitives/ds_text.dart';
 import '../../models/notification.dart';
 import '../../models/user.dart';
+import '../../services/api_config.dart';
 import '../../services/api_provider.dart';
 import '../app_state.dart';
 import '../i18n.dart';
@@ -48,6 +53,10 @@ class _LoginScreenState extends State<LoginScreen> {
     // Admin/Manager role → manager view
     if (user.isManager || user.hasRole('Admin') || user.hasRole('Manager')) {
       return UserRole.manager;
+    }
+    // Reception role → reception (front desk) view
+    if (user.hasRole('Receptionist')) {
+      return UserRole.reception;
     }
     // Specialist role → specialist view
     if (user.hasRole('Specialist') || user.hasPermission('patients.manage')) {
@@ -97,7 +106,8 @@ class _LoginScreenState extends State<LoginScreen> {
         widget.onRoleSelected(role);
       } else {
         setState(() {
-          _errorMessage = authService.error ??
+          _errorMessage =
+              authService.error ??
               (widget.currentLang == 'en'
                   ? 'Login failed. Please try again.'
                   : 'فشل تسجيل الدخول. حاول مرة أخرى.');
@@ -113,6 +123,31 @@ class _LoginScreenState extends State<LoginScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  /// Demo login — enters the app with the chosen role without a backend server.
+  /// Turns on demo mode so all API calls are served from local mock data, and
+  /// sets a local demo user so screens that read the current user work.
+  /// Useful for previewing/editing the UI while the API is unavailable.
+  void _handleDemoLogin(UserRole role) {
+    ApiConfig.demoMode = true;
+    context.authService.setDemoUser(
+      User(
+        id: 1,
+        name: role == UserRole.manager
+            ? 'مدير تجريبي'
+            : role == UserRole.specialist
+            ? 'أخصائي تجريبي'
+            : 'موظف تجريبي',
+        email: 'demo@salim.app',
+        phone: '+968 9123 4567',
+        employeeId: 1042,
+        roles: const ['Specialist'],
+        clinicName: 'مركز سالم للعلاج الطبيعي',
+        createdAt: DateTime(2023, 3, 1),
+      ),
+    );
+    widget.onRoleSelected(role);
   }
 
   @override
@@ -133,15 +168,19 @@ class _LoginScreenState extends State<LoginScreen> {
                 builder: (context, constraints) {
                   const logoSize = 60.0;
                   const spacing = 20.0;
-                  final cols = (constraints.maxWidth / (logoSize + spacing)).ceil() + 1;
-                  final rows = (constraints.maxHeight / (logoSize + spacing)).ceil() + 1;
+                  final cols =
+                      (constraints.maxWidth / (logoSize + spacing)).ceil() + 1;
+                  final rows =
+                      (constraints.maxHeight / (logoSize + spacing)).ceil() + 1;
                   return ClipRect(
                     child: Stack(
                       children: [
                         for (int r = 0; r < rows; r++)
                           for (int c = 0; c < cols; c++)
                             Positioned(
-                              left: c * (logoSize + spacing) + (r.isOdd ? (logoSize + spacing) / 2 : 0),
+                              left:
+                                  c * (logoSize + spacing) +
+                                  (r.isOdd ? (logoSize + spacing) / 2 : 0),
                               top: r * (logoSize + spacing),
                               child: Image.asset(
                                 'assets/logo/salimhr bg.png',
@@ -182,9 +221,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       SizedBox(height: ds.spacing.xs),
                       DSText(
-                        t('إدارة متكاملة للعيادات', 'Complete Clinic Management'),
+                        t(
+                          'إدارة متكاملة للعيادات',
+                          'Complete Clinic Management',
+                        ),
                         role: DSTextRole.caption,
-                        color: const Color(0xFFFFFFFF).withOpacity(0.7),
+                        color: const Color(0xFFFFFFFF).withValues(alpha: 0.7),
                       ),
                       SizedBox(height: ds.spacing.xl),
 
@@ -213,12 +255,20 @@ class _LoginScreenState extends State<LoginScreen> {
                             // Error Message
                             if (_errorMessage != null) ...[
                               Container(
-                                padding: EdgeInsetsDirectional.all(ds.spacing.sm),
+                                padding: EdgeInsetsDirectional.all(
+                                  ds.spacing.sm,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFEF4444).withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(ds.radii.medium),
+                                  color: const Color(
+                                    0xFFEF4444,
+                                  ).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(
+                                    ds.radii.medium,
+                                  ),
                                   border: Border.all(
-                                    color: const Color(0xFFEF4444).withOpacity(0.3),
+                                    color: const Color(
+                                      0xFFEF4444,
+                                    ).withValues(alpha: 0.3),
                                   ),
                                 ),
                                 child: Row(
@@ -285,11 +335,13 @@ class _LoginScreenState extends State<LoginScreen> {
                               colors: _isLoading
                                   ? [
                                       ds.colors.textMuted,
-                                      ds.colors.textMuted.withOpacity(0.7),
+                                      ds.colors.textMuted.withValues(
+                                        alpha: 0.7,
+                                      ),
                                     ]
                                   : [
                                       ds.colors.primary,
-                                      ds.colors.primary.withOpacity(0.8),
+                                      ds.colors.primary.withValues(alpha: 0.8),
                                     ],
                             ),
                             borderRadius: BorderRadius.circular(ds.radii.large),
@@ -297,7 +349,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ? null
                                 : [
                                     BoxShadow(
-                                      color: ds.colors.primary.withOpacity(0.3),
+                                      color: ds.colors.primary.withValues(
+                                        alpha: 0.3,
+                                      ),
                                       blurRadius: 8,
                                       offset: const Offset(0, 4),
                                     ),
@@ -331,6 +385,61 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       SizedBox(height: ds.spacing.lg),
 
+                      // ── Demo login (no server required) ──
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              height: 1,
+                              color: const Color(0x33FFFFFF),
+                            ),
+                          ),
+                          Padding(
+                            padding: EdgeInsetsDirectional.symmetric(
+                              horizontal: ds.spacing.sm,
+                            ),
+                            child: DSText(
+                              t('دخول تجريبي', 'Demo access'),
+                              role: DSTextRole.caption,
+                              color: const Color(0xB3FFFFFF),
+                            ),
+                          ),
+                          Expanded(
+                            child: Container(
+                              height: 1,
+                              color: const Color(0x33FFFFFF),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: ds.spacing.md),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _DemoRoleButton(
+                              label: t('أخصائي', 'Specialist'),
+                              onTap: () =>
+                                  _handleDemoLogin(UserRole.specialist),
+                            ),
+                          ),
+                          SizedBox(width: ds.spacing.sm),
+                          Expanded(
+                            child: _DemoRoleButton(
+                              label: t('مدير', 'Manager'),
+                              onTap: () => _handleDemoLogin(UserRole.manager),
+                            ),
+                          ),
+                          SizedBox(width: ds.spacing.sm),
+                          Expanded(
+                            child: _DemoRoleButton(
+                              label: t('موظف', 'Worker'),
+                              onTap: () => _handleDemoLogin(UserRole.worker),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: ds.spacing.lg),
+
                       // Footer
                       DSText(
                         t('© 2024 نظام العيادة', '© 2024 Clinic System'),
@@ -344,6 +453,37 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Demo role button used on the login screen to enter the app without a server.
+class _DemoRoleButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  const _DemoRoleButton({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsetsDirectional.symmetric(vertical: ds.spacing.md),
+        decoration: BoxDecoration(
+          color: const Color(0x1AFFFFFF),
+          borderRadius: BorderRadius.circular(ds.radii.large),
+          border: Border.all(color: const Color(0x33FFFFFF)),
+        ),
+        child: Center(
+          child: DSText(
+            label,
+            role: DSTextRole.label,
+            color: const Color(0xFFFFFFFF),
+          ),
+        ),
       ),
     );
   }
@@ -386,10 +526,7 @@ class _LoadingIndicatorState extends State<_LoadingIndicator>
           child: Container(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(
-                color: const Color(0xFFFFFFFF),
-                width: 2,
-              ),
+              border: Border.all(color: const Color(0xFFFFFFFF), width: 2),
             ),
             child: Container(
               margin: const EdgeInsets.all(2),
@@ -435,11 +572,7 @@ class _FunctionalInput extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        DSText(
-          label,
-          role: DSTextRole.label,
-          color: ds.colors.textSecondary,
-        ),
+        DSText(label, role: DSTextRole.label, color: ds.colors.textSecondary),
         SizedBox(height: ds.spacing.xs),
         Container(
           decoration: BoxDecoration(
@@ -448,17 +581,14 @@ class _FunctionalInput extends StatelessWidget {
               end: AlignmentDirectional.bottomEnd,
               colors: [
                 ds.colors.surfaceAlt,
-                ds.colors.surfaceAlt.withOpacity(0.8),
+                ds.colors.surfaceAlt.withValues(alpha: 0.8),
               ],
             ),
             borderRadius: BorderRadius.circular(ds.radii.large),
-            border: Border.all(
-              color: ds.colors.border,
-              width: 1.5,
-            ),
+            border: Border.all(color: ds.colors.border, width: 1.5),
             boxShadow: [
               BoxShadow(
-                color: ds.colors.primary.withOpacity(0.05),
+                color: ds.colors.primary.withValues(alpha: 0.05),
                 blurRadius: 4,
                 offset: const Offset(0, 2),
               ),
@@ -472,7 +602,7 @@ class _FunctionalInput extends StatelessWidget {
             children: [
               DSLineIcon(
                 type: icon,
-                color: ds.colors.primary.withOpacity(0.6),
+                color: ds.colors.primary.withValues(alpha: 0.6),
                 size: ds.spacing.md,
               ),
               SizedBox(width: ds.spacing.sm),
@@ -481,7 +611,9 @@ class _FunctionalInput extends StatelessWidget {
                   controller: controller,
                   focusNode: FocusNode(),
                   style: ds.typography.body.copyWith(
-                    color: enabled ? ds.colors.textPrimary : ds.colors.textMuted,
+                    color: enabled
+                        ? ds.colors.textPrimary
+                        : ds.colors.textMuted,
                   ),
                   cursorColor: ds.colors.primary,
                   backgroundCursorColor: ds.colors.textMuted,
@@ -501,15 +633,21 @@ class _FunctionalInput extends StatelessWidget {
 
 class NotificationsScreen extends StatefulWidget {
   final VoidCallback onBack;
+  final UserRole role;
 
-  const NotificationsScreen({super.key, required this.onBack});
+  const NotificationsScreen({
+    super.key,
+    required this.onBack,
+    required this.role,
+  });
 
   @override
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  String _selectedFilter = 'all'; // all, unread, leave_request, payroll_pending, etc.
+  String _selectedFilter =
+      'all'; // all, unread, leave_request, payroll_pending, etc.
 
   @override
   void initState() {
@@ -601,7 +739,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         ),
                         SizedBox(width: ds.spacing.sm),
                         GestureDetector(
-                          onTap: () => setState(() => _selectedFilter = 'unread'),
+                          onTap: () =>
+                              setState(() => _selectedFilter = 'unread'),
                           child: _NotificationFilterChip(
                             label: t('غير مقروء', 'Unread'),
                             isSelected: _selectedFilter == 'unread',
@@ -610,7 +749,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         ),
                         SizedBox(width: ds.spacing.sm),
                         GestureDetector(
-                          onTap: () => setState(() => _selectedFilter = 'leave_request'),
+                          onTap: () =>
+                              setState(() => _selectedFilter = 'leave_request'),
                           child: _NotificationFilterChip(
                             label: t('إجازات', 'Leaves'),
                             isSelected: _selectedFilter == 'leave_request',
@@ -619,7 +759,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         ),
                         SizedBox(width: ds.spacing.sm),
                         GestureDetector(
-                          onTap: () => setState(() => _selectedFilter = 'payroll_pending'),
+                          onTap: () => setState(
+                            () => _selectedFilter = 'payroll_pending',
+                          ),
                           child: _NotificationFilterChip(
                             label: t('رواتب', 'Payroll'),
                             isSelected: _selectedFilter == 'payroll_pending',
@@ -627,14 +769,28 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           ),
                         ),
                         SizedBox(width: ds.spacing.sm),
-                        GestureDetector(
-                          onTap: () => setState(() => _selectedFilter = 'inventory_low'),
-                          child: _NotificationFilterChip(
-                            label: t('مخزون', 'Inventory'),
-                            isSelected: _selectedFilter == 'inventory_low',
-                            color: const Color(0xFF10B981),
+                        // Specialists see "Bonuses"; other roles see "Inventory".
+                        if (widget.role == UserRole.specialist)
+                          GestureDetector(
+                            onTap: () =>
+                                setState(() => _selectedFilter = 'bonus'),
+                            child: _NotificationFilterChip(
+                              label: t('مكافآت', 'Bonuses'),
+                              isSelected: _selectedFilter == 'bonus',
+                              color: const Color(0xFF10B981),
+                            ),
+                          )
+                        else
+                          GestureDetector(
+                            onTap: () => setState(
+                              () => _selectedFilter = 'inventory_low',
+                            ),
+                            child: _NotificationFilterChip(
+                              label: t('مخزون', 'Inventory'),
+                              isSelected: _selectedFilter == 'inventory_low',
+                              color: const Color(0xFF10B981),
+                            ),
                           ),
-                        ),
                       ],
                     ),
                   ),
@@ -646,10 +802,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       padding: EdgeInsetsDirectional.all(ds.spacing.sm),
                       margin: EdgeInsetsDirectional.only(bottom: ds.spacing.md),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEF4444).withOpacity(0.1),
+                        color: const Color(0xFFEF4444).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(ds.radii.medium),
                         border: Border.all(
-                          color: const Color(0xFFEF4444).withOpacity(0.3),
+                          color: const Color(0xFFEF4444).withValues(alpha: 0.3),
                         ),
                       ),
                       child: Row(
@@ -687,60 +843,70 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     child: isLoading && allNotifications.isEmpty
                         ? const ShimmerLoading()
                         : filteredNotifications.isEmpty
-                            ? Center(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    DSLineIcon(
-                                      type: LineIconType.bell,
-                                      color: ds.colors.textMuted,
-                                      size: ds.spacing.xl * 2,
-                                    ),
-                                    SizedBox(height: ds.spacing.md),
-                                    DSText(
-                                      t('لا توجد إشعارات', 'No notifications'),
-                                      role: DSTextRole.title,
-                                      color: ds.colors.textSecondary,
-                                    ),
-                                  ],
+                        ? Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                DSLineIcon(
+                                  type: LineIconType.bell,
+                                  color: ds.colors.textMuted,
+                                  size: ds.spacing.xl * 2,
                                 ),
-                              )
-                            : ListView.separated(
-                                  itemCount: filteredNotifications.length,
-                                  separatorBuilder: (context, index) =>
-                                      SizedBox(height: ds.spacing.sm),
-                                  itemBuilder: (context, index) {
-                                    final notification = filteredNotifications[index];
-                                    return GestureDetector(
-                                      onTap: () async {
-                                        if (!notification.isRead) {
-                                          await notificationsService.markAsRead(notification.id);
-                                        }
-                                      },
-                                      child: Dismissible(
-                                        key: Key('notification_${notification.id}'),
-                                        direction: DismissDirection.endToStart,
-                                        background: Container(
-                                          alignment: AlignmentDirectional.centerEnd,
-                                          padding: EdgeInsetsDirectional.only(end: ds.spacing.lg),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFEF4444),
-                                            borderRadius: BorderRadius.circular(ds.radii.large),
-                                          ),
-                                          child: DSLineIcon(
-                                            type: LineIconType.home,
-                                            color: const Color(0xFFFFFFFF),
-                                            size: ds.spacing.lg,
-                                          ),
-                                        ),
-                                        onDismissed: (_) {
-                                          notificationsService.deleteNotification(notification.id);
-                                        },
-                                        child: _ApiNotificationCard(notification: notification),
+                                SizedBox(height: ds.spacing.md),
+                                DSText(
+                                  t('لا توجد إشعارات', 'No notifications'),
+                                  role: DSTextRole.title,
+                                  color: ds.colors.textSecondary,
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.separated(
+                            itemCount: filteredNotifications.length,
+                            separatorBuilder: (context, index) =>
+                                SizedBox(height: ds.spacing.sm),
+                            itemBuilder: (context, index) {
+                              final notification = filteredNotifications[index];
+                              return GestureDetector(
+                                onTap: () async {
+                                  if (!notification.isRead) {
+                                    await notificationsService.markAsRead(
+                                      notification.id,
+                                    );
+                                  }
+                                },
+                                child: Dismissible(
+                                  key: Key('notification_${notification.id}'),
+                                  direction: DismissDirection.endToStart,
+                                  background: Container(
+                                    alignment: AlignmentDirectional.centerEnd,
+                                    padding: EdgeInsetsDirectional.only(
+                                      end: ds.spacing.lg,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFEF4444),
+                                      borderRadius: BorderRadius.circular(
+                                        ds.radii.large,
                                       ),
+                                    ),
+                                    child: DSLineIcon(
+                                      type: LineIconType.home,
+                                      color: const Color(0xFFFFFFFF),
+                                      size: ds.spacing.lg,
+                                    ),
+                                  ),
+                                  onDismissed: (_) {
+                                    notificationsService.deleteNotification(
+                                      notification.id,
                                     );
                                   },
+                                  child: _ApiNotificationCard(
+                                    notification: notification,
+                                  ),
                                 ),
+                              );
+                            },
+                          ),
                   ),
                 ],
               ),
@@ -751,18 +917,32 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  List<AppNotification> _filterNotifications(List<AppNotification> notifications) {
+  List<AppNotification> _filterNotifications(
+    List<AppNotification> notifications,
+  ) {
     switch (_selectedFilter) {
       case 'unread':
         return notifications.where((n) => !n.isRead).toList();
       case 'leave_request':
-        return notifications.where((n) => n.type == NotificationType.leaveRequest).toList();
+        return notifications
+            .where((n) => n.type == NotificationType.leaveRequest)
+            .toList();
       case 'payroll_pending':
-        return notifications.where((n) => n.type == NotificationType.payrollPending).toList();
+        return notifications
+            .where((n) => n.type == NotificationType.payrollPending)
+            .toList();
       case 'inventory_low':
-        return notifications.where((n) => n.type == NotificationType.inventoryLow).toList();
+        return notifications
+            .where((n) => n.type == NotificationType.inventoryLow)
+            .toList();
+      case 'bonus':
+        return notifications
+            .where((n) => n.type == NotificationType.bonus)
+            .toList();
       case 'medical_excuse':
-        return notifications.where((n) => n.type == NotificationType.medicalExcuse).toList();
+        return notifications
+            .where((n) => n.type == NotificationType.medicalExcuse)
+            .toList();
       default:
         return notifications;
     }
@@ -787,17 +967,17 @@ class _ApiNotificationCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: notification.isRead
             ? ds.colors.surface
-            : color.withOpacity(0.05),
+            : color.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(ds.radii.large),
         border: Border.all(
           color: notification.isRead
               ? ds.colors.border
-              : color.withOpacity(0.2),
+              : color.withValues(alpha: 0.2),
         ),
         boxShadow: !notification.isRead
             ? [
                 BoxShadow(
-                  color: color.withOpacity(0.08),
+                  color: color.withValues(alpha: 0.08),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -815,15 +995,12 @@ class _ApiNotificationCard extends StatelessWidget {
               gradient: LinearGradient(
                 begin: AlignmentDirectional.topStart,
                 end: AlignmentDirectional.bottomEnd,
-                colors: [
-                  color,
-                  color.withOpacity(0.7),
-                ],
+                colors: [color, color.withValues(alpha: 0.7)],
               ),
               borderRadius: BorderRadius.circular(ds.radii.medium),
               boxShadow: [
                 BoxShadow(
-                  color: color.withOpacity(0.3),
+                  color: color.withValues(alpha: 0.3),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
@@ -846,10 +1023,7 @@ class _ApiNotificationCard extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: DSText(
-                        notification.title,
-                        role: DSTextRole.title,
-                      ),
+                      child: DSText(notification.title, role: DSTextRole.title),
                     ),
                     if (!notification.isRead)
                       Container(
@@ -870,6 +1044,20 @@ class _ApiNotificationCard extends StatelessWidget {
                     color: ds.colors.textSecondary,
                   ),
                 ],
+                if (notification.imageUrl != null &&
+                    notification.imageUrl!.isNotEmpty) ...[
+                  SizedBox(height: ds.spacing.sm),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(ds.radii.medium),
+                    child: Image.network(
+                      notification.imageUrl!,
+                      width: double.infinity,
+                      height: 160,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                    ),
+                  ),
+                ],
                 SizedBox(height: ds.spacing.xs),
                 Row(
                   children: [
@@ -879,7 +1067,7 @@ class _ApiNotificationCard extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: color.withOpacity(0.1),
+                        color: color.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(ds.radii.small),
                       ),
                       child: DSText(
@@ -914,6 +1102,8 @@ class _ApiNotificationCard extends StatelessWidget {
         return const Color(0xFFEF4444); // Red
       case NotificationType.inventoryLow:
         return const Color(0xFFF59E0B); // Amber
+      case NotificationType.bonus:
+        return const Color(0xFF10B981); // Emerald
       case NotificationType.general:
         return const Color(0xFF10B981); // Emerald
     }
@@ -929,12 +1119,17 @@ class _ApiNotificationCard extends StatelessWidget {
         return LineIconType.bookmark;
       case NotificationType.inventoryLow:
         return LineIconType.chart;
+      case NotificationType.bonus:
+        return LineIconType.heart;
       case NotificationType.general:
         return LineIconType.bell;
     }
   }
 
-  String _getTypeLabel(NotificationType type, String Function(String, String) t) {
+  String _getTypeLabel(
+    NotificationType type,
+    String Function(String, String) t,
+  ) {
     switch (type) {
       case NotificationType.leaveRequest:
         return t('إجازة', 'Leave');
@@ -944,6 +1139,8 @@ class _ApiNotificationCard extends StatelessWidget {
         return t('رواتب', 'Payroll');
       case NotificationType.inventoryLow:
         return t('مخزون', 'Inventory');
+      case NotificationType.bonus:
+        return t('مكافآت', 'Bonuses');
       case NotificationType.general:
         return t('عام', 'General');
     }
@@ -988,10 +1185,10 @@ class _NotificationHeader extends StatelessWidget {
       decoration: BoxDecoration(
         color: ds.colors.surface,
         borderRadius: BorderRadius.circular(ds.radii.xLarge),
-        border: Border.all(color: ds.colors.border.withOpacity(0.5)),
+        border: Border.all(color: ds.colors.border.withValues(alpha: 0.5)),
         boxShadow: [
           BoxShadow(
-            color: ds.colors.primary.withOpacity(0.08),
+            color: ds.colors.primary.withValues(alpha: 0.08),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -1005,7 +1202,7 @@ class _NotificationHeader extends StatelessWidget {
               width: ds.spacing.xl,
               height: ds.spacing.xl,
               decoration: BoxDecoration(
-                color: ds.colors.primary.withOpacity(0.1),
+                color: ds.colors.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(ds.radii.medium),
               ),
               child: Center(
@@ -1029,7 +1226,10 @@ class _NotificationHeader extends StatelessWidget {
                 SizedBox(height: ds.spacing.xs / 2),
                 DSText(
                   unreadCount > 0
-                      ? t('$unreadCount إشعارات جديدة', '$unreadCount new notifications')
+                      ? t(
+                          '$unreadCount إشعارات جديدة',
+                          '$unreadCount new notifications',
+                        )
                       : t('لا توجد إشعارات جديدة', 'No new notifications'),
                   role: DSTextRole.caption,
                   color: ds.colors.textSecondary,
@@ -1046,10 +1246,10 @@ class _NotificationHeader extends StatelessWidget {
                   vertical: ds.spacing.xs,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withOpacity(0.1),
+                  color: const Color(0xFF10B981).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(ds.radii.pill),
                   border: Border.all(
-                    color: const Color(0xFF10B981).withOpacity(0.2),
+                    color: const Color(0xFF10B981).withValues(alpha: 0.2),
                   ),
                 ),
                 child: DSText(
@@ -1082,17 +1282,13 @@ class _NotificationStatCard extends StatelessWidget {
     return Container(
       padding: EdgeInsetsDirectional.all(ds.spacing.md),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(ds.radii.large),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
-          DSText(
-            value,
-            role: DSTextRole.headline,
-            color: color,
-          ),
+          DSText(value, role: DSTextRole.headline, color: color),
           SizedBox(height: ds.spacing.xs / 2),
           DSText(
             title,
@@ -1126,11 +1322,11 @@ class _NotificationFilterChip extends StatelessWidget {
         vertical: ds.spacing.xs,
       ),
       decoration: BoxDecoration(
-        color: isSelected ? chipColor.withOpacity(0.15) : ds.colors.surface,
+        color: isSelected
+            ? chipColor.withValues(alpha: 0.15)
+            : ds.colors.surface,
         borderRadius: BorderRadius.circular(ds.radii.pill),
-        border: Border.all(
-          color: isSelected ? chipColor : ds.colors.border,
-        ),
+        border: Border.all(color: isSelected ? chipColor : ds.colors.border),
       ),
       child: DSText(
         label,
@@ -1169,15 +1365,12 @@ class MoreScreen extends StatelessWidget {
                   gradient: LinearGradient(
                     begin: AlignmentDirectional.topStart,
                     end: AlignmentDirectional.bottomEnd,
-                    colors: [
-                      roleColor,
-                      roleColor.withOpacity(0.7),
-                    ],
+                    colors: [roleColor, roleColor.withValues(alpha: 0.7)],
                   ),
                   borderRadius: BorderRadius.circular(ds.radii.xLarge),
                   boxShadow: [
                     BoxShadow(
-                      color: roleColor.withOpacity(0.3),
+                      color: roleColor.withValues(alpha: 0.3),
                       blurRadius: 12,
                       offset: const Offset(0, 6),
                     ),
@@ -1185,25 +1378,15 @@ class MoreScreen extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    // Avatar
-                    Container(
-                      width: ds.spacing.xl * 2,
-                      height: ds.spacing.xl * 2,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFFFFF).withOpacity(0.2),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: const Color(0xFFFFFFFF).withOpacity(0.3),
-                          width: 2,
-                        ),
-                      ),
-                      child: Center(
-                        child: DSLineIcon(
-                          type: LineIconType.bookmark,
-                          color: const Color(0xFFFFFFFF),
-                          size: ds.spacing.xl,
-                        ),
-                      ),
+                    // Avatar (picked image, remote URL, or initials fallback)
+                    ProfileAvatar(
+                      size: ds.spacing.xl * 2,
+                      bytes: context.authService.avatarBytes,
+                      avatarUrl: user?.avatarUrl,
+                      initials: _initials(userName),
+                      background: const Color(0xFFFFFFFF).withValues(alpha: 0.22),
+                      foreground: const Color(0xFFFFFFFF),
+                      borderColor: const Color(0xFFFFFFFF).withValues(alpha: 0.4),
                     ),
                     SizedBox(width: ds.spacing.md),
                     Expanded(
@@ -1215,30 +1398,36 @@ class MoreScreen extends StatelessWidget {
                             role: DSTextRole.headline,
                             color: const Color(0xFFFFFFFF),
                           ),
-                          SizedBox(height: ds.spacing.xs / 2),
-                          Container(
-                            padding: EdgeInsetsDirectional.symmetric(
-                              horizontal: ds.spacing.sm,
-                              vertical: ds.spacing.xs / 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFFFFF).withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(ds.radii.pill),
-                            ),
-                            child: DSText(
-                              _roleName(role, isEn: app.locale.languageCode == 'en'),
-                              role: DSTextRole.caption,
-                              color: const Color(0xFFFFFFFF),
-                            ),
-                          ),
                           SizedBox(height: ds.spacing.xs),
-                          DSText(
-                            user?.createdAt != null
-                                ? t('نشط منذ ${user!.createdAt!.year}', 'Active since ${user.createdAt!.year}')
-                                : (user?.email ?? ''),
-                            role: DSTextRole.caption,
-                            color: const Color(0xFFFFFFFF).withOpacity(0.8),
+                          Wrap(
+                            spacing: ds.spacing.xs,
+                            runSpacing: ds.spacing.xs,
+                            children: [
+                              _HeaderPill(
+                                label: _roleName(
+                                  role,
+                                  isEn: app.locale.languageCode == 'en',
+                                ),
+                              ),
+                              if (user?.employeeId != null)
+                                _HeaderPill(
+                                  label: t(
+                                    'رقم الموظف ${user!.employeeId}',
+                                    'ID ${user.employeeId}',
+                                  ),
+                                ),
+                            ],
                           ),
+                          if (user?.clinicName != null) ...[
+                            SizedBox(height: ds.spacing.xs),
+                            DSText(
+                              user!.clinicName!,
+                              role: DSTextRole.caption,
+                              color: const Color(
+                                0xFFFFFFFF,
+                              ).withValues(alpha: 0.85),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -1247,12 +1436,37 @@ class MoreScreen extends StatelessWidget {
               ),
               SizedBox(height: ds.spacing.lg),
 
-              // Email Card
-              _ProfileStatCard(
-                title: t('البريد', 'Email'),
-                value: user?.email ?? '-',
-                icon: LineIconType.chat,
-                color: const Color(0xFF10B981),
+              // Account info
+              SectionHeader(title: t('بيانات الحساب', 'Account Information')),
+              _AccountInfoCard(
+                rows: [
+                  _AccountInfo(
+                    icon: LineIconType.chat,
+                    label: t('البريد الإلكتروني', 'Email'),
+                    value: user?.email ?? '-',
+                    color: const Color(0xFF10B981),
+                  ),
+                  _AccountInfo(
+                    icon: LineIconType.bell,
+                    label: t('رقم الجوال', 'Phone'),
+                    value: user?.phone ?? t('غير مضاف', 'Not set'),
+                    color: const Color(0xFF3B82F6),
+                  ),
+                  _AccountInfo(
+                    icon: LineIconType.bookmark,
+                    label: t('رقم الموظف', 'Employee ID'),
+                    value: user?.employeeId != null ? '${user!.employeeId}' : '-',
+                    color: const Color(0xFF8B5CF6),
+                  ),
+                  _AccountInfo(
+                    icon: LineIconType.calendar,
+                    label: t('عضو منذ', 'Member since'),
+                    value: user?.createdAt != null
+                        ? '${user!.createdAt!.year}'
+                        : '-',
+                    color: const Color(0xFFF59E0B),
+                  ),
+                ],
               ),
               SizedBox(height: ds.spacing.lg),
 
@@ -1264,6 +1478,14 @@ class MoreScreen extends StatelessWidget {
                 icon: LineIconType.bookmark,
                 color: const Color(0xFF6366F1),
                 onTap: () => app.showProfileSub(ProfileSubScreen.editProfile),
+              ),
+              SizedBox(height: ds.spacing.sm),
+              _ProfileMenuItem(
+                title: t('مستنداتي', 'My Documents'),
+                subtitle: t('البطاقات والشهادات', 'Cards & certificates'),
+                icon: LineIconType.chart,
+                color: const Color(0xFF06B6D4),
+                onTap: () => app.showProfileSub(ProfileSubScreen.documents),
               ),
               SizedBox(height: ds.spacing.sm),
               _ProfileMenuItem(
@@ -1284,7 +1506,8 @@ class MoreScreen extends StatelessWidget {
                 subtitle: t('تغيير كلمة المرور', 'Change password'),
                 icon: LineIconType.home,
                 color: const Color(0xFF14B8A6),
-                onTap: () => app.showProfileSub(ProfileSubScreen.changePassword),
+                onTap: () =>
+                    app.showProfileSub(ProfileSubScreen.changePassword),
               ),
               SizedBox(height: ds.spacing.lg),
 
@@ -1292,7 +1515,10 @@ class MoreScreen extends StatelessWidget {
               SectionHeader(title: t('الدعم', 'Support')),
               _ProfileMenuItem(
                 title: t('حول التطبيق', 'About App'),
-                subtitle: t('الإصدار والشروط والخصوصية', 'Version, terms & privacy'),
+                subtitle: t(
+                  'الإصدار والشروط والخصوصية',
+                  'Version, terms & privacy',
+                ),
                 icon: LineIconType.heart,
                 color: const Color(0xFF6366F1),
                 onTap: () => app.showProfileSub(ProfileSubScreen.about),
@@ -1311,10 +1537,10 @@ class MoreScreen extends StatelessWidget {
                 child: Container(
                   padding: EdgeInsetsDirectional.all(ds.spacing.md),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEF4444).withOpacity(0.1),
+                    color: const Color(0xFFEF4444).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(ds.radii.large),
                     border: Border.all(
-                      color: const Color(0xFFEF4444).withOpacity(0.3),
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.3),
                     ),
                   ),
                   child: Row(
@@ -1351,6 +1577,8 @@ class MoreScreen extends StatelessWidget {
         return const Color(0xFF10B981); // Emerald
       case UserRole.specialist:
         return const Color(0xFFF59E0B); // Amber
+      case UserRole.reception:
+        return const Color(0xFF06B6D4); // Cyan
       default:
         return const Color(0xFF6366F1);
     }
@@ -1364,82 +1592,194 @@ class MoreScreen extends StatelessWidget {
         return isEn ? 'Worker' : 'موظف';
       case UserRole.specialist:
         return isEn ? 'Specialist' : 'أخصائي';
+      case UserRole.reception:
+        return isEn ? 'Reception' : 'استقبال';
       default:
         return isEn ? 'Unset' : 'غير محدد';
     }
   }
+
+  /// Up to two initials from the user's name for the avatar.
+  String _initials(String value) {
+    final parts = value.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
+    if (parts.isEmpty) return '؟';
+    if (parts.length == 1) return parts.first.characters.first;
+    return parts.first.characters.first + parts.elementAt(1).characters.first;
+  }
 }
 
-class _ProfileStatCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final LineIconType icon;
-  final Color color;
+/// Circular profile avatar. Prefers a locally-picked image, then a remote
+/// [avatarUrl]; falls back to the user's initials on a colored circle.
+class ProfileAvatar extends StatelessWidget {
+  final double size;
+  final Uint8List? bytes;
+  final String? avatarUrl;
+  final String initials;
+  final Color background;
+  final Color foreground;
+  final Color? borderColor;
 
-  const _ProfileStatCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
+  const ProfileAvatar({
+    super.key,
+    required this.size,
+    required this.initials,
+    this.bytes,
+    this.avatarUrl,
+    required this.background,
+    required this.foreground,
+    this.borderColor,
   });
+
+  @override
+  Widget build(BuildContext context) {
+    Widget content;
+    if (bytes != null) {
+      content = Image.memory(bytes!, width: size, height: size, fit: BoxFit.cover);
+    } else if (avatarUrl != null && avatarUrl!.isNotEmpty) {
+      content = Image.network(
+        avatarUrl!,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => _initialsView(),
+      );
+    } else {
+      content = _initialsView();
+    }
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: borderColor != null
+            ? Border.all(color: borderColor!, width: 2)
+            : null,
+      ),
+      child: ClipOval(child: content),
+    );
+  }
+
+  Widget _initialsView() {
+    return Container(
+      color: background,
+      alignment: Alignment.center,
+      child: DSText(initials, role: DSTextRole.display, color: foreground),
+    );
+  }
+}
+
+/// Small translucent pill used in the profile header for role / ID chips.
+class _HeaderPill extends StatelessWidget {
+  final String label;
+
+  const _HeaderPill({required this.label});
 
   @override
   Widget build(BuildContext context) {
     final ds = DSProvider.of(context);
     return Container(
-      padding: EdgeInsetsDirectional.all(ds.spacing.md),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(ds.radii.large),
-        border: Border.all(color: color.withOpacity(0.2)),
+      padding: EdgeInsetsDirectional.symmetric(
+        horizontal: ds.spacing.sm,
+        vertical: ds.spacing.xs / 2,
       ),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFFFF).withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(ds.radii.pill),
+      ),
+      child: DSText(
+        label,
+        role: DSTextRole.caption,
+        color: const Color(0xFFFFFFFF),
+      ),
+    );
+  }
+}
+
+/// One labelled row inside the account-information card.
+class _AccountInfo {
+  final LineIconType icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  const _AccountInfo({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+}
+
+/// Professional account-information card: a list of icon + label + value rows.
+class _AccountInfoCard extends StatelessWidget {
+  final List<_AccountInfo> rows;
+
+  const _AccountInfoCard({required this.rows});
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    return DSCard(
+      padding: EdgeInsetsDirectional.all(ds.spacing.md),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
+          for (var i = 0; i < rows.length; i++) ...[
+            if (i > 0)
               Container(
-                padding: EdgeInsetsDirectional.all(ds.spacing.xs),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(ds.radii.medium),
+                height: 1,
+                margin: EdgeInsetsDirectional.symmetric(
+                  vertical: ds.spacing.sm,
                 ),
-                child: DSLineIcon(
-                  type: icon,
-                  color: color,
-                  size: ds.spacing.md,
-                ),
+                color: ds.colors.border.withValues(alpha: 0.5),
               ),
-              Flexible(
-                child: DSText(
-                  value,
-                  role: DSTextRole.headline,
-                  color: color,
+            Row(
+              children: [
+                Container(
+                  width: ds.spacing.xl,
+                  height: ds.spacing.xl,
+                  decoration: BoxDecoration(
+                    color: rows[i].color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(ds.radii.medium),
+                  ),
+                  child: Center(
+                    child: DSLineIcon(
+                      type: rows[i].icon,
+                      color: rows[i].color,
+                      size: ds.spacing.md,
+                    ),
+                  ),
                 ),
-              ),
-            ],
-          ),
-          SizedBox(height: ds.spacing.sm),
-          DSText(
-            title,
-            role: DSTextRole.caption,
-            color: ds.colors.textSecondary,
-          ),
+                SizedBox(width: ds.spacing.md),
+                Expanded(
+                  child: DSText(
+                    rows[i].label,
+                    role: DSTextRole.caption,
+                    color: ds.colors.textSecondary,
+                  ),
+                ),
+                Flexible(
+                  child: DSText(
+                    rows[i].value,
+                    role: DSTextRole.label,
+                    color: ds.colors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
+
 class _LanguageSwitchCard extends StatelessWidget {
   final bool isArabic;
   final ValueChanged<String> onSwitch;
 
-  const _LanguageSwitchCard({
-    required this.isArabic,
-    required this.onSwitch,
-  });
+  const _LanguageSwitchCard({required this.isArabic, required this.onSwitch});
 
   @override
   Widget build(BuildContext context) {
@@ -1459,7 +1799,7 @@ class _LanguageSwitchCard extends StatelessWidget {
             width: ds.spacing.xl,
             height: ds.spacing.xl,
             decoration: BoxDecoration(
-              color: const Color(0xFF8B5CF6).withOpacity(0.12),
+              color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(ds.radii.medium),
             ),
             child: Center(
@@ -1475,10 +1815,7 @@ class _LanguageSwitchCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                DSText(
-                  t('اللغة', 'Language'),
-                  role: DSTextRole.title,
-                ),
+                DSText(t('اللغة', 'Language'), role: DSTextRole.title),
                 SizedBox(height: ds.spacing.xs / 2),
                 DSText(
                   t('اختر لغة التطبيق', 'Choose app language'),
@@ -1508,14 +1845,16 @@ class _LanguageSwitchCard extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: isArabic
-                          ? ds.colors.primary.withOpacity(0.12)
-                          : ds.colors.surface.withOpacity(0),
+                          ? ds.colors.primary.withValues(alpha: 0.12)
+                          : ds.colors.surface.withValues(alpha: 0),
                       borderRadius: BorderRadius.circular(ds.radii.pill),
                     ),
                     child: DSText(
                       'عربي',
                       role: DSTextRole.label,
-                      color: isArabic ? ds.colors.primary : ds.colors.textSecondary,
+                      color: isArabic
+                          ? ds.colors.primary
+                          : ds.colors.textSecondary,
                     ),
                   ),
                 ),
@@ -1529,14 +1868,16 @@ class _LanguageSwitchCard extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: !isArabic
-                          ? ds.colors.primary.withOpacity(0.12)
-                          : ds.colors.surface.withOpacity(0),
+                          ? ds.colors.primary.withValues(alpha: 0.12)
+                          : ds.colors.surface.withValues(alpha: 0),
                       borderRadius: BorderRadius.circular(ds.radii.pill),
                     ),
                     child: DSText(
                       'EN',
                       role: DSTextRole.label,
-                      color: !isArabic ? ds.colors.primary : ds.colors.textSecondary,
+                      color: !isArabic
+                          ? ds.colors.primary
+                          : ds.colors.textSecondary,
                     ),
                   ),
                 ),
@@ -1582,7 +1923,7 @@ class _ProfileMenuItem extends StatelessWidget {
               width: ds.spacing.xl,
               height: ds.spacing.xl,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
+                color: color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(ds.radii.medium),
               ),
               child: Center(
@@ -1598,10 +1939,7 @@ class _ProfileMenuItem extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  DSText(
-                    title,
-                    role: DSTextRole.title,
-                  ),
+                  DSText(title, role: DSTextRole.title),
                   SizedBox(height: ds.spacing.xs / 2),
                   DSText(
                     subtitle,
@@ -1655,10 +1993,12 @@ class _SubScreenShell extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: ds.colors.surface,
                   borderRadius: BorderRadius.circular(ds.radii.xLarge),
-                  border: Border.all(color: ds.colors.border.withOpacity(0.5)),
+                  border: Border.all(
+                    color: ds.colors.border.withValues(alpha: 0.5),
+                  ),
                   boxShadow: [
                     BoxShadow(
-                      color: ds.colors.primary.withOpacity(0.08),
+                      color: ds.colors.primary.withValues(alpha: 0.08),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
@@ -1672,7 +2012,7 @@ class _SubScreenShell extends StatelessWidget {
                         width: ds.spacing.xl,
                         height: ds.spacing.xl,
                         decoration: BoxDecoration(
-                          color: ds.colors.primary.withOpacity(0.1),
+                          color: ds.colors.primary.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(ds.radii.medium),
                         ),
                         child: Center(
@@ -1723,6 +2063,8 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   late final TextEditingController _nameController;
+  final ImagePicker _picker = ImagePicker();
+  Uint8List? _avatarBytes;
   String? _message;
   bool _isSuccess = false;
 
@@ -1731,6 +2073,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.initState();
     final user = context.authService.currentUser;
     _nameController = TextEditingController(text: user?.name ?? '');
+    _avatarBytes = context.authService.avatarBytes;
   }
 
   @override
@@ -1739,15 +2082,58 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.dispose();
   }
 
+  String _avatarInitials(String value) {
+    final parts = value.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
+    if (parts.isEmpty) return '؟';
+    if (parts.length == 1) return parts.first.characters.first;
+    return parts.first.characters.first + parts.elementAt(1).characters.first;
+  }
+
+  Future<void> _pickAvatar() async {
+    try {
+      final file = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 85,
+      );
+      if (file == null) return;
+      final bytes = await file.readAsBytes();
+      if (!mounted) return;
+      setState(() => _avatarBytes = bytes);
+      final auth = context.authService;
+      auth.setAvatarBytes(bytes);
+      // Upload to the server in the background; the local preview shows meanwhile.
+      auth.uploadAvatar(bytes, filename: file.name);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isSuccess = false;
+        _message = tr(
+          context,
+          ar: 'تعذّر اختيار الصورة',
+          en: 'Could not pick image',
+        );
+      });
+    }
+  }
+
   Future<void> _save() async {
     final authService = context.authService;
-    final success = await authService.updateProfile(name: _nameController.text.trim());
+    final success = await authService.updateProfile(
+      name: _nameController.text.trim(),
+    );
     if (!mounted) return;
     setState(() {
       _isSuccess = success;
       _message = success
-          ? tr(context, ar: 'تم تحديث الملف الشخصي', en: 'Profile updated successfully')
-          : (authService.error ?? tr(context, ar: 'فشل التحديث', en: 'Update failed'));
+          ? tr(
+              context,
+              ar: 'تم تحديث الملف الشخصي',
+              en: 'Profile updated successfully',
+            )
+          : (authService.error ??
+                tr(context, ar: 'فشل التحديث', en: 'Update failed'));
     });
   }
 
@@ -1768,6 +2154,71 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Avatar picker
+                Center(
+                  child: GestureDetector(
+                    onTap: _pickAvatar,
+                    behavior: HitTestBehavior.opaque,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        ProfileAvatar(
+                          size: ds.spacing.xxxl * 2,
+                          bytes: _avatarBytes,
+                          avatarUrl: user?.avatarUrl,
+                          initials: _avatarInitials(
+                            _nameController.text.trim().isNotEmpty
+                                ? _nameController.text
+                                : (user?.name ?? ''),
+                          ),
+                          background: ds.colors.primary,
+                          foreground: const Color(0xFFFFFFFF),
+                        ),
+                        // Camera badge
+                        PositionedDirectional(
+                          bottom: 0,
+                          end: 0,
+                          child: Container(
+                            padding: EdgeInsetsDirectional.all(ds.spacing.xs),
+                            decoration: BoxDecoration(
+                              color: ds.colors.primary,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: ds.colors.background,
+                                width: 2,
+                              ),
+                            ),
+                            child: SizedBox(
+                              width: ds.spacing.md,
+                              height: ds.spacing.md,
+                              child: Center(
+                                child: DSText(
+                                  '+',
+                                  role: DSTextRole.title,
+                                  color: const Color(0xFFFFFFFF),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                SizedBox(height: ds.spacing.sm),
+                Center(
+                  child: GestureDetector(
+                    onTap: _pickAvatar,
+                    child: DSText(
+                      _avatarBytes != null
+                          ? t('تغيير الصورة', 'Change photo')
+                          : t('إضافة صورة', 'Add photo'),
+                      role: DSTextRole.label,
+                      color: ds.colors.primary,
+                    ),
+                  ),
+                ),
+                SizedBox(height: ds.spacing.lg),
                 _FunctionalInput(
                   controller: _nameController,
                   label: t('الاسم', 'Name'),
@@ -1789,7 +2240,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       width: double.infinity,
                       padding: EdgeInsetsDirectional.all(ds.spacing.md),
                       decoration: BoxDecoration(
-                        color: ds.colors.surfaceAlt.withOpacity(0.5),
+                        color: ds.colors.surfaceAlt.withValues(alpha: 0.5),
                         borderRadius: BorderRadius.circular(ds.radii.large),
                         border: Border.all(color: ds.colors.border),
                       ),
@@ -1819,13 +2270,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     width: double.infinity,
                     padding: EdgeInsetsDirectional.all(ds.spacing.sm),
                     decoration: BoxDecoration(
-                      color: (_isSuccess ? const Color(0xFF10B981) : const Color(0xFFEF4444)).withOpacity(0.1),
+                      color:
+                          (_isSuccess
+                                  ? const Color(0xFF10B981)
+                                  : const Color(0xFFEF4444))
+                              .withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(ds.radii.medium),
                     ),
                     child: DSText(
                       _message!,
                       role: DSTextRole.caption,
-                      color: _isSuccess ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                      color: _isSuccess
+                          ? const Color(0xFF10B981)
+                          : const Color(0xFFEF4444),
                     ),
                   ),
                   SizedBox(height: ds.spacing.md),
@@ -1889,14 +2346,20 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     if (_newController.text != _confirmController.text) {
       setState(() {
         _isSuccess = false;
-        _message = t('كلمة المرور الجديدة غير متطابقة', 'New passwords do not match');
+        _message = t(
+          'كلمة المرور الجديدة غير متطابقة',
+          'New passwords do not match',
+        );
       });
       return;
     }
     if (_newController.text.length < 8) {
       setState(() {
         _isSuccess = false;
-        _message = t('كلمة المرور يجب أن تكون 8 أحرف على الأقل', 'Password must be at least 8 characters');
+        _message = t(
+          'كلمة المرور يجب أن تكون 8 أحرف على الأقل',
+          'Password must be at least 8 characters',
+        );
       });
       return;
     }
@@ -1912,7 +2375,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       _isSuccess = success;
       _message = success
           ? t('تم تغيير كلمة المرور', 'Password changed successfully')
-          : (authService.error ?? t('فشل تغيير كلمة المرور', 'Password change failed'));
+          : (authService.error ??
+                t('فشل تغيير كلمة المرور', 'Password change failed'));
     });
     if (success) {
       _currentController.clear();
@@ -1940,7 +2404,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 _FunctionalInput(
                   controller: _currentController,
                   label: t('كلمة المرور الحالية', 'Current Password'),
-                  placeholder: t('أدخل كلمة المرور الحالية', 'Enter current password'),
+                  placeholder: t(
+                    'أدخل كلمة المرور الحالية',
+                    'Enter current password',
+                  ),
                   icon: LineIconType.home,
                   obscureText: true,
                   keyboardType: TextInputType.visiblePassword,
@@ -1949,7 +2416,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 _FunctionalInput(
                   controller: _newController,
                   label: t('كلمة المرور الجديدة', 'New Password'),
-                  placeholder: t('أدخل كلمة المرور الجديدة', 'Enter new password'),
+                  placeholder: t(
+                    'أدخل كلمة المرور الجديدة',
+                    'Enter new password',
+                  ),
                   icon: LineIconType.home,
                   obscureText: true,
                   keyboardType: TextInputType.visiblePassword,
@@ -1969,13 +2439,19 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                     width: double.infinity,
                     padding: EdgeInsetsDirectional.all(ds.spacing.sm),
                     decoration: BoxDecoration(
-                      color: (_isSuccess ? const Color(0xFF10B981) : const Color(0xFFEF4444)).withOpacity(0.1),
+                      color:
+                          (_isSuccess
+                                  ? const Color(0xFF10B981)
+                                  : const Color(0xFFEF4444))
+                              .withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(ds.radii.medium),
                     ),
                     child: DSText(
                       _message!,
                       role: DSTextRole.caption,
-                      color: _isSuccess ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                      color: _isSuccess
+                          ? const Color(0xFF10B981)
+                          : const Color(0xFFEF4444),
                     ),
                   ),
                   SizedBox(height: ds.spacing.md),
@@ -2087,10 +2563,10 @@ class AboutAppScreen extends StatelessWidget {
                     width: double.infinity,
                     padding: EdgeInsetsDirectional.all(ds.spacing.md),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEF4444).withOpacity(0.1),
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(ds.radii.large),
                       border: Border.all(
-                        color: const Color(0xFFEF4444).withOpacity(0.3),
+                        color: const Color(0xFFEF4444).withValues(alpha: 0.3),
                       ),
                     ),
                     child: Row(
@@ -2353,7 +2829,11 @@ class DeleteAccountScreen extends StatefulWidget {
   final VoidCallback onBack;
   final VoidCallback onDeleted;
 
-  const DeleteAccountScreen({super.key, required this.onBack, required this.onDeleted});
+  const DeleteAccountScreen({
+    super.key,
+    required this.onBack,
+    required this.onDeleted,
+  });
 
   @override
   State<DeleteAccountScreen> createState() => _DeleteAccountScreenState();
@@ -2387,7 +2867,9 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
       widget.onDeleted();
     } else {
       setState(() {
-        _error = authService.error ?? t('فشل حذف الحساب', 'Failed to delete account');
+        _error =
+            authService.error ??
+            t('فشل حذف الحساب', 'Failed to delete account');
       });
     }
   }
@@ -2401,7 +2883,10 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
     return _SubScreenShell(
       onBack: widget.onBack,
       title: t('حذف الحساب', 'Delete Account'),
-      subtitle: t('هذا الإجراء لا يمكن التراجع عنه', 'This action cannot be undone'),
+      subtitle: t(
+        'هذا الإجراء لا يمكن التراجع عنه',
+        'This action cannot be undone',
+      ),
       child: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(
@@ -2413,10 +2898,10 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
                   width: double.infinity,
                   padding: EdgeInsetsDirectional.all(ds.spacing.md),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEF4444).withOpacity(0.1),
+                    color: const Color(0xFFEF4444).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(ds.radii.large),
                     border: Border.all(
-                      color: const Color(0xFFEF4444).withOpacity(0.3),
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.3),
                     ),
                   ),
                   child: Column(
@@ -2434,14 +2919,17 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
                           'Your account and all associated data will be permanently deleted. This action cannot be undone.',
                         ),
                         role: DSTextRole.body,
-                        color: const Color(0xFFEF4444).withOpacity(0.8),
+                        color: const Color(0xFFEF4444).withValues(alpha: 0.8),
                       ),
                     ],
                   ),
                 ),
                 SizedBox(height: ds.spacing.lg),
                 DSText(
-                  t('أدخل كلمة المرور للتأكيد', 'Enter your password to confirm'),
+                  t(
+                    'أدخل كلمة المرور للتأكيد',
+                    'Enter your password to confirm',
+                  ),
                   role: DSTextRole.label,
                   color: ds.colors.textSecondary,
                 ),
@@ -2460,7 +2948,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
                     width: double.infinity,
                     padding: EdgeInsetsDirectional.all(ds.spacing.sm),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEF4444).withOpacity(0.1),
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(ds.radii.medium),
                     ),
                     child: DSText(
@@ -2484,7 +2972,10 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
                       child: DSText(
                         authService.isLoading
                             ? t('جاري الحذف...', 'Deleting...')
-                            : t('حذف الحساب نهائياً', 'Permanently Delete Account'),
+                            : t(
+                                'حذف الحساب نهائياً',
+                                'Permanently Delete Account',
+                              ),
                         role: DSTextRole.title,
                         color: const Color(0xFFFFFFFF),
                       ),
@@ -2585,7 +3076,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 en: 'Complete Clinic Management',
               ),
               role: DSTextRole.caption,
-              color: const Color(0xFFFFFFFF).withOpacity(0.7),
+              color: const Color(0xFFFFFFFF).withValues(alpha: 0.7),
             ),
           ],
         ),
@@ -2598,10 +3089,7 @@ class _LangSwitcher extends StatelessWidget {
   final bool isArabic;
   final ValueChanged<String> onSwitch;
 
-  const _LangSwitcher({
-    required this.isArabic,
-    required this.onSwitch,
-  });
+  const _LangSwitcher({required this.isArabic, required this.onSwitch});
 
   @override
   Widget build(BuildContext context) {
@@ -2655,8 +3143,8 @@ class _LangChip extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: selected
-              ? ds.colors.primary.withOpacity(0.12)
-              : ds.colors.surface.withOpacity(0),
+              ? ds.colors.primary.withValues(alpha: 0.12)
+              : ds.colors.surface.withValues(alpha: 0),
           borderRadius: BorderRadius.circular(ds.radii.pill),
         ),
         child: DSText(
@@ -2669,3 +3157,250 @@ class _LangChip extends StatelessWidget {
   }
 }
 
+// ==================== MY DOCUMENTS ====================
+
+class DocumentsScreen extends StatefulWidget {
+  final VoidCallback onBack;
+
+  const DocumentsScreen({super.key, required this.onBack});
+
+  @override
+  State<DocumentsScreen> createState() => _DocumentsScreenState();
+}
+
+class _DocumentsScreenState extends State<DocumentsScreen> {
+  bool _loading = true;
+  final Map<String, UserDocument> _docs = {};
+
+  // Fixed document slots (type → Arabic/English label).
+  static const List<(String, String, String)> _types = [
+    ('national_id', 'البطاقة الشخصية', 'National ID'),
+    ('practice_license', 'بطاقة ممارسة المهنة', 'Practice License'),
+    ('employee_card', 'بطاقة الموظف', 'Employee Card'),
+    ('bls_certificate', 'شهادة BLS', 'BLS Certificate'),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  Future<void> _load() async {
+    final docs = await context.authService.fetchDocuments();
+    if (!mounted) return;
+    setState(() {
+      _docs.clear();
+      for (final d in docs) {
+        _docs[d.type] = d;
+      }
+      _loading = false;
+    });
+  }
+
+  Future<void> _open(UserDocument doc) async {
+    final uri = Uri.tryParse(doc.url);
+    if (uri != null) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  void _view(UserDocument doc) {
+    if (doc.isPdf) {
+      _open(doc);
+      return;
+    }
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        pageBuilder: (context, _, _) {
+          final ds = DSProvider.of(context);
+          return GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: Container(
+              color: const Color(0xE6000000),
+              alignment: Alignment.center,
+              padding: EdgeInsets.all(ds.spacing.lg),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(ds.radii.large),
+                child: Image.network(doc.url, fit: BoxFit.contain),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    String t(String ar, String en) => tr(context, ar: ar, en: en);
+
+    return _SubScreenShell(
+      onBack: widget.onBack,
+      title: t('مستنداتي', 'My Documents'),
+      subtitle: t('البطاقات والشهادات', 'Cards & certificates'),
+      child: _loading
+          ? const ShimmerLoading()
+          : ListView(
+              children: [
+                Container(
+                  padding: EdgeInsetsDirectional.all(ds.spacing.md),
+                  margin: EdgeInsetsDirectional.only(bottom: ds.spacing.md),
+                  decoration: BoxDecoration(
+                    color: ds.colors.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(ds.radii.large),
+                  ),
+                  child: DSText(
+                    t(
+                      'المستندات تُضاف من قِبل الإدارة. يمكنك عرضها وتحميلها فقط.',
+                      'Documents are added by the administration. You can only view and download them.',
+                    ),
+                    role: DSTextRole.caption,
+                    color: ds.colors.textSecondary,
+                  ),
+                ),
+                for (final entry in _types)
+                  Padding(
+                    padding: EdgeInsetsDirectional.only(bottom: ds.spacing.md),
+                    child: _DocumentTile(
+                      title: t(entry.$2, entry.$3),
+                      doc: _docs[entry.$1],
+                      onView: () => _view(_docs[entry.$1]!),
+                      onDownload: () => _open(_docs[entry.$1]!),
+                    ),
+                  ),
+              ],
+            ),
+    );
+  }
+}
+
+class _DocumentTile extends StatelessWidget {
+  final String title;
+  final UserDocument? doc;
+  final VoidCallback onView;
+  final VoidCallback onDownload;
+
+  const _DocumentTile({
+    required this.title,
+    required this.doc,
+    required this.onView,
+    required this.onDownload,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    String t(String ar, String en) => tr(context, ar: ar, en: en);
+    final has = doc != null;
+    final color = has ? const Color(0xFF10B981) : ds.colors.textMuted;
+
+    return DSCard(
+      padding: EdgeInsetsDirectional.all(ds.spacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: ds.spacing.xl,
+                height: ds.spacing.xl,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(ds.radii.medium),
+                ),
+                child: Center(
+                  child: DSLineIcon(type: LineIconType.bookmark, color: color, size: ds.spacing.md),
+                ),
+              ),
+              SizedBox(width: ds.spacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    DSText(title, role: DSTextRole.title, maxLines: 1),
+                    SizedBox(height: 2),
+                    DSText(
+                      has ? t('تم الرفع', 'Uploaded') : t('لم يُضف بعد', 'Not added yet'),
+                      role: DSTextRole.caption,
+                      color: has ? const Color(0xFF10B981) : ds.colors.textMuted,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (has) ...[
+            SizedBox(height: ds.spacing.sm),
+            Container(height: 1, color: ds.colors.border.withValues(alpha: 0.5)),
+            SizedBox(height: ds.spacing.sm),
+            Row(
+              children: [
+                Expanded(
+                  child: _DocAction(
+                    label: t('عرض', 'View'),
+                    icon: LineIconType.search,
+                    color: const Color(0xFF6366F1),
+                    onTap: onView,
+                  ),
+                ),
+                SizedBox(width: ds.spacing.sm),
+                Expanded(
+                  child: _DocAction(
+                    label: t('تحميل', 'Download'),
+                    icon: LineIconType.chart,
+                    color: const Color(0xFF10B981),
+                    onTap: onDownload,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DocAction extends StatelessWidget {
+  final String? label;
+  final LineIconType icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _DocAction({
+    this.label,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: EdgeInsetsDirectional.symmetric(vertical: ds.spacing.sm),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(ds.radii.medium),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            DSLineIcon(type: icon, color: color, size: ds.spacing.md),
+            if (label != null) ...[
+              SizedBox(width: ds.spacing.xs),
+              DSText(label!, role: DSTextRole.caption, color: color),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -1,9 +1,18 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
-enum UserRole { manager, worker, specialist }
+enum UserRole { manager, worker, specialist, reception }
 
-enum ProfileSubScreen { none, editProfile, changePassword, about, privacyPolicy, termsOfService, deleteAccount }
+enum ProfileSubScreen {
+  none,
+  editProfile,
+  documents,
+  changePassword,
+  about,
+  privacyPolicy,
+  termsOfService,
+  deleteAccount,
+}
 
 /// Full-screen overlays reachable from the specialist tab bar / FAB popup.
 /// Push these via [AppState.showSpecialistSub] and dismiss with
@@ -16,6 +25,7 @@ enum SpecialistSubScreen {
   patientTransferRequest,
   loanRequest,
   salary,
+  inventoryRequest,
 }
 
 class AppState extends ChangeNotifier {
@@ -30,6 +40,7 @@ class AppState extends ChangeNotifier {
     UserRole.manager: 0,
     UserRole.worker: 0,
     UserRole.specialist: 0,
+    UserRole.reception: 0,
   };
 
   void setRole(UserRole value) {
@@ -99,9 +110,9 @@ class AppState extends ChangeNotifier {
 class AppScope extends InheritedNotifier<AppState> {
   const AppScope({
     super.key,
-    required AppState notifier,
-    required Widget child,
-  }) : super(notifier: notifier, child: child);
+    required AppState super.notifier,
+    required super.child,
+  });
 
   static AppState of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<AppScope>();

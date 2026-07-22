@@ -12,6 +12,7 @@ class User extends Equatable {
   final String? clinicName;
   final int? employeeId;
   final DateTime? createdAt;
+  final String? avatarUrl;
 
   const User({
     required this.id,
@@ -24,6 +25,7 @@ class User extends Equatable {
     this.clinicName,
     this.employeeId,
     this.createdAt,
+    this.avatarUrl,
   });
 
   /// Get the primary role (first role in the list)
@@ -84,6 +86,7 @@ class User extends Equatable {
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)
           : null,
+      avatarUrl: json['avatar_url'] as String?,
     );
   }
 

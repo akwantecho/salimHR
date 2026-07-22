@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'api_config.dart';
 import 'api_exceptions.dart';
+import 'demo_data.dart';
 
 /// Main API client using Dio for HTTP requests.
 /// Handles authentication tokens, error handling, and request/response logging.
@@ -30,6 +31,9 @@ class ApiClient {
 
   void _setupInterceptors() {
     _dio.interceptors.addAll([
+      // Inert unless ApiConfig.demoMode is on; must run first so it can
+      // short-circuit requests with mock data before they hit the network.
+      DemoInterceptor(),
       _AuthInterceptor(this),
       _LoggingInterceptor(),
       _ErrorInterceptor(),

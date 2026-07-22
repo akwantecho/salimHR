@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import '../models/models.dart';
+import '../models/reception.dart';
 import 'api_client.dart';
 import 'api_exceptions.dart';
 
@@ -26,7 +27,8 @@ class HRService extends ChangeNotifier {
   int get totalPendingApprovals => _approvalCounts['total'] as int? ?? 0;
   int get pendingLeavesCount => _approvalCounts['leaves'] as int? ?? 0;
   int get pendingExcusesCount => _approvalCounts['excuses'] as int? ?? 0;
-  int get pendingInventoryCount => _approvalCounts['inventory_requests'] as int? ?? 0;
+  int get pendingInventoryCount =>
+      _approvalCounts['inventory_requests'] as int? ?? 0;
   int get pendingPayrollCount => _approvalCounts['payroll'] as int? ?? 0;
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -73,7 +75,10 @@ class HRService extends ChangeNotifier {
       final excuses = data['excuses'] as List<dynamic>? ?? [];
       for (final excuse in excuses) {
         _pendingApprovals.add(
-          Approval.fromJson(excuse as Map<String, dynamic>, ApprovalType.medicalExcuse),
+          Approval.fromJson(
+            excuse as Map<String, dynamic>,
+            ApprovalType.medicalExcuse,
+          ),
         );
       }
 
@@ -81,7 +86,10 @@ class HRService extends ChangeNotifier {
       final inventory = data['inventory_requests'] as List<dynamic>? ?? [];
       for (final request in inventory) {
         _pendingApprovals.add(
-          Approval.fromJson(request as Map<String, dynamic>, ApprovalType.inventory),
+          Approval.fromJson(
+            request as Map<String, dynamic>,
+            ApprovalType.inventory,
+          ),
         );
       }
 
@@ -106,52 +114,74 @@ class HRService extends ChangeNotifier {
 
   /// Reject a leave request
   Future<bool> rejectLeave(int leaveId, {required String reason}) async {
-    return _processApproval('/approvals/leaves/$leaveId/reject', reason: reason);
+    return _processApproval(
+      '/approvals/leaves/$leaveId/reject',
+      reason: reason,
+    );
   }
 
   /// Approve a medical excuse
   Future<bool> approveExcuse(int excuseId, {String? notes}) async {
-    return _processApproval('/approvals/excuses/$excuseId/approve', notes: notes);
+    return _processApproval(
+      '/approvals/excuses/$excuseId/approve',
+      notes: notes,
+    );
   }
 
   /// Reject a medical excuse
   Future<bool> rejectExcuse(int excuseId, {required String reason}) async {
-    return _processApproval('/approvals/excuses/$excuseId/reject', reason: reason);
+    return _processApproval(
+      '/approvals/excuses/$excuseId/reject',
+      reason: reason,
+    );
   }
 
   /// Approve an inventory request
   Future<bool> approveInventoryRequest(int requestId, {String? notes}) async {
-    return _processApproval('/approvals/inventory/$requestId/approve', notes: notes);
+    return _processApproval(
+      '/approvals/inventory/$requestId/approve',
+      notes: notes,
+    );
   }
 
   /// Reject an inventory request
-  Future<bool> rejectInventoryRequest(int requestId, {required String reason}) async {
-    return _processApproval('/approvals/inventory/$requestId/reject', reason: reason);
+  Future<bool> rejectInventoryRequest(
+    int requestId, {
+    required String reason,
+  }) async {
+    return _processApproval(
+      '/approvals/inventory/$requestId/reject',
+      reason: reason,
+    );
   }
 
   /// Approve payroll
   Future<bool> approvePayroll(int payrollId, {String? notes}) async {
-    return _processApproval('/approvals/payroll/$payrollId/approve', notes: notes);
+    return _processApproval(
+      '/approvals/payroll/$payrollId/approve',
+      notes: notes,
+    );
   }
 
   /// Reject payroll
   Future<bool> rejectPayroll(int payrollId, {required String reason}) async {
-    return _processApproval('/approvals/payroll/$payrollId/reject', reason: reason);
+    return _processApproval(
+      '/approvals/payroll/$payrollId/reject',
+      reason: reason,
+    );
   }
 
   /// Generic approval processing
-  Future<bool> _processApproval(String endpoint, {String? notes, String? reason}) async {
+  Future<bool> _processApproval(
+    String endpoint, {
+    String? notes,
+    String? reason,
+  }) async {
     _setLoading(true);
     _error = null;
 
     try {
-      await _client.post(
-        endpoint,
-        data: {
-          if (notes != null) 'notes': notes,
-          if (reason != null) 'reason': reason,
-        },
-      );
+      await _client.post(endpoint, data: {'notes': ?notes, 'reason': ?reason});
 
       // Refresh approvals list
       await fetchPendingApprovals();
@@ -159,6 +189,101 @@ class HRService extends ChangeNotifier {
     } on DioException catch (e) {
       _handleError(e);
       return false;
+    }
+  }
+
+  /// Manager: rich clinic dashboard stats.
+  Future<Map<String, dynamic>> fetchManagerDashboard() async {
+    try {
+      final res = await _client.get<Map<String, dynamic>>('/manager/dashboard');
+      return (res.data?['data']?['stats'] as Map?)?.cast<String, dynamic>() ??
+          {};
+    } on DioException catch (e) {
+      _handleError(e);
+      return {};
+    }
+  }
+
+  /// Manager: clinic-wide appointments for a date.
+  Future<List<ReceptionAppointment>> fetchClinicAppointments({
+    String? date,
+  }) async {
+    try {
+      final res = await _client.get<Map<String, dynamic>>(
+        '/manager/appointments',
+        queryParameters: {'date': ?date},
+      );
+      final data = res.data?['data'] as List<dynamic>? ?? [];
+      return data
+          .map((e) => ReceptionAppointment.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      _handleError(e);
+      return [];
+    }
+  }
+
+  /// Manager: invoices overview — `{ stats: {...}, invoices: [InvoiceItem] }`.
+  Future<Map<String, dynamic>> fetchManagerInvoices() async {
+    try {
+      final res = await _client.get<Map<String, dynamic>>('/manager/invoices');
+      final data = res.data?['data'] as Map<String, dynamic>? ?? {};
+      return {
+        'stats': (data['stats'] as Map?)?.cast<String, dynamic>() ?? {},
+        'invoices': ((data['invoices'] as List?) ?? [])
+            .map((e) => InvoiceItem.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      };
+    } on DioException catch (e) {
+      _handleError(e);
+      return {'stats': {}, 'invoices': <InvoiceItem>[]};
+    }
+  }
+
+  /// Manager: enable/disable an employee's app login. Returns the new state,
+  /// or null on failure (with [error] set).
+  Future<bool?> toggleEmployeeAccess(int employeeId) async {
+    _error = null;
+    try {
+      final res = await _client.post<Map<String, dynamic>>(
+        '/manager/employees/$employeeId/toggle-access',
+      );
+      return res.data?['data']?['access_enabled'] as bool?;
+    } on DioException catch (e) {
+      _handleError(e);
+      return null;
+    }
+  }
+
+  /// Manager: clinic staff directory.
+  Future<List<StaffMember>> fetchClinicStaff() async {
+    try {
+      final res = await _client.get<Map<String, dynamic>>('/manager/employees');
+      final data = res.data?['data'] as List<dynamic>? ?? [];
+      return data
+          .map((e) => StaffMember.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      _handleError(e);
+      return [];
+    }
+  }
+
+  /// Fetch the active promotional banners for the home carousel.
+  /// Backed by `GET /api/banners` so the slides can be managed from the
+  /// server control panel. Returns an empty list on failure.
+  Future<List<PromoBanner>> fetchPromoBanners() async {
+    try {
+      final response = await _client.get<Map<String, dynamic>>('/banners');
+      final data = response.data?['data'] as List<dynamic>? ?? [];
+      return data
+          .map((e) => PromoBanner.fromJson(e as Map<String, dynamic>))
+          .where((b) => b.active)
+          .toList()
+        ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    } on DioException catch (e) {
+      _handleError(e);
+      return [];
     }
   }
 
@@ -174,9 +299,9 @@ class HRService extends ChangeNotifier {
         '/hr/reports',
         queryParameters: {
           'type': type,
-          if (startDate != null) 'start_date': startDate,
-          if (endDate != null) 'end_date': endDate,
-          if (departmentId != null) 'department_id': departmentId,
+          'start_date': ?startDate,
+          'end_date': ?endDate,
+          'department_id': ?departmentId,
         },
       );
       return response.data ?? {};
@@ -189,7 +314,9 @@ class HRService extends ChangeNotifier {
   /// Fetch leave types (admin scope — uses /hr/leave-types).
   Future<void> fetchLeaveTypes() async {
     try {
-      final response = await _client.get<Map<String, dynamic>>('/hr/leave-types');
+      final response = await _client.get<Map<String, dynamic>>(
+        '/hr/leave-types',
+      );
       final data = response.data!['data'] as List<dynamic>? ?? [];
       _leaveTypes = data
           .map((e) => LeaveType.fromJson(e as Map<String, dynamic>))
@@ -204,7 +331,9 @@ class HRService extends ChangeNotifier {
   /// permission required). Used by the specialist leave request form.
   Future<List<LeaveType>> fetchMyLeaveTypes() async {
     try {
-      final response = await _client.get<Map<String, dynamic>>('/employee/leave-types');
+      final response = await _client.get<Map<String, dynamic>>(
+        '/employee/leave-types',
+      );
       final data = response.data!['data'] as List<dynamic>? ?? [];
       return data
           .map((e) => LeaveType.fromJson(e as Map<String, dynamic>))
@@ -225,9 +354,9 @@ class HRService extends ChangeNotifier {
       final response = await _client.get<Map<String, dynamic>>(
         '/hr/bonuses',
         queryParameters: {
-          if (employeeId != null) 'employee_id': employeeId,
-          if (month != null) 'month': month,
-          if (year != null) 'year': year,
+          'employee_id': ?employeeId,
+          'month': ?month,
+          'year': ?year,
         },
       );
 
@@ -289,10 +418,7 @@ class HRService extends ChangeNotifier {
     try {
       final response = await _client.get<Map<String, dynamic>>(
         '/employee/bonuses',
-        queryParameters: {
-          if (month != null) 'month': month,
-          if (year != null) 'year': year,
-        },
+        queryParameters: {'month': ?month, 'year': ?year},
       );
       return response.data ?? {};
     } on DioException catch (e) {
@@ -324,10 +450,7 @@ class HRService extends ChangeNotifier {
     _error = null;
 
     try {
-      await _client.post(
-        '/employee/notes',
-        data: {'note': note},
-      );
+      await _client.post('/employee/notes', data: {'note': note});
       _setLoading(false);
       return true;
     } on DioException catch (e) {
@@ -341,8 +464,9 @@ class HRService extends ChangeNotifier {
   /// approved_this_month: int}`. Empty map on failure (error set on service).
   Future<Map<String, int>> fetchMyLeavesSummary() async {
     try {
-      final response =
-          await _client.get<Map<String, dynamic>>('/employee/leaves');
+      final response = await _client.get<Map<String, dynamic>>(
+        '/employee/leaves',
+      );
       final summary = response.data?['summary'] as Map<String, dynamic>? ?? {};
       return summary.map((k, v) => MapEntry(k, (v as num).toInt()));
     } on DioException catch (e) {
@@ -396,7 +520,7 @@ class HRService extends ChangeNotifier {
           'type': type,
           if (subject != null && subject.isNotEmpty) 'subject': subject,
           'details': details,
-          if (amount != null) 'amount': amount,
+          'amount': ?amount,
         },
       );
       _setLoading(false);
@@ -408,14 +532,14 @@ class HRService extends ChangeNotifier {
   }
 
   /// Fetch the authenticated employee's monthly attendance log.
-  Future<Map<String, dynamic>> fetchMyAttendance({int? month, int? year}) async {
+  Future<Map<String, dynamic>> fetchMyAttendance({
+    int? month,
+    int? year,
+  }) async {
     try {
       final response = await _client.get<Map<String, dynamic>>(
         '/employee/attendance',
-        queryParameters: {
-          if (month != null) 'month': month,
-          if (year != null) 'year': year,
-        },
+        queryParameters: {'month': ?month, 'year': ?year},
       );
       return response.data ?? {};
     } on DioException catch (e) {
@@ -428,8 +552,9 @@ class HRService extends ChangeNotifier {
   /// Returns null on failure (with [error] set on this service).
   Future<AttendanceToday?> fetchTodayAttendance() async {
     try {
-      final response =
-          await _client.get<Map<String, dynamic>>('/employee/attendance/today');
+      final response = await _client.get<Map<String, dynamic>>(
+        '/employee/attendance/today',
+      );
       final raw = response.data?['data'] as Map<String, dynamic>?;
       if (raw == null) return null;
       return AttendanceToday.fromJson(raw);
@@ -511,10 +636,10 @@ class HRService extends ChangeNotifier {
       final response = await _client.get<Map<String, dynamic>>(
         '/appointments/my',
         queryParameters: {
-          if (date != null) 'date': date,
-          if (startDate != null) 'start_date': startDate,
-          if (endDate != null) 'end_date': endDate,
-          if (scope != null) 'scope': scope,
+          'date': ?date,
+          'start_date': ?startDate,
+          'end_date': ?endDate,
+          'scope': ?scope,
         },
       );
       return response.data ?? {};
@@ -527,11 +652,85 @@ class HRService extends ChangeNotifier {
   /// Fetch a single appointment's details for the specialist.
   Future<Map<String, dynamic>?> fetchAppointment(int id) async {
     try {
-      final response = await _client.get<Map<String, dynamic>>('/appointments/$id');
+      final response = await _client.get<Map<String, dynamic>>(
+        '/appointments/$id',
+      );
       return response.data?['data'] as Map<String, dynamic>?;
     } on DioException catch (e) {
       _handleError(e);
       return null;
+    }
+  }
+
+  /// Whether the specialist has acknowledged today's schedule.
+  /// Returns the acknowledgement time, or null if not yet acknowledged.
+  /// Backed by `GET /api/appointments/acknowledge-today`.
+  Future<DateTime?> fetchTodayAcknowledgement() async {
+    try {
+      final response = await _client.get<Map<String, dynamic>>(
+        '/appointments/acknowledge-today',
+      );
+      final at = response.data?['data']?['acknowledged_at'] as String?;
+      return at != null ? DateTime.tryParse(at) : null;
+    } on DioException catch (e) {
+      _handleError(e);
+      return null;
+    }
+  }
+
+  /// Records the specialist's acknowledgement of today's schedule.
+  /// Returns the acknowledgement time on success, or null on failure.
+  /// Backed by `POST /api/appointments/acknowledge-today`.
+  Future<DateTime?> acknowledgeTodaySchedule() async {
+    _setLoading(true);
+    _error = null;
+    try {
+      final response = await _client.post<Map<String, dynamic>>(
+        '/appointments/acknowledge-today',
+      );
+      _setLoading(false);
+      final at = response.data?['data']?['acknowledged_at'] as String?;
+      return at != null ? DateTime.tryParse(at) : DateTime.now();
+    } on DioException catch (e) {
+      _handleError(e);
+      return null;
+    }
+  }
+
+  /// Admin view: each specialist's status for acknowledging today's schedule.
+  /// Backed by `GET /api/hr/schedule-acknowledgements`.
+  Future<List<ScheduleAcknowledgement>> fetchScheduleAcknowledgements() async {
+    try {
+      final response = await _client.get<Map<String, dynamic>>(
+        '/hr/schedule-acknowledgements',
+      );
+      final data = response.data?['data'] as List<dynamic>? ?? [];
+      return data
+          .map(
+            (e) => ScheduleAcknowledgement.fromJson(e as Map<String, dynamic>),
+          )
+          .toList();
+    } on DioException catch (e) {
+      _handleError(e);
+      return [];
+    }
+  }
+
+  /// Fetch the full session log for a patient's treatment plan, given any one
+  /// appointment in that plan. Backed by `GET /api/appointments/{id}/sessions`.
+  /// Each entry is an [Appointment] (session) with its own date/status.
+  Future<List<Appointment>> fetchTreatmentSessions(int appointmentId) async {
+    try {
+      final response = await _client.get<Map<String, dynamic>>(
+        '/appointments/$appointmentId/sessions',
+      );
+      final data = response.data?['data'] as List<dynamic>? ?? [];
+      return data
+          .map((e) => Appointment.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      _handleError(e);
+      return [];
     }
   }
 

@@ -27,22 +27,17 @@ class TopBarCustom extends StatelessWidget {
         gradient: LinearGradient(
           begin: AlignmentDirectional.topStart,
           end: AlignmentDirectional.bottomEnd,
-          colors: [
-            ds.colors.surface,
-            ds.colors.surface,
-          ],
+          colors: [ds.colors.surface, ds.colors.surface],
         ),
         borderRadius: BorderRadius.circular(ds.radii.xLarge),
         boxShadow: [
           BoxShadow(
-            color: ds.colors.primary.withOpacity(0.08),
+            color: ds.colors.primary.withValues(alpha: 0.08),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
-        border: Border.all(
-          color: ds.colors.border.withOpacity(0.5),
-        ),
+        border: Border.all(color: ds.colors.border.withValues(alpha: 0.5)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -54,10 +49,7 @@ class TopBarCustom extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                DSText(
-                  title,
-                  role: DSTextRole.headline,
-                ),
+                DSText(title, role: DSTextRole.headline),
                 SizedBox(height: ds.spacing.xs / 2),
                 DSText(
                   subtitle,
@@ -84,15 +76,12 @@ class TopBarCustom extends StatelessWidget {
                     height: 18,
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [
-                          Color(0xFFEF4444),
-                          Color(0xFFDC2626),
-                        ],
+                        colors: [Color(0xFFEF4444), Color(0xFFDC2626)],
                       ),
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFFEF4444).withOpacity(0.4),
+                          color: const Color(0xFFEF4444).withValues(alpha: 0.4),
                           blurRadius: 4,
                           offset: const Offset(0, 2),
                         ),
@@ -136,21 +125,15 @@ class _ActionButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: ds.spacing.xl,
-        height: ds.spacing.xl,
+        width: ds.spacing.xxl + ds.spacing.md,
+        height: ds.spacing.xxl + ds.spacing.md,
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(ds.radii.medium),
-          border: Border.all(
-            color: color.withOpacity(0.2),
-          ),
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(ds.radii.large),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
         ),
         child: Center(
-          child: DSLineIcon(
-            type: icon,
-            color: color,
-            size: ds.spacing.md,
-          ),
+          child: DSLineIcon(type: icon, color: color, size: ds.spacing.lg),
         ),
       ),
     );
@@ -169,15 +152,12 @@ class _BrandMark extends StatelessWidget {
         gradient: LinearGradient(
           begin: AlignmentDirectional.topStart,
           end: AlignmentDirectional.bottomEnd,
-          colors: [
-            ds.colors.primary,
-            ds.colors.primary.withOpacity(0.8),
-          ],
+          colors: [ds.colors.primary, ds.colors.primary.withValues(alpha: 0.8)],
         ),
         borderRadius: BorderRadius.circular(ds.radii.large),
         boxShadow: [
           BoxShadow(
-            color: ds.colors.primary.withOpacity(0.3),
+            color: ds.colors.primary.withValues(alpha: 0.3),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),

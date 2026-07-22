@@ -1,5 +1,13 @@
 import 'package:equatable/equatable.dart';
 
+/// Parses a money/number value that the API may return as either a number
+/// (e.g. 20.0) or a string (Laravel serializes DECIMAL columns as "20.000").
+double moneyToDouble(dynamic value, [double fallback = 0]) {
+  if (value == null) return fallback;
+  if (value is num) return value.toDouble();
+  return double.tryParse(value.toString()) ?? fallback;
+}
+
 /// Payroll run status
 enum PayrollStatus {
   draft,
@@ -45,7 +53,7 @@ class PayrollRun extends Equatable {
       month: json['month'] as int,
       year: json['year'] as int,
       status: _parseStatus(json['status'] as String),
-      totalAmount: (json['total_amount'] as num?)?.toDouble() ?? 0,
+      totalAmount: moneyToDouble(json['total_amount']),
       employeeCount: json['employee_count'] as int? ?? 0,
       submittedAt: json['submitted_at'] != null
           ? DateTime.parse(json['submitted_at'] as String)
@@ -94,6 +102,8 @@ class PayrollItem extends Equatable {
   final double netSalary;
   final String? employeeName;
   final String? notes;
+  final int? month;
+  final int? year;
 
   const PayrollItem({
     required this.id,
@@ -106,6 +116,8 @@ class PayrollItem extends Equatable {
     required this.netSalary,
     this.employeeName,
     this.notes,
+    this.month,
+    this.year,
   });
 
   factory PayrollItem.fromJson(Map<String, dynamic> json) {
@@ -113,13 +125,15 @@ class PayrollItem extends Equatable {
       id: json['id'] as int,
       payrollRunId: json['payroll_run_id'] as int,
       employeeId: json['employee_id'] as int,
-      baseSalary: (json['base_salary'] as num).toDouble(),
-      allowances: (json['allowances'] as num?)?.toDouble() ?? 0,
-      bonuses: (json['bonuses'] as num?)?.toDouble() ?? 0,
-      deductions: (json['deductions'] as num?)?.toDouble() ?? 0,
-      netSalary: (json['net_salary'] as num).toDouble(),
+      baseSalary: moneyToDouble(json['base_salary']),
+      allowances: moneyToDouble(json['allowances']),
+      bonuses: moneyToDouble(json['bonuses']),
+      deductions: moneyToDouble(json['deductions']),
+      netSalary: moneyToDouble(json['net_salary']),
       employeeName: json['employee']?['user']?['name'] as String?,
       notes: json['notes'] as String?,
+      month: (json['month'] ?? json['payroll_run']?['month']) as int?,
+      year: (json['year'] ?? json['payroll_run']?['year']) as int?,
     );
   }
 
@@ -154,7 +168,7 @@ class EmployeeBonus extends Equatable {
       id: json['id'] as int,
       employeeId: json['employee_id'] as int,
       type: (json['bonus_type'] ?? json['type']) as String,
-      amount: (json['amount'] as num).toDouble(),
+      amount: moneyToDouble(json['amount']),
       reason: json['reason'] as String?,
       month: (json['period_month'] ?? json['month']) as int,
       year: (json['period_year'] ?? json['year']) as int,

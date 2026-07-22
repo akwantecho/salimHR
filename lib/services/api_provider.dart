@@ -8,6 +8,7 @@ import 'hr_service.dart';
 import 'inventory_service.dart';
 import 'notifications_service.dart';
 import 'payroll_service.dart';
+import 'reception_service.dart';
 
 /// Provider widget that injects all API services into the widget tree
 class ApiProvider extends StatelessWidget {
@@ -44,6 +45,9 @@ class ApiProvider extends StatelessWidget {
               ),
               ChangeNotifierProvider<NotificationsService>(
                 create: (_) => NotificationsService(apiClient),
+              ),
+              ChangeNotifierProvider<ReceptionService>(
+                create: (_) => ReceptionService(apiClient),
               ),
             ],
             child: child,
@@ -91,4 +95,7 @@ extension ApiServiceContext on BuildContext {
 
   /// Get the Firebase push service
   FirebasePushService get firebasePushService => read<FirebasePushService>();
+
+  /// Get the reception service
+  ReceptionService get receptionService => read<ReceptionService>();
 }

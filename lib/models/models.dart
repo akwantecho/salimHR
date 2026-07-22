@@ -1,5 +1,5 @@
 /// Barrel file for all models
-library models;
+library;
 
 export 'user.dart';
 export 'employee.dart';
@@ -11,3 +11,5 @@ export 'hr_dashboard.dart';
 export 'appointment.dart';
 export 'employee_note.dart';
 export 'attendance.dart';
+export 'promo_banner.dart';
+export 'schedule_acknowledgement.dart';

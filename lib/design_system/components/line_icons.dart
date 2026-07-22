@@ -50,15 +50,21 @@ class DSLineIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isBack = type == LineIconType.arrowBack;
+    // Back arrows read larger and must mirror with the text direction so they
+    // point the correct way in RTL. Handled here so every back button is fixed.
+    final effectiveSize = isBack ? size + 8 : size;
+
     return SizedBox(
-      width: size,
-      height: size,
+      width: effectiveSize,
+      height: effectiveSize,
       child: SvgPicture.asset(
         _path(type),
         colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
-        width: size,
-        height: size,
+        width: effectiveSize,
+        height: effectiveSize,
         fit: BoxFit.contain,
+        matchTextDirection: isBack,
       ),
     );
   }

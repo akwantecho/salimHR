@@ -7,7 +7,12 @@ class ApiConfig {
   // For Android emulator use: 10.0.2.2
   // For iOS simulator use: localhost or 127.0.0.1
   // For physical device use: your machine's IP (e.g., 192.168.1.x)
-  static const String baseUrl = 'https://salimerp-gihjjyv1.on-forge.com';
+  static const String baseUrl = 'http://192.168.100.15:8000';
+
+  /// When `true`, all API calls are served from local mock data instead of the
+  /// network (see [DemoInterceptor]). Off by default — enabled only by the
+  /// demo-login buttons for previewing the UI without a backend server.
+  static bool demoMode = false;
 
   // API prefix
   static const String apiPrefix = '/api';

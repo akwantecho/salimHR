@@ -9,7 +9,9 @@ import '../services/api_provider.dart';
 import 'app_state.dart';
 import 'i18n.dart';
 import 'screens/common_screens.dart';
+import 'screens/inventory_request_screen.dart';
 import 'screens/manager_screens.dart';
+import 'screens/reception_screens.dart';
 import 'screens/specialist_requests.dart';
 import 'screens/specialist_screens.dart';
 import 'screens/worker_screens.dart';
@@ -92,6 +94,13 @@ class _RoleShellState extends State<RoleShell> {
           BottomNavItem(label: t('الحضور', 'Attendance'), icon: LineIconType.chart),
           BottomNavItem(label: t('ملفي', 'Profile'), icon: LineIconType.bookmark),
         ];
+      case UserRole.reception:
+        return [
+          BottomNavItem(label: t('الرئيسية', 'Home'), icon: LineIconType.home),
+          BottomNavItem(label: t('المواعيد', 'Appointments'), icon: LineIconType.calendar),
+          BottomNavItem(label: t('المرضى', 'Patients'), icon: LineIconType.heart),
+          BottomNavItem(label: t('ملفي', 'Profile'), icon: LineIconType.bookmark),
+        ];
     }
   }
 
@@ -118,11 +127,30 @@ class _RoleShellState extends State<RoleShell> {
           2 => const AttendanceScreen(),
           _ => const MoreScreen(),
         };
+      case UserRole.reception:
+        return switch (index) {
+          0 => const ReceptionHomeScreen(),
+          1 => const ReceptionAppointmentsScreen(),
+          2 => const ReceptionPatientsScreen(),
+          _ => const MoreScreen(),
+        };
     }
   }
 
   String _title(BuildContext context, UserRole role, int index) {
     String t(String ar, String en) => tr(context, ar: ar, en: en);
+
+    // Home tab greets each user by their first name.
+    if (index == 0) {
+      final name = context.authService.currentUser?.name ?? '';
+      final first = name.trim().isEmpty
+          ? ''
+          : name.trim().split(RegExp(r'\s+')).first;
+      return first.isEmpty
+          ? t('أهلاً', 'Welcome')
+          : t('أهلاً $first', 'Welcome $first');
+    }
+
     switch (role) {
       case UserRole.manager:
         return [
@@ -145,6 +173,13 @@ class _RoleShellState extends State<RoleShell> {
           t('الحضور', 'Attendance'),
           t('ملفي', 'Profile'),
         ][index];
+      case UserRole.reception:
+        return [
+          t('أهلاً استقبال', 'Welcome Reception'),
+          t('المواعيد', 'Appointments'),
+          t('المرضى', 'Patients'),
+          t('ملفي', 'Profile'),
+        ][index];
     }
   }
 
@@ -161,6 +196,8 @@ class _RoleShellState extends State<RoleShell> {
         LoanRequestScreen(onBack: onBack),
       SpecialistSubScreen.salary =>
         SpecialistSalaryScreen(onBack: onBack),
+      SpecialistSubScreen.inventoryRequest =>
+        InventoryRequestScreen(onBack: onBack),
       SpecialistSubScreen.none => const SizedBox.shrink(),
     };
   }
@@ -169,6 +206,7 @@ class _RoleShellState extends State<RoleShell> {
     final onBack = app.hideProfileSub;
     return switch (app.profileSubScreen) {
       ProfileSubScreen.editProfile => EditProfileScreen(onBack: onBack),
+      ProfileSubScreen.documents => DocumentsScreen(onBack: onBack),
       ProfileSubScreen.changePassword => ChangePasswordScreen(onBack: onBack),
       ProfileSubScreen.about => AboutAppScreen(
         onBack: onBack,
@@ -199,11 +237,13 @@ class _RoleShellState extends State<RoleShell> {
     final navHeight = _navHeight(ds);
     final viewPadding = MediaQuery.viewPaddingOf(context);
     final isSpecialist = role == UserRole.specialist;
+    final isReception = role == UserRole.reception;
 
     // Show notifications screen if active
     if (app.showNotificationsScreen) {
       return NotificationsScreen(
         onBack: () => app.hideNotifications(),
+        role: role,
       );
     }
 
@@ -212,8 +252,8 @@ class _RoleShellState extends State<RoleShell> {
       return _profileSubScreen(context, app);
     }
 
-    // Specialist sub-screens (leave form, salary, etc.) take over the canvas.
-    if (isSpecialist &&
+    // Specialist/reception sub-screens (leave form, salary, etc.) take over.
+    if ((isSpecialist || isReception) &&
         app.specialistSubScreen != SpecialistSubScreen.none) {
       return _specialistSubScreen(context, app);
     }
@@ -244,8 +284,8 @@ class _RoleShellState extends State<RoleShell> {
                       builder: (context, _) => TopBarCustom(
                         title: _title(context, role, current),
                         subtitle: tr(context,
-                            ar: 'تطبيق العيادة - الوصول حسب الصلاحيات',
-                            en: 'Clinic app - role-based access'),
+                            ar: 'مرحبًا بك في تطبيق الموظفين - يتم عرض المحتوى وفقًا لصلاحيات حسابك',
+                            en: 'Welcome to the staff app - content is shown according to your account permissions'),
                         onNotifications: () {
                           app.showNotifications();
                         },

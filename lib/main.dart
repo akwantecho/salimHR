@@ -16,10 +16,18 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
 
-  // Set up background message handler
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  // Firebase requires explicit FirebaseOptions on web (and other platforms
+  // without native config files). If it isn't configured, skip it gracefully
+  // so the UI still renders — only push notifications are unavailable.
+  try {
+    await Firebase.initializeApp();
+
+    // Set up background message handler
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  } catch (e) {
+    debugPrint('Firebase initialization skipped: $e');
+  }
 
   runApp(const SalimApp());
 }

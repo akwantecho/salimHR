@@ -179,6 +179,8 @@ class NotificationsService extends ChangeNotifier {
         return 'payroll_pending';
       case NotificationType.inventoryLow:
         return 'inventory_low';
+      case NotificationType.bonus:
+        return 'bonus';
       case NotificationType.general:
         return 'general';
     }

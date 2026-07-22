@@ -31,21 +31,37 @@ class InventoryItem extends Equatable {
   });
 
   factory InventoryItem.fromJson(Map<String, dynamic> json) {
+    // The API uses current_quantity/reorder_level/average_cost and may omit
+    // clinic_id/created_at, so fall back gracefully across those field names.
+    double? money(dynamic v) {
+      if (v == null) return null;
+      if (v is num) return v.toDouble();
+      return double.tryParse(v.toString());
+    }
+
     return InventoryItem(
       id: json['id'] as int,
-      clinicId: json['clinic_id'] as int,
-      name: json['name'] as String,
+      clinicId: (json['clinic_id'] as num?)?.toInt() ?? 0,
+      name: json['name'] as String? ?? '-',
       sku: json['sku'] as String?,
       description: json['description'] as String?,
-      quantity: json['quantity'] as int,
-      minQuantity: json['min_quantity'] as int?,
-      unitPrice: (json['unit_price'] as num?)?.toDouble(),
+      quantity: (json['current_quantity'] ??
+              json['quantity'] ??
+              json['available_quantity']) as int? ??
+          0,
+      minQuantity:
+          (json['reorder_level'] ?? json['min_quantity']) as int?,
+      unitPrice: money(
+        json['average_cost'] ?? json['selling_price'] ?? json['unit_price'],
+      ),
       unit: json['unit'] as String?,
       category: json['category'] as String?,
       lastRestocked: json['last_restocked'] != null
-          ? DateTime.parse(json['last_restocked'] as String)
+          ? DateTime.tryParse(json['last_restocked'] as String)
           : null,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      createdAt: json['created_at'] != null
+          ? (DateTime.tryParse(json['created_at'] as String) ?? DateTime.now())
+          : DateTime.now(),
     );
   }
 

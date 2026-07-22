@@ -81,6 +81,55 @@ class _InventoryRequestScreenState extends State<InventoryRequestScreen> {
     }).toList();
   }
 
+  // Categories the user has expanded (dropdown open).
+  final Set<String> _openCats = {};
+
+  /// Preferred display order of the storefront sections.
+  static const List<String> _categoryOrder = [
+    'مواد غذائية',
+    'مواد تنظيف',
+    'مستلزمات طبية',
+    'مستلزمات قرطاسية',
+  ];
+
+  bool _isOpen(String cat) => _openCats.contains(cat) || _query.trim().isNotEmpty;
+
+  void _toggleCat(String cat) {
+    setState(() {
+      if (_openCats.contains(cat)) {
+        _openCats.remove(cat);
+      } else {
+        _openCats.add(cat);
+      }
+    });
+  }
+
+  /// Groups the (filtered) items by category, ordered by [_categoryOrder]
+  /// (unknown categories fall to the end, then alphabetical). Items without a
+  /// category fall under "أخرى / Other".
+  Map<String, List<InventoryItem>> _grouped() {
+    final map = <String, List<InventoryItem>>{};
+    for (final item in _filtered) {
+      final cat = (item.category != null && item.category!.trim().isNotEmpty)
+          ? item.category!.trim()
+          : tr(context, ar: 'أخرى', en: 'Other');
+      map.putIfAbsent(cat, () => []).add(item);
+    }
+
+    int rank(String c) {
+      final i = _categoryOrder.indexOf(c);
+      return i == -1 ? 999 : i;
+    }
+
+    final keys = map.keys.toList()
+      ..sort((a, b) {
+        final r = rank(a).compareTo(rank(b));
+        return r != 0 ? r : a.compareTo(b);
+      });
+
+    return {for (final k in keys) k: map[k]!};
+  }
+
   void _addToCart(InventoryItem item) {
     setState(() {
       _cart[item.id] = (_cart[item.id] ?? 0) + 1;
@@ -110,10 +159,12 @@ class _InventoryRequestScreenState extends State<InventoryRequestScreen> {
     });
 
     final items = _cart.entries
-        .map((e) => <String, int>{
-              'inventory_item_id': e.key,
-              'requested_qty': e.value,
-            })
+        .map(
+          (e) => <String, int>{
+            'inventory_item_id': e.key,
+            'requested_qty': e.value,
+          },
+        )
         .toList();
 
     try {
@@ -125,15 +176,19 @@ class _InventoryRequestScreenState extends State<InventoryRequestScreen> {
       if (response != null) {
         setState(() {
           _submitting = false;
-          _successMsg = tr(context,
-              ar: 'تم إرسال الطلب بنجاح', en: 'Request submitted successfully');
+          _successMsg = tr(
+            context,
+            ar: 'تم إرسال الطلب بنجاح',
+            en: 'Request submitted successfully',
+          );
           _cart.clear();
           _notesCtrl.clear();
         });
       } else {
         setState(() {
           _submitting = false;
-          _error = context.inventoryService.error ??
+          _error =
+              context.inventoryService.error ??
               tr(context, ar: 'فشل الإرسال', en: 'Submit failed');
         });
       }
@@ -166,8 +221,7 @@ class _InventoryRequestScreenState extends State<InventoryRequestScreen> {
             children: [
               _Header(
                 title: t('طلب مخزون جديد', 'New Inventory Request'),
-                subtitle:
-                    t('اختر المواد المطلوبة', 'Select items you need'),
+                subtitle: t('اختر المواد المطلوبة', 'Select items you need'),
                 onBack: widget.onBack,
               ),
               SizedBox(height: ds.spacing.md),
@@ -189,20 +243,31 @@ class _InventoryRequestScreenState extends State<InventoryRequestScreen> {
                                 message: t('لا توجد مواد', 'No items'),
                                 icon: LineIconType.search,
                               )
-                            : ListView.separated(
-                                itemCount: _filtered.length,
-                                separatorBuilder: (_, _) =>
-                                    SizedBox(height: ds.spacing.xs),
-                                itemBuilder: (context, i) {
-                                  final item = _filtered[i];
-                                  return _ItemRow(
-                                    item: item,
-                                    inCartQty: _cart[item.id] ?? 0,
-                                    onAdd: () => _addToCart(item),
-                                    onInc: () => _adjust(item.id, 1),
-                                    onDec: () => _adjust(item.id, -1),
-                                  );
-                                },
+                            : ListView(
+                                children: [
+                                  for (final entry in _grouped().entries) ...[
+                                    _CategoryHeader(
+                                      title: entry.key,
+                                      count: entry.value.length,
+                                      expanded: _isOpen(entry.key),
+                                      onTap: () => _toggleCat(entry.key),
+                                    ),
+                                    if (_isOpen(entry.key))
+                                      for (final item in entry.value)
+                                        Padding(
+                                          padding: EdgeInsetsDirectional.only(
+                                            bottom: ds.spacing.xs,
+                                          ),
+                                          child: _ItemRow(
+                                            item: item,
+                                            inCartQty: _cart[item.id] ?? 0,
+                                            onAdd: () => _addToCart(item),
+                                            onInc: () => _adjust(item.id, 1),
+                                            onDec: () => _adjust(item.id, -1),
+                                          ),
+                                        ),
+                                  ],
+                                ],
                               ),
                       ),
                     ],
@@ -210,7 +275,9 @@ class _InventoryRequestScreenState extends State<InventoryRequestScreen> {
                 ),
               if (_cart.isNotEmpty) ...[
                 SizedBox(height: ds.spacing.sm),
-                _CartSummary(cartCount: _cart.values.fold<int>(0, (a, b) => a + b)),
+                _CartSummary(
+                  cartCount: _cart.values.fold<int>(0, (a, b) => a + b),
+                ),
                 SizedBox(height: ds.spacing.sm),
                 _NotesField(controller: _notesCtrl),
                 SizedBox(height: ds.spacing.sm),
@@ -263,8 +330,11 @@ class _Header extends StatelessWidget {
             children: [
               DSText(title, role: DSTextRole.headline),
               SizedBox(height: 2),
-              DSText(subtitle,
-                  role: DSTextRole.caption, color: ds.colors.textSecondary),
+              DSText(
+                subtitle,
+                role: DSTextRole.caption,
+                color: ds.colors.textSecondary,
+              ),
             ],
           ),
         ),
@@ -287,11 +357,16 @@ class _Banner extends StatelessWidget {
       child: Container(
         padding: EdgeInsetsDirectional.all(ds.spacing.md),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(ds.radii.medium),
-          border: Border.all(color: color.withOpacity(0.4)),
+          border: Border.all(color: color.withValues(alpha: 0.4)),
         ),
-        child: DSText(message, role: DSTextRole.body, color: color, maxLines: 3),
+        child: DSText(
+          message,
+          role: DSTextRole.body,
+          color: color,
+          maxLines: 3,
+        ),
       ),
     );
   }
@@ -351,8 +426,9 @@ class _SearchFieldState extends State<_SearchField> {
                   EditableText(
                     controller: widget.controller,
                     focusNode: _focus,
-                    style: ds.typography.body
-                        .copyWith(color: ds.colors.textPrimary),
+                    style: ds.typography.body.copyWith(
+                      color: ds.colors.textPrimary,
+                    ),
                     cursorColor: ds.colors.primary,
                     backgroundCursorColor: ds.colors.textMuted,
                     maxLines: 1,
@@ -362,6 +438,86 @@ class _SearchFieldState extends State<_SearchField> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Storefront section header — a tappable dropdown showing the category name,
+/// its item count, and a chevron that flips when the section is expanded.
+class _CategoryHeader extends StatelessWidget {
+  final String title;
+  final int count;
+  final bool expanded;
+  final VoidCallback onTap;
+
+  const _CategoryHeader({
+    required this.title,
+    required this.count,
+    required this.expanded,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    return Padding(
+      padding: EdgeInsetsDirectional.only(bottom: ds.spacing.xs),
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          padding: EdgeInsetsDirectional.symmetric(
+            horizontal: ds.spacing.md,
+            vertical: ds.spacing.sm + 2,
+          ),
+          decoration: BoxDecoration(
+            color: expanded
+                ? ds.colors.primary.withValues(alpha: 0.08)
+                : ds.colors.surface,
+            borderRadius: BorderRadius.circular(ds.radii.large),
+            border: Border.all(
+              color: expanded
+                  ? ds.colors.primary.withValues(alpha: 0.4)
+                  : ds.colors.border,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: ds.spacing.xs,
+                height: ds.spacing.md,
+                decoration: BoxDecoration(
+                  color: ds.colors.primary,
+                  borderRadius: BorderRadius.circular(ds.radii.pill),
+                ),
+              ),
+              SizedBox(width: ds.spacing.sm),
+              Expanded(child: DSText(title, role: DSTextRole.title)),
+              Container(
+                padding: EdgeInsetsDirectional.symmetric(
+                  horizontal: ds.spacing.sm,
+                  vertical: ds.spacing.xs / 2,
+                ),
+                decoration: BoxDecoration(
+                  color: ds.colors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(ds.radii.pill),
+                ),
+                child: DSText(
+                  '$count',
+                  role: DSTextRole.caption,
+                  color: ds.colors.primary,
+                ),
+              ),
+              SizedBox(width: ds.spacing.sm),
+              AnimatedRotation(
+                turns: expanded ? 0.5 : 0,
+                duration: const Duration(milliseconds: 200),
+                child: DSText('⌄', role: DSTextRole.title, color: ds.colors.textMuted),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -402,12 +558,15 @@ class _ItemRow extends StatelessWidget {
             width: ds.spacing.xl,
             height: ds.spacing.xl,
             decoration: BoxDecoration(
-              color: stockColor.withOpacity(0.12),
+              color: stockColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(ds.radii.medium),
             ),
             alignment: Alignment.center,
-            child: DSText('${item.quantity}',
-                role: DSTextRole.title, color: stockColor),
+            child: DSText(
+              '${item.quantity}',
+              role: DSTextRole.title,
+              color: stockColor,
+            ),
           ),
           SizedBox(width: ds.spacing.md),
           Expanded(
@@ -467,9 +626,9 @@ class _StepBtn extends StatelessWidget {
         height: ds.spacing.xl,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: ds.colors.primary.withOpacity(0.1),
+          color: ds.colors.primary.withValues(alpha: 0.1),
           shape: BoxShape.circle,
-          border: Border.all(color: ds.colors.primary.withOpacity(0.3)),
+          border: Border.all(color: ds.colors.primary.withValues(alpha: 0.3)),
         ),
         child: DSText(label, role: DSTextRole.title, color: ds.colors.primary),
       ),
@@ -492,9 +651,9 @@ class _CartSummary extends StatelessWidget {
         vertical: ds.spacing.sm,
       ),
       decoration: BoxDecoration(
-        color: ds.colors.primary.withOpacity(0.08),
+        color: ds.colors.primary.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(ds.radii.large),
-        border: Border.all(color: ds.colors.primary.withOpacity(0.25)),
+        border: Border.all(color: ds.colors.primary.withValues(alpha: 0.25)),
       ),
       child: Row(
         children: [
@@ -505,8 +664,11 @@ class _CartSummary extends StatelessWidget {
               color: ds.colors.textSecondary,
             ),
           ),
-          DSText('$cartCount',
-              role: DSTextRole.title, color: ds.colors.primary),
+          DSText(
+            '$cartCount',
+            role: DSTextRole.title,
+            color: ds.colors.primary,
+          ),
         ],
       ),
     );
@@ -586,10 +748,17 @@ class _Empty extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          DSLineIcon(type: icon, color: ds.colors.textMuted, size: ds.spacing.xl),
+          DSLineIcon(
+            type: icon,
+            color: ds.colors.textMuted,
+            size: ds.spacing.xl,
+          ),
           SizedBox(height: ds.spacing.sm),
-          DSText(message,
-              role: DSTextRole.caption, color: ds.colors.textSecondary),
+          DSText(
+            message,
+            role: DSTextRole.caption,
+            color: ds.colors.textSecondary,
+          ),
         ],
       ),
     );

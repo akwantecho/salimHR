@@ -89,7 +89,10 @@ class _AddRequestPopupState extends State<AddRequestPopup>
       _PopupOption(
         kind: RequestKind.patientTransfer,
         label: t('طلب نقل مريض', 'Patient Transfer'),
-        sub: t('تحويل مريض لأخصائي آخر', 'Transfer patient to another specialist'),
+        sub: t(
+          'تحويل مريض لأخصائي آخر',
+          'Transfer patient to another specialist',
+        ),
         icon: LineIconType.heart,
         color: const Color(0xFFEF4444),
       ),
@@ -112,7 +115,9 @@ class _AddRequestPopupState extends State<AddRequestPopup>
               child: GestureDetector(
                 onTap: _close,
                 child: Container(
-                  color: const Color(0xFF000000).withOpacity(0.45 * _fade.value),
+                  color: const Color(
+                    0xFF000000,
+                  ).withValues(alpha: 0.45 * _fade.value),
                 ),
               ),
             ),
@@ -132,7 +137,7 @@ class _AddRequestPopupState extends State<AddRequestPopup>
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF000000).withOpacity(0.18),
+                        color: const Color(0xFF000000).withValues(alpha: 0.18),
                         blurRadius: 24,
                         offset: const Offset(0, -8),
                       ),
@@ -142,7 +147,9 @@ class _AddRequestPopupState extends State<AddRequestPopup>
                     start: ds.spacing.lg,
                     end: ds.spacing.lg,
                     top: ds.spacing.md,
-                    bottom: ds.spacing.xl + MediaQuery.viewPaddingOf(context).bottom,
+                    bottom:
+                        ds.spacing.xl +
+                        MediaQuery.viewPaddingOf(context).bottom,
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -226,7 +233,7 @@ class _PopupOptionTile extends StatelessWidget {
               width: ds.spacing.xl + ds.spacing.sm,
               height: ds.spacing.xl + ds.spacing.sm,
               decoration: BoxDecoration(
-                color: option.color.withOpacity(0.15),
+                color: option.color.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
               child: Center(
@@ -309,10 +316,7 @@ class RequestFormScaffold extends StatelessWidget {
               _FormHeader(title: title, subtitle: subtitle, onBack: onBack),
               SizedBox(height: ds.spacing.lg),
               if (errorMessage != null) ...[
-                _Banner(
-                  message: errorMessage!,
-                  color: const Color(0xFFEF4444),
-                ),
+                _Banner(message: errorMessage!, color: const Color(0xFFEF4444)),
                 SizedBox(height: ds.spacing.md),
               ],
               if (successMessage != null) ...[
@@ -402,9 +406,9 @@ class _Banner extends StatelessWidget {
     return Container(
       padding: EdgeInsetsDirectional.all(ds.spacing.md),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(ds.radii.medium),
-        border: Border.all(color: color.withOpacity(0.4)),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: DSText(message, role: DSTextRole.body, color: color, maxLines: 4),
     );
@@ -466,7 +470,11 @@ class _MultilineFieldCardState extends State<MultilineFieldCard> {
                 ),
                 if (widget.required) ...[
                   SizedBox(width: 4),
-                  DSText('*', role: DSTextRole.label, color: const Color(0xFFEF4444)),
+                  DSText(
+                    '*',
+                    role: DSTextRole.label,
+                    color: const Color(0xFFEF4444),
+                  ),
                 ],
               ],
             ),
@@ -496,12 +504,15 @@ class _MultilineFieldCardState extends State<MultilineFieldCard> {
                   EditableText(
                     controller: widget.controller,
                     focusNode: _focus,
-                    style: ds.typography.body.copyWith(color: ds.colors.textPrimary),
+                    style: ds.typography.body.copyWith(
+                      color: ds.colors.textPrimary,
+                    ),
                     cursorColor: ds.colors.primary,
                     backgroundCursorColor: ds.colors.textMuted,
                     minLines: widget.minLines,
                     maxLines: widget.maxLines,
-                    keyboardType: widget.keyboardType ?? TextInputType.multiline,
+                    keyboardType:
+                        widget.keyboardType ?? TextInputType.multiline,
                     textInputAction: TextInputAction.newline,
                   ),
                 ],
@@ -565,7 +576,11 @@ class _SingleLineFieldCardState extends State<SingleLineFieldCard> {
                 ),
                 if (widget.required) ...[
                   SizedBox(width: 4),
-                  DSText('*', role: DSTextRole.label, color: const Color(0xFFEF4444)),
+                  DSText(
+                    '*',
+                    role: DSTextRole.label,
+                    color: const Color(0xFFEF4444),
+                  ),
                 ],
               ],
             ),
@@ -585,7 +600,7 @@ class _SingleLineFieldCardState extends State<SingleLineFieldCard> {
                   if (widget.icon != null) ...[
                     DSLineIcon(
                       type: widget.icon!,
-                      color: ds.colors.primary.withOpacity(0.6),
+                      color: ds.colors.primary.withValues(alpha: 0.6),
                       size: ds.spacing.md,
                     ),
                     SizedBox(width: ds.spacing.sm),
@@ -602,8 +617,9 @@ class _SingleLineFieldCardState extends State<SingleLineFieldCard> {
                         EditableText(
                           controller: widget.controller,
                           focusNode: _focus,
-                          style: ds.typography.body
-                              .copyWith(color: ds.colors.textPrimary),
+                          style: ds.typography.body.copyWith(
+                            color: ds.colors.textPrimary,
+                          ),
                           cursorColor: ds.colors.primary,
                           backgroundCursorColor: ds.colors.textMuted,
                           maxLines: 1,
@@ -652,15 +668,7 @@ class DateStepperField extends StatelessWidget {
     'الأحد',
   ];
 
-  static const _weekdaysEn = [
-    'Mon',
-    'Tue',
-    'Wed',
-    'Thu',
-    'Fri',
-    'Sat',
-    'Sun',
-  ];
+  static const _weekdaysEn = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   void _adjust(int delta) {
     final next = value.add(Duration(days: delta));
@@ -672,7 +680,10 @@ class DateStepperField extends StatelessWidget {
   Widget build(BuildContext context) {
     final ds = DSProvider.of(context);
     String t(String ar, String en) => tr(context, ar: ar, en: en);
-    final weekday = t(_weekdaysAr[value.weekday - 1], _weekdaysEn[value.weekday - 1]);
+    final weekday = t(
+      _weekdaysAr[value.weekday - 1],
+      _weekdaysEn[value.weekday - 1],
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -733,9 +744,9 @@ class _StepBtn extends StatelessWidget {
         width: ds.spacing.xl,
         height: ds.spacing.xl,
         decoration: BoxDecoration(
-          color: ds.colors.primary.withOpacity(0.1),
+          color: ds.colors.primary.withValues(alpha: 0.1),
           shape: BoxShape.circle,
-          border: Border.all(color: ds.colors.primary.withOpacity(0.4)),
+          border: Border.all(color: ds.colors.primary.withValues(alpha: 0.4)),
         ),
         child: Center(
           child: DSText(
@@ -887,11 +898,15 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen> {
     setState(() {
       _submitting = false;
       if (ok) {
-        _success = tr(context,
-            ar: 'تم إرسال طلب الإجازة بنجاح', en: 'Leave request submitted');
+        _success = tr(
+          context,
+          ar: 'تم إرسال طلب الإجازة بنجاح',
+          en: 'Leave request submitted',
+        );
         _reasonCtrl.clear();
       } else {
-        _error = context.hrService.error ??
+        _error =
+            context.hrService.error ??
             tr(context, ar: 'فشل الإرسال', en: 'Submit failed');
       }
     });
@@ -936,8 +951,10 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen> {
         else if (_types.isEmpty)
           DSCard(
             child: DSText(
-              t('لا توجد أنواع إجازات متاحة. اطلب من الإدارة إضافتها.',
-                  'No leave types available. Ask admin to add them.'),
+              t(
+                'لا توجد أنواع إجازات متاحة. اطلب من الإدارة إضافتها.',
+                'No leave types available. Ask admin to add them.',
+              ),
               role: DSTextRole.body,
               color: ds.colors.textSecondary,
             ),
@@ -984,9 +1001,11 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen> {
           Container(
             padding: EdgeInsetsDirectional.all(ds.spacing.sm),
             decoration: BoxDecoration(
-              color: const Color(0xFFF59E0B).withOpacity(0.1),
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(ds.radii.medium),
-              border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.4)),
+              border: Border.all(
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
+              ),
             ),
             child: DSText(
               t(
@@ -1033,8 +1052,10 @@ class _LeaveTypeDetailCard extends StatelessWidget {
       ),
       if (type.maxDaysPerYear != null)
         _Chip(
-          label:
-              t('حتى ${type.maxDaysPerYear} يوم/سنة', 'Up to ${type.maxDaysPerYear} d/yr'),
+          label: t(
+            'حتى ${type.maxDaysPerYear} يوم/سنة',
+            'Up to ${type.maxDaysPerYear} d/yr',
+          ),
           color: accent,
         ),
       if (type.requiresApproval)
@@ -1047,9 +1068,9 @@ class _LeaveTypeDetailCard extends StatelessWidget {
     return Container(
       padding: EdgeInsetsDirectional.all(ds.spacing.md),
       decoration: BoxDecoration(
-        color: accent.withOpacity(0.06),
+        color: accent.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(ds.radii.large),
-        border: Border.all(color: accent.withOpacity(0.25)),
+        border: Border.all(color: accent.withValues(alpha: 0.25)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1066,10 +1087,7 @@ class _LeaveTypeDetailCard extends StatelessWidget {
               ),
               SizedBox(width: ds.spacing.sm),
               Expanded(
-                child: DSText(
-                  type.displayName(),
-                  role: DSTextRole.title,
-                ),
+                child: DSText(type.displayName(), role: DSTextRole.title),
               ),
             ],
           ),
@@ -1109,11 +1127,193 @@ class _Chip extends StatelessWidget {
         vertical: ds.spacing.xs / 2,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.14),
+        color: color.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(ds.radii.pill),
-        border: Border.all(color: color.withOpacity(0.35)),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
       ),
       child: DSText(label, role: DSTextRole.caption, color: color),
+    );
+  }
+}
+
+/// A lightweight dropdown/select field that matches the app's Material-free
+/// design. Tapping the field expands an inline list of [options]; picking one
+/// collapses it and reports the choice via [onChanged].
+class SelectFieldCard extends StatefulWidget {
+  final String label;
+  final String hint;
+  final List<String> options;
+  final String? value;
+  final ValueChanged<String> onChanged;
+  final bool required;
+  final LineIconType? icon;
+
+  const SelectFieldCard({
+    super.key,
+    required this.label,
+    required this.hint,
+    required this.options,
+    required this.value,
+    required this.onChanged,
+    this.required = false,
+    this.icon,
+  });
+
+  @override
+  State<SelectFieldCard> createState() => _SelectFieldCardState();
+}
+
+class _SelectFieldCardState extends State<SelectFieldCard> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    final hasValue = widget.value != null && widget.value!.isNotEmpty;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            DSText(
+              widget.label,
+              role: DSTextRole.label,
+              color: ds.colors.textSecondary,
+            ),
+            if (widget.required) ...[
+              SizedBox(width: 4),
+              DSText(
+                '*',
+                role: DSTextRole.label,
+                color: const Color(0xFFEF4444),
+              ),
+            ],
+          ],
+        ),
+        SizedBox(height: ds.spacing.xs),
+        // Selected value / trigger
+        GestureDetector(
+          onTap: () => setState(() => _open = !_open),
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            padding: EdgeInsetsDirectional.symmetric(
+              horizontal: ds.spacing.md,
+              vertical: ds.spacing.sm + 2,
+            ),
+            decoration: BoxDecoration(
+              color: ds.colors.surfaceAlt,
+              borderRadius: BorderRadius.circular(ds.radii.large),
+              border: Border.all(
+                color: _open ? ds.colors.primary : ds.colors.border,
+                width: 1.5,
+              ),
+            ),
+            child: Row(
+              children: [
+                if (widget.icon != null) ...[
+                  DSLineIcon(
+                    type: widget.icon!,
+                    color: ds.colors.primary.withValues(alpha: 0.6),
+                    size: ds.spacing.md,
+                  ),
+                  SizedBox(width: ds.spacing.sm),
+                ],
+                Expanded(
+                  child: DSText(
+                    hasValue ? widget.value! : widget.hint,
+                    role: DSTextRole.body,
+                    color: hasValue
+                        ? ds.colors.textPrimary
+                        : ds.colors.textMuted,
+                  ),
+                ),
+                _Caret(open: _open),
+              ],
+            ),
+          ),
+        ),
+        // Expanded options
+        if (_open) ...[
+          SizedBox(height: ds.spacing.xs),
+          Container(
+            decoration: BoxDecoration(
+              color: ds.colors.surfaceAlt,
+              borderRadius: BorderRadius.circular(ds.radii.large),
+              border: Border.all(color: ds.colors.border, width: 1.5),
+            ),
+            child: Column(
+              children: [
+                for (var i = 0; i < widget.options.length; i++)
+                  GestureDetector(
+                    onTap: () {
+                      widget.onChanged(widget.options[i]);
+                      setState(() => _open = false);
+                    },
+                    behavior: HitTestBehavior.opaque,
+                    child: Container(
+                      width: double.infinity,
+                      padding: EdgeInsetsDirectional.symmetric(
+                        horizontal: ds.spacing.md,
+                        vertical: ds.spacing.sm + 2,
+                      ),
+                      decoration: BoxDecoration(
+                        border: i == 0
+                            ? null
+                            : Border(
+                                top: BorderSide(
+                                  color: ds.colors.border.withValues(
+                                    alpha: 0.5,
+                                  ),
+                                ),
+                              ),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: DSText(
+                              widget.options[i],
+                              role: DSTextRole.body,
+                              color: widget.value == widget.options[i]
+                                  ? ds.colors.primary
+                                  : ds.colors.textPrimary,
+                            ),
+                          ),
+                          if (widget.value == widget.options[i])
+                            DSText(
+                              '✓',
+                              role: DSTextRole.title,
+                              color: ds.colors.primary,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Small chevron that flips when its parent select is open.
+class _Caret extends StatelessWidget {
+  final bool open;
+
+  const _Caret({required this.open});
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    return AnimatedRotation(
+      turns: open ? 0.5 : 0,
+      duration: const Duration(milliseconds: 200),
+      child: DSText(
+        '⌄',
+        role: DSTextRole.title,
+        color: ds.colors.textMuted,
+      ),
     );
   }
 }
@@ -1131,9 +1331,19 @@ class NoteRequestScreen extends StatefulWidget {
 
 class _NoteRequestScreenState extends State<NoteRequestScreen> {
   final _noteCtrl = TextEditingController();
+  String? _category;
   bool _submitting = false;
   String? _error;
   String? _success;
+
+  /// Message categories the user picks from before writing the body.
+  static const List<(String ar, String en)> _categories = [
+    ('ملاحظة', 'Note'),
+    ('شكوى', 'Complaint'),
+    ('طلب', 'Request'),
+    ('استفسار', 'Inquiry'),
+    ('مقترح', 'Suggestion'),
+  ];
 
   @override
   void dispose() {
@@ -1141,7 +1351,8 @@ class _NoteRequestScreenState extends State<NoteRequestScreen> {
     super.dispose();
   }
 
-  bool get _canSubmit => _noteCtrl.text.trim().length >= 3;
+  bool get _canSubmit =>
+      _category != null && _noteCtrl.text.trim().length >= 3;
 
   Future<void> _submit() async {
     if (!_canSubmit) return;
@@ -1150,16 +1361,23 @@ class _NoteRequestScreenState extends State<NoteRequestScreen> {
       _error = null;
       _success = null;
     });
-    final ok = await context.hrService.sendMyNote(_noteCtrl.text.trim());
+    // Prepend the chosen category so it reaches the admin with the message.
+    final body = '[$_category] ${_noteCtrl.text.trim()}';
+    final ok = await context.hrService.sendMyNote(body);
     if (!mounted) return;
     setState(() {
       _submitting = false;
       if (ok) {
-        _success = tr(context,
-            ar: 'تم إرسال الملاحظة بنجاح', en: 'Note sent successfully');
+        _success = tr(
+          context,
+          ar: 'تم إرسال الرسالة بنجاح',
+          en: 'Message sent successfully',
+        );
         _noteCtrl.clear();
+        _category = null;
       } else {
-        _error = context.hrService.error ??
+        _error =
+            context.hrService.error ??
             tr(context, ar: 'فشل الإرسال', en: 'Send failed');
       }
     });
@@ -1167,12 +1385,17 @@ class _NoteRequestScreenState extends State<NoteRequestScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    final isArabic = tr(context, ar: 'ar', en: 'en') == 'ar';
     String t(String ar, String en) => tr(context, ar: ar, en: en);
+    final options = [
+      for (final c in _categories) isArabic ? c.$1 : c.$2,
+    ];
     return ListenableBuilder(
       listenable: _noteCtrl,
       builder: (context, _) => RequestFormScaffold(
-        title: t('ملاحظة جديدة', 'New Note'),
-        subtitle: t('إرسال ملاحظة للإدارة', 'Send a note to admin'),
+        title: t('رسالة جديدة', 'New Message'),
+        subtitle: t('إرسال رسالة للإدارة', 'Send a message to admin'),
         onBack: widget.onBack,
         submitLabel: t('إرسال', 'Send'),
         canSubmit: _canSubmit,
@@ -1181,9 +1404,19 @@ class _NoteRequestScreenState extends State<NoteRequestScreen> {
         errorMessage: _error,
         successMessage: _success,
         children: [
+          SelectFieldCard(
+            label: t('نوع الرسالة', 'Message Type'),
+            hint: t('اختر النوع', 'Choose a type'),
+            options: options,
+            value: _category,
+            onChanged: (v) => setState(() => _category = v),
+            required: true,
+            icon: LineIconType.bookmark,
+          ),
+          SizedBox(height: ds.spacing.lg),
           MultilineFieldCard(
-            label: t('نص الملاحظة', 'Note Body'),
-            hint: t('اكتب ملاحظتك هنا...', 'Write your note here...'),
+            label: t('نص الرسالة', 'Message Body'),
+            hint: t('اكتب رسالتك هنا...', 'Write your message here...'),
             controller: _noteCtrl,
             required: true,
             minLines: 6,
@@ -1242,13 +1475,16 @@ class _PatientTransferRequestScreenState
     setState(() {
       _submitting = false;
       if (ok) {
-        _success = tr(context,
-            ar: 'تم إرسال طلب النقل بنجاح',
-            en: 'Transfer request submitted');
+        _success = tr(
+          context,
+          ar: 'تم إرسال طلب النقل بنجاح',
+          en: 'Transfer request submitted',
+        );
         _patientCtrl.clear();
         _detailsCtrl.clear();
       } else {
-        _error = context.hrService.error ??
+        _error =
+            context.hrService.error ??
             tr(context, ar: 'فشل الإرسال', en: 'Submit failed');
       }
     });
@@ -1281,8 +1517,10 @@ class _PatientTransferRequestScreenState
           SizedBox(height: ds.spacing.lg),
           MultilineFieldCard(
             label: t('تفاصيل الطلب', 'Request Details'),
-            hint: t('سبب النقل، الأخصائي المقترح، ملاحظات...',
-                'Reason, target specialist, notes...'),
+            hint: t(
+              'سبب النقل، الأخصائي المقترح، ملاحظات...',
+              'Reason, target specialist, notes...',
+            ),
             controller: _detailsCtrl,
             required: true,
             minLines: 4,
@@ -1325,9 +1563,7 @@ class _LoanRequestScreenState extends State<LoanRequestScreen> {
   }
 
   bool get _canSubmit =>
-      _amount != null &&
-      _amount! > 0 &&
-      _reasonCtrl.text.trim().length >= 5;
+      _amount != null && _amount! > 0 && _reasonCtrl.text.trim().length >= 5;
 
   Future<void> _submit() async {
     if (!_canSubmit) return;
@@ -1345,13 +1581,16 @@ class _LoanRequestScreenState extends State<LoanRequestScreen> {
     setState(() {
       _submitting = false;
       if (ok) {
-        _success = tr(context,
-            ar: 'تم إرسال طلب الدين بنجاح',
-            en: 'Loan request submitted');
+        _success = tr(
+          context,
+          ar: 'تم إرسال طلب الدين بنجاح',
+          en: 'Loan request submitted',
+        );
         _amountCtrl.clear();
         _reasonCtrl.clear();
       } else {
-        _error = context.hrService.error ??
+        _error =
+            context.hrService.error ??
             tr(context, ar: 'فشل الإرسال', en: 'Submit failed');
       }
     });
@@ -1379,8 +1618,7 @@ class _LoanRequestScreenState extends State<LoanRequestScreen> {
             hint: t('0.00', '0.00'),
             controller: _amountCtrl,
             required: true,
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
             icon: LineIconType.chart,
           ),
           SizedBox(height: ds.spacing.lg),

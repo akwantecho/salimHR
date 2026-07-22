@@ -32,6 +32,7 @@ class _SpecialistHomeScreenState extends State<SpecialistHomeScreen> {
   Map<String, dynamic>? _attendanceSummary;
   int _pendingLeaves = 0;
   int _approvedLeavesThisMonth = 0;
+  List<PromoBanner> _banners = [];
 
   @override
   void initState() {
@@ -52,7 +53,9 @@ class _SpecialistHomeScreenState extends State<SpecialistHomeScreen> {
           '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
 
       // Today's appointments
-      final appointmentsData = await hrService.fetchMyAppointments(date: dateStr);
+      final appointmentsData = await hrService.fetchMyAppointments(
+        date: dateStr,
+      );
       if (!mounted) return;
 
       final appointmentsList = appointmentsData['data'] as List<dynamic>? ?? [];
@@ -60,15 +63,18 @@ class _SpecialistHomeScreenState extends State<SpecialistHomeScreen> {
           .map((e) => Appointment.fromJson(e as Map<String, dynamic>))
           .toList();
       _appointmentStats = {
-        'total': (appointmentsData['stats']?['total'] as int?) ??
+        'total':
+            (appointmentsData['stats']?['total'] as int?) ??
             _todayAppointments.length,
         'upcoming': (appointmentsData['stats']?['upcoming'] as int?) ?? 0,
         'completed': (appointmentsData['stats']?['completed'] as int?) ?? 0,
       };
 
       // Attendance summary for the current month
-      final attendanceData =
-          await hrService.fetchMyAttendance(month: today.month, year: today.year);
+      final attendanceData = await hrService.fetchMyAttendance(
+        month: today.month,
+        year: today.year,
+      );
       if (!mounted) return;
       _attendanceSummary = attendanceData['summary'] as Map<String, dynamic>?;
 
@@ -77,6 +83,10 @@ class _SpecialistHomeScreenState extends State<SpecialistHomeScreen> {
       if (!mounted) return;
       _pendingLeaves = leavesSummary['pending'] ?? 0;
       _approvedLeavesThisMonth = leavesSummary['approved_this_month'] ?? 0;
+
+      // Promotional banners — managed from the server control panel.
+      _banners = await hrService.fetchPromoBanners();
+      if (!mounted) return;
 
       setState(() => _isLoading = false);
     } catch (e) {
@@ -91,32 +101,13 @@ class _SpecialistHomeScreenState extends State<SpecialistHomeScreen> {
   Future<void> _openDetail(Appointment appointment) async {
     final result = await Navigator.of(context).push<Appointment>(
       PageRouteBuilder(
-        pageBuilder: (context, _, __) =>
+        pageBuilder: (context, _, _) =>
             SessionDetailScreen(appointment: appointment),
       ),
     );
     if (result != null && mounted) {
       await _load();
     }
-  }
-
-  String _firstName(String? fullName) {
-    if (fullName == null || fullName.trim().isEmpty) return '';
-    return fullName.trim().split(RegExp(r'\s+')).first;
-  }
-
-  String _arabicGreeting() {
-    final h = DateTime.now().hour;
-    if (h < 12) return 'صباح الخير';
-    if (h < 17) return 'مساء الخير';
-    return 'مساء النور';
-  }
-
-  String _englishGreeting() {
-    final h = DateTime.now().hour;
-    if (h < 12) return 'Good morning';
-    if (h < 17) return 'Good afternoon';
-    return 'Good evening';
   }
 
   @override
@@ -131,10 +122,6 @@ class _SpecialistHomeScreenState extends State<SpecialistHomeScreen> {
     if (_error != null) {
       return _ErrorView(error: _error!, onRetry: _load);
     }
-
-    final user = context.authService.currentUser;
-    final firstName = _firstName(user?.name);
-    final greeting = t(_arabicGreeting(), _englishGreeting());
 
     final nextSession = _todayAppointments
         .where((a) => a.isUpcoming || a.isCheckedIn)
@@ -151,13 +138,12 @@ class _SpecialistHomeScreenState extends State<SpecialistHomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Greeting hero
-              _GreetingHero(
-                greeting: greeting,
-                name: firstName,
-                roleLabel: t('أخصائي', 'Specialist'),
-              ),
-              SizedBox(height: ds.spacing.lg),
+              // Promotional banners — auto-rotating carousel of 3 slides,
+              // managed from the server control panel (see fetchPromoBanners).
+              if (_banners.isNotEmpty) ...[
+                PromoBannerCarousel(banners: _banners),
+                SizedBox(height: ds.spacing.lg),
+              ],
 
               // Stat cards: today's sessions, worked days, leaves
               Row(
@@ -168,6 +154,7 @@ class _SpecialistHomeScreenState extends State<SpecialistHomeScreen> {
                       value: '${_appointmentStats['total'] ?? 0}',
                       icon: LineIconType.calendar,
                       color: const Color(0xFF6366F1),
+                      onTap: () => app.setTab(UserRole.specialist, 1),
                     ),
                   ),
                   SizedBox(width: ds.spacing.sm),
@@ -177,6 +164,7 @@ class _SpecialistHomeScreenState extends State<SpecialistHomeScreen> {
                       value: '$workedDays',
                       icon: LineIconType.home,
                       color: const Color(0xFF10B981),
+                      onTap: () => app.setTab(UserRole.specialist, 2),
                     ),
                   ),
                   SizedBox(width: ds.spacing.sm),
@@ -186,6 +174,7 @@ class _SpecialistHomeScreenState extends State<SpecialistHomeScreen> {
                       value: '${_appointmentStats['completed'] ?? 0}',
                       icon: LineIconType.heart,
                       color: const Color(0xFFF59E0B),
+                      onTap: () => app.setTab(UserRole.specialist, 1),
                     ),
                   ),
                 ],
@@ -201,6 +190,8 @@ class _SpecialistHomeScreenState extends State<SpecialistHomeScreen> {
                       value: '$_pendingLeaves',
                       icon: LineIconType.bookmark,
                       color: const Color(0xFFEF4444),
+                      onTap: () =>
+                          app.showSpecialistSub(SpecialistSubScreen.leaveRequest),
                     ),
                   ),
                   SizedBox(width: ds.spacing.sm),
@@ -210,6 +201,8 @@ class _SpecialistHomeScreenState extends State<SpecialistHomeScreen> {
                       value: '$_approvedLeavesThisMonth',
                       icon: LineIconType.calendar,
                       color: const Color(0xFF8B5CF6),
+                      onTap: () =>
+                          app.showSpecialistSub(SpecialistSubScreen.leaveRequest),
                     ),
                   ),
                   SizedBox(width: ds.spacing.sm),
@@ -219,6 +212,7 @@ class _SpecialistHomeScreenState extends State<SpecialistHomeScreen> {
                       value: '$totalSessionsMonth',
                       icon: LineIconType.chart,
                       color: const Color(0xFF06B6D4),
+                      onTap: () => app.setTab(UserRole.specialist, 1),
                     ),
                   ),
                 ],
@@ -234,8 +228,10 @@ class _SpecialistHomeScreenState extends State<SpecialistHomeScreen> {
                 )
               else
                 _EmptyCard(
-                  message: t('لا توجد جلسات قادمة اليوم',
-                      'No upcoming sessions today'),
+                  message: t(
+                    'لا توجد جلسات قادمة اليوم',
+                    'No upcoming sessions today',
+                  ),
                   icon: LineIconType.calendar,
                 ),
               SizedBox(height: ds.spacing.lg),
@@ -259,8 +255,9 @@ class _SpecialistHomeScreenState extends State<SpecialistHomeScreen> {
                       label: t('الملاحظات', 'Notes'),
                       icon: LineIconType.chat,
                       color: const Color(0xFF6366F1),
-                      onTap: () => app
-                          .showSpecialistSub(SpecialistSubScreen.noteRequest),
+                      onTap: () => app.showSpecialistSub(
+                        SpecialistSubScreen.noteRequest,
+                      ),
                     ),
                   ),
                 ],
@@ -274,91 +271,176 @@ class _SpecialistHomeScreenState extends State<SpecialistHomeScreen> {
   }
 }
 
-class _GreetingHero extends StatelessWidget {
-  final String greeting;
-  final String name;
-  final String roleLabel;
+/// Auto-rotating promotional banner carousel for the specialist home.
+///
+/// Cycles through [banners] every few seconds, supports manual swiping, and
+/// shows a page-dot indicator. Slides come from [HRService.fetchPromoBanners]
+/// so they can be managed from the server control panel.
+class PromoBannerCarousel extends StatefulWidget {
+  final List<PromoBanner> banners;
 
-  const _GreetingHero({
-    required this.greeting,
-    required this.name,
-    required this.roleLabel,
-  });
+  const PromoBannerCarousel({required this.banners});
+
+  @override
+  State<PromoBannerCarousel> createState() => PromoBannerCarouselState();
+}
+
+class PromoBannerCarouselState extends State<PromoBannerCarousel> {
+  static const Duration _interval = Duration(seconds: 4);
+  static const Duration _animDuration = Duration(milliseconds: 450);
+
+  final PageController _controller = PageController();
+  Timer? _timer;
+  int _current = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _startAutoPlay();
+  }
+
+  void _startAutoPlay() {
+    _timer?.cancel();
+    if (widget.banners.length < 2) return;
+    _timer = Timer.periodic(_interval, (_) {
+      if (!mounted || !_controller.hasClients) return;
+      final next = (_current + 1) % widget.banners.length;
+      _controller.animateToPage(
+        next,
+        duration: _animDuration,
+        curve: Curves.easeInOut,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final ds = DSProvider.of(context);
-    final displayName = name.isEmpty ? roleLabel : name;
+    return Column(
+      children: [
+        SizedBox(
+          height: 160,
+          child: PageView.builder(
+            controller: _controller,
+            itemCount: widget.banners.length,
+            onPageChanged: (i) => setState(() => _current = i),
+            itemBuilder: (context, i) =>
+                PromoBannerSlide(banner: widget.banners[i]),
+          ),
+        ),
+        SizedBox(height: ds.spacing.sm),
+        // Page-dot indicator
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            for (var i = 0; i < widget.banners.length; i++)
+              AnimatedContainer(
+                duration: _animDuration,
+                margin: EdgeInsetsDirectional.symmetric(
+                  horizontal: ds.spacing.xs,
+                ),
+                width: i == _current ? ds.spacing.lg : ds.spacing.sm,
+                height: ds.spacing.sm,
+                decoration: BoxDecoration(
+                  color: i == _current
+                      ? ds.colors.primary
+                      : ds.colors.primary.withValues(alpha: 0.25),
+                  borderRadius: BorderRadius.circular(ds.radii.pill),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// A single promotional slide — gradient (or image) background with a title,
+/// subtitle and optional action pill.
+class PromoBannerSlide extends StatelessWidget {
+  final PromoBanner banner;
+
+  const PromoBannerSlide({required this.banner});
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    final base = Color(banner.colorValue);
+    const white = Color(0xFFFFFFFF);
+
     return Container(
-      padding: EdgeInsetsDirectional.all(ds.spacing.lg),
+      margin: EdgeInsetsDirectional.symmetric(horizontal: ds.spacing.xs),
+      padding: EdgeInsets.all(ds.spacing.lg),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        borderRadius: BorderRadius.circular(ds.radii.large),
+        gradient: LinearGradient(
           begin: AlignmentDirectional.topStart,
           end: AlignmentDirectional.bottomEnd,
-          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+          colors: [base, base.withValues(alpha: 0.72)],
         ),
-        borderRadius: BorderRadius.circular(ds.radii.xLarge),
+        image: banner.imageUrl != null
+            ? DecorationImage(
+                image: NetworkImage(banner.imageUrl!),
+                fit: BoxFit.cover,
+                colorFilter: ColorFilter.mode(
+                  base.withValues(alpha: 0.55),
+                  BlendMode.darken,
+                ),
+              )
+            : null,
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF6366F1).withOpacity(0.3),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
+            color: base.withValues(alpha: 0.35),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                DSText(
-                  greeting,
-                  role: DSTextRole.caption,
-                  color: const Color(0xFFFFFFFF).withOpacity(0.85),
-                ),
-                SizedBox(height: 4),
-                DSText(
-                  displayName,
-                  role: DSTextRole.display,
-                  color: const Color(0xFFFFFFFF),
-                  maxLines: 1,
-                ),
-                SizedBox(height: 4),
-                DSText(
-                  roleLabel,
-                  role: DSTextRole.caption,
-                  color: const Color(0xFFFFFFFF).withOpacity(0.75),
-                ),
-              ],
-            ),
+          DSText(
+            banner.title,
+            role: DSTextRole.headline,
+            color: white,
           ),
-          Container(
-            width: ds.spacing.xl + ds.spacing.md,
-            height: ds.spacing.xl + ds.spacing.md,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFFFFF).withOpacity(0.2),
-              borderRadius: BorderRadius.circular(ds.radii.large),
-            ),
-            child: Center(
+          SizedBox(height: ds.spacing.xs),
+          DSText(
+            banner.subtitle,
+            role: DSTextRole.body,
+            color: white.withValues(alpha: 0.92),
+          ),
+          if (banner.actionLabel != null &&
+              banner.actionLabel!.isNotEmpty) ...[
+            SizedBox(height: ds.spacing.md),
+            Container(
+              padding: EdgeInsetsDirectional.symmetric(
+                horizontal: ds.spacing.md,
+                vertical: ds.spacing.xs,
+              ),
+              decoration: BoxDecoration(
+                color: white.withValues(alpha: 0.22),
+                borderRadius: BorderRadius.circular(ds.radii.pill),
+                border: Border.all(color: white.withValues(alpha: 0.5)),
+              ),
               child: DSText(
-                _initials(displayName),
-                role: DSTextRole.headline,
-                color: const Color(0xFFFFFFFF),
+                banner.actionLabel!,
+                role: DSTextRole.label,
+                color: white,
               ),
             ),
-          ),
+          ],
         ],
       ),
     );
-  }
-
-  String _initials(String value) {
-    final parts = value.trim().split(RegExp(r'\s+'));
-    if (parts.isEmpty) return '';
-    if (parts.length == 1) return parts.first.characters.first.toUpperCase();
-    return (parts.first.characters.first + parts.last.characters.first)
-        .toUpperCase();
   }
 }
 
@@ -386,10 +468,10 @@ class _QuickLinkCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: ds.colors.surface,
           borderRadius: BorderRadius.circular(ds.radii.large),
-          border: Border.all(color: color.withOpacity(0.25)),
+          border: Border.all(color: color.withValues(alpha: 0.25)),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.08),
+              color: color.withValues(alpha: 0.08),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -401,7 +483,7 @@ class _QuickLinkCard extends StatelessWidget {
               width: ds.spacing.xl,
               height: ds.spacing.xl,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
+                color: color.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
               child: Center(
@@ -413,9 +495,7 @@ class _QuickLinkCard extends StatelessWidget {
               ),
             ),
             SizedBox(width: ds.spacing.md),
-            Expanded(
-              child: DSText(label, role: DSTextRole.title),
-            ),
+            Expanded(child: DSText(label, role: DSTextRole.title)),
           ],
         ),
       ),
@@ -437,6 +517,8 @@ class _SessionsScreenState extends State<SessionsScreen> {
   String? _error;
   List<Appointment> _appointments = [];
   Map<String, int> _stats = {};
+  DateTime? _acknowledgedAt;
+  bool _acking = false;
 
   @override
   void initState() {
@@ -453,7 +535,8 @@ class _SessionsScreenState extends State<SessionsScreen> {
     try {
       final hrService = context.hrService;
       final today = DateTime.now();
-      final dateStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+      final dateStr =
+          '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
       final data = await hrService.fetchMyAppointments(date: dateStr);
       if (!mounted) return;
 
@@ -468,6 +551,9 @@ class _SessionsScreenState extends State<SessionsScreen> {
         'cancelled': (data['stats']?['cancelled'] as int?) ?? 0,
       };
 
+      _acknowledgedAt = await hrService.fetchTodayAcknowledgement();
+      if (!mounted) return;
+
       setState(() => _isLoading = false);
     } catch (e) {
       if (!mounted) return;
@@ -481,13 +567,23 @@ class _SessionsScreenState extends State<SessionsScreen> {
   Future<void> _openDetail(Appointment appointment) async {
     final result = await Navigator.of(context).push<Appointment>(
       PageRouteBuilder(
-        pageBuilder: (context, _, __) =>
+        pageBuilder: (context, _, _) =>
             SessionDetailScreen(appointment: appointment),
       ),
     );
     if (result != null && mounted) {
       await _load();
     }
+  }
+
+  Future<void> _acknowledge() async {
+    setState(() => _acking = true);
+    final at = await context.hrService.acknowledgeTodaySchedule();
+    if (!mounted) return;
+    setState(() {
+      _acking = false;
+      if (at != null) _acknowledgedAt = at;
+    });
   }
 
   @override
@@ -509,6 +605,15 @@ class _SessionsScreenState extends State<SessionsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Acknowledge today's schedule
+              _ScheduleAckCard(
+                acknowledgedAt: _acknowledgedAt,
+                sessionsCount: _appointments.length,
+                loading: _acking,
+                onAcknowledge: _acknowledge,
+              ),
+              SizedBox(height: ds.spacing.lg),
+
               // Summary Stats
               Row(
                 children: [
@@ -539,9 +644,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
               ),
               SizedBox(height: ds.spacing.lg),
 
-              SectionHeader(
-                title: t('جلسات اليوم', 'Today\'s Sessions'),
-              ),
+              SectionHeader(title: t('جلسات اليوم', 'Today\'s Sessions')),
             ],
           ),
         ),
@@ -561,9 +664,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
             itemCount: _appointments.length,
             spacing: ds.spacing.sm,
           ),
-        SliverToBoxAdapter(
-          child: SizedBox(height: ds.spacing.lg),
-        ),
+        SliverToBoxAdapter(child: SizedBox(height: ds.spacing.lg)),
       ],
     );
   }
@@ -646,14 +747,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     if (!mounted) return;
     if (updated != null) {
       _showFlash(
-          tr(context, ar: 'تم تسجيل الحضور بنجاح', en: 'Checked in'),
-          const Color(0xFF10B981));
+        tr(context, ar: 'تم تسجيل الحضور بنجاح', en: 'Checked in'),
+        const Color(0xFF10B981),
+      );
       await _load();
     } else {
       _showFlash(
-          context.hrService.error ??
-              tr(context, ar: 'فشل تسجيل الحضور', en: 'Check-in failed'),
-          const Color(0xFFEF4444));
+        context.hrService.error ??
+            tr(context, ar: 'فشل تسجيل الحضور', en: 'Check-in failed'),
+        const Color(0xFFEF4444),
+      );
     }
     if (mounted) setState(() => _actionInFlight = false);
   }
@@ -664,14 +767,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     if (!mounted) return;
     if (updated != null) {
       _showFlash(
-          tr(context, ar: 'تم تسجيل الانصراف', en: 'Checked out'),
-          const Color(0xFF6366F1));
+        tr(context, ar: 'تم تسجيل الانصراف', en: 'Checked out'),
+        const Color(0xFF6366F1),
+      );
       await _load();
     } else {
       _showFlash(
-          context.hrService.error ??
-              tr(context, ar: 'فشل تسجيل الانصراف', en: 'Check-out failed'),
-          const Color(0xFFEF4444));
+        context.hrService.error ??
+            tr(context, ar: 'فشل تسجيل الانصراف', en: 'Check-out failed'),
+        const Color(0xFFEF4444),
+      );
     }
     if (mounted) setState(() => _actionInFlight = false);
   }
@@ -726,9 +831,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 Container(
                   padding: EdgeInsetsDirectional.all(ds.spacing.sm),
                   decoration: BoxDecoration(
-                    color: _flashColor.withOpacity(0.1),
+                    color: _flashColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(ds.radii.medium),
-                    border: Border.all(color: _flashColor.withOpacity(0.4)),
+                    border: Border.all(
+                      color: _flashColor.withValues(alpha: 0.4),
+                    ),
                   ),
                   child: DSText(
                     _flash!,
@@ -803,8 +910,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     if (minutes <= 0) return '0';
     final h = minutes ~/ 60;
     final m = minutes % 60;
-    if (h == 0) return '${m}م';
-    if (m == 0) return '${h}س';
+    if (h == 0) return '$mم';
+    if (m == 0) return '$hس';
     return '$h:${m.toString().padLeft(2, '0')}';
   }
 }
@@ -879,8 +986,11 @@ class _LiveClockCardState extends State<_LiveClockCard> {
       subText = t('وقت العمل حتى الآن', 'Worked so far');
       color = const Color(0xFF10B981);
     } else {
-      mainText = _liveDuration(today.checkOutAt!.subtract(
-          today.checkOutAt!.difference(today.checkInAt!)));
+      mainText = _liveDuration(
+        today.checkOutAt!.subtract(
+          today.checkOutAt!.difference(today.checkInAt!),
+        ),
+      );
       subText = t('يوم العمل انتهى', 'Day complete');
       color = const Color(0xFF8B5CF6);
     }
@@ -896,7 +1006,7 @@ class _LiveClockCardState extends State<_LiveClockCard> {
         borderRadius: BorderRadius.circular(ds.radii.xLarge),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.3),
+            color: color.withValues(alpha: 0.3),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
@@ -908,7 +1018,7 @@ class _LiveClockCardState extends State<_LiveClockCard> {
           DSText(
             _formatDateLong(context, now),
             role: DSTextRole.caption,
-            color: const Color(0xFFFFFFFF).withOpacity(0.85),
+            color: const Color(0xFFFFFFFF).withValues(alpha: 0.85),
           ),
           SizedBox(height: ds.spacing.xs),
           DSText(
@@ -920,7 +1030,7 @@ class _LiveClockCardState extends State<_LiveClockCard> {
           DSText(
             subText,
             role: DSTextRole.body,
-            color: const Color(0xFFFFFFFF).withOpacity(0.85),
+            color: const Color(0xFFFFFFFF).withValues(alpha: 0.85),
           ),
         ],
       ),
@@ -938,19 +1048,53 @@ class _LiveClockCardState extends State<_LiveClockCard> {
 
   String _formatDateLong(BuildContext context, DateTime d) {
     const arDays = [
-      'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد',
+      'الإثنين',
+      'الثلاثاء',
+      'الأربعاء',
+      'الخميس',
+      'الجمعة',
+      'السبت',
+      'الأحد',
     ];
     const enDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const arMonths = [
-      'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
-      'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
+      'يناير',
+      'فبراير',
+      'مارس',
+      'أبريل',
+      'مايو',
+      'يونيو',
+      'يوليو',
+      'أغسطس',
+      'سبتمبر',
+      'أكتوبر',
+      'نوفمبر',
+      'ديسمبر',
     ];
     const enMonths = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
-    final day = tr(context, ar: arDays[d.weekday - 1], en: enDays[d.weekday - 1]);
-    final month = tr(context, ar: arMonths[d.month - 1], en: enMonths[d.month - 1]);
+    final day = tr(
+      context,
+      ar: arDays[d.weekday - 1],
+      en: enDays[d.weekday - 1],
+    );
+    final month = tr(
+      context,
+      ar: arMonths[d.month - 1],
+      en: enMonths[d.month - 1],
+    );
     return '$day · ${d.day} $month ${d.year}';
   }
 }
@@ -1036,11 +1180,11 @@ class _AttendanceActionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final ds = DSProvider.of(context);
     final bg = done
-        ? iconColor.withOpacity(0.1)
+        ? iconColor.withValues(alpha: 0.1)
         : (disabled ? ds.colors.surfaceAlt : ds.colors.surface);
     final borderColor = done
-        ? iconColor.withOpacity(0.35)
-        : (disabled ? ds.colors.border : iconColor.withOpacity(0.45));
+        ? iconColor.withValues(alpha: 0.35)
+        : (disabled ? ds.colors.border : iconColor.withValues(alpha: 0.45));
 
     return GestureDetector(
       onTap: onTap,
@@ -1056,7 +1200,7 @@ class _AttendanceActionTile extends StatelessWidget {
               ? null
               : [
                   BoxShadow(
-                    color: iconColor.withOpacity(0.15),
+                    color: iconColor.withValues(alpha: 0.15),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -1068,11 +1212,9 @@ class _AttendanceActionTile extends StatelessWidget {
               width: ds.spacing.xl + 4,
               height: ds.spacing.xl + 4,
               decoration: BoxDecoration(
-                color: iconColor.withOpacity(done ? 0.18 : 0.12),
+                color: iconColor.withValues(alpha: done ? 0.18 : 0.12),
                 shape: BoxShape.circle,
-                border: done
-                    ? Border.all(color: iconColor, width: 1.5)
-                    : null,
+                border: done ? Border.all(color: iconColor, width: 1.5) : null,
               ),
               child: Center(
                 child: DSText(
@@ -1143,7 +1285,7 @@ class _AttendanceDayCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: ds.colors.surface,
         borderRadius: BorderRadius.circular(ds.radii.large),
-        border: Border.all(color: color.withOpacity(0.25)),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
       ),
       child: Row(
         children: [
@@ -1151,7 +1293,7 @@ class _AttendanceDayCard extends StatelessWidget {
             width: ds.spacing.xl,
             height: ds.spacing.xl,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(ds.radii.medium),
             ),
             child: Center(
@@ -1167,8 +1309,7 @@ class _AttendanceDayCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                DSText(_weekdayName(context, parsed),
-                    role: DSTextRole.title),
+                DSText(_weekdayName(context, parsed), role: DSTextRole.title),
                 SizedBox(height: 2),
                 DSText(
                   '${_fmtTime(day.checkInAt)} → ${_fmtTime(day.checkOutAt)}',
@@ -1187,7 +1328,7 @@ class _AttendanceDayCard extends StatelessWidget {
                   vertical: ds.spacing.xs / 2,
                 ),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.12),
+                  color: color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(ds.radii.pill),
                 ),
                 child: DSText(label, role: DSTextRole.caption, color: color),
@@ -1222,15 +1363,7 @@ class _AttendanceDayCard extends StatelessWidget {
     'السبت',
     'الأحد',
   ];
-  static const _enWeekdays = [
-    'Mon',
-    'Tue',
-    'Wed',
-    'Thu',
-    'Fri',
-    'Sat',
-    'Sun',
-  ];
+  static const _enWeekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   String _weekdayName(BuildContext context, DateTime d) {
     final idx = d.weekday - 1;
@@ -1266,9 +1399,7 @@ class _MonthSelector extends StatelessWidget {
         children: [
           _MonthArrow(onTap: onPrev, label: '◀'),
           Expanded(
-            child: Center(
-              child: DSText(label, role: DSTextRole.title),
-            ),
+            child: Center(child: DSText(label, role: DSTextRole.title)),
           ),
           _MonthArrow(onTap: onNext, label: '▶'),
         ],
@@ -1294,7 +1425,7 @@ class _MonthArrow extends StatelessWidget {
         height: ds.spacing.xl,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: ds.colors.primary.withOpacity(0.1),
+          color: ds.colors.primary.withValues(alpha: 0.1),
           shape: BoxShape.circle,
         ),
         child: DSText(label, role: DSTextRole.label, color: ds.colors.primary),
@@ -1306,12 +1437,32 @@ class _MonthArrow extends StatelessWidget {
 class _SpecialistMonths {
   static String label(BuildContext context, int month, int year) {
     const ar = [
-      'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
-      'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
+      'يناير',
+      'فبراير',
+      'مارس',
+      'أبريل',
+      'مايو',
+      'يونيو',
+      'يوليو',
+      'أغسطس',
+      'سبتمبر',
+      'أكتوبر',
+      'نوفمبر',
+      'ديسمبر',
     ];
     const en = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December',
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
     return '${tr(context, ar: ar[month - 1], en: en[month - 1])} $year';
   }
@@ -1360,8 +1511,10 @@ class _SpecialistSalaryScreenState extends State<SpecialistSalaryScreen> {
         _history = await payroll.getPaymentHistory(employeeId);
       }
 
-      final bonusData =
-          await hr.fetchMyBonuses(month: now.month, year: now.year);
+      final bonusData = await hr.fetchMyBonuses(
+        month: now.month,
+        year: now.year,
+      );
       if (!mounted) return;
       final list = bonusData['data'] as List<dynamic>? ?? [];
       _bonuses = list
@@ -1397,7 +1550,10 @@ class _SpecialistSalaryScreenState extends State<SpecialistSalaryScreen> {
       final base = _salary?.baseSalary ?? 0;
       final allowances = _salary?.allowances ?? 0;
       final periodLabel = _SpecialistMonths.label(
-          context, DateTime.now().month, DateTime.now().year);
+        context,
+        DateTime.now().month,
+        DateTime.now().year,
+      );
 
       body = CustomScrollView(
         slivers: [
@@ -1417,7 +1573,7 @@ class _SpecialistSalaryScreenState extends State<SpecialistSalaryScreen> {
                     borderRadius: BorderRadius.circular(ds.radii.xLarge),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF10B981).withOpacity(0.3),
+                        color: const Color(0xFF10B981).withValues(alpha: 0.3),
                         blurRadius: 12,
                         offset: const Offset(0, 6),
                       ),
@@ -1432,7 +1588,9 @@ class _SpecialistSalaryScreenState extends State<SpecialistSalaryScreen> {
                           DSText(
                             t('صافي الراتب', 'Net Salary'),
                             role: DSTextRole.caption,
-                            color: const Color(0xFFFFFFFF).withOpacity(0.9),
+                            color: const Color(
+                              0xFFFFFFFF,
+                            ).withValues(alpha: 0.9),
                           ),
                           Container(
                             padding: EdgeInsetsDirectional.symmetric(
@@ -1440,10 +1598,12 @@ class _SpecialistSalaryScreenState extends State<SpecialistSalaryScreen> {
                               vertical: ds.spacing.xs / 2,
                             ),
                             decoration: BoxDecoration(
-                              color:
-                                  const Color(0xFFFFFFFF).withOpacity(0.2),
-                              borderRadius:
-                                  BorderRadius.circular(ds.radii.pill),
+                              color: const Color(
+                                0xFFFFFFFF,
+                              ).withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(
+                                ds.radii.pill,
+                              ),
                             ),
                             child: DSText(
                               periodLabel,
@@ -1501,15 +1661,18 @@ class _SpecialistSalaryScreenState extends State<SpecialistSalaryScreen> {
 
                 // Inline bonuses & deductions list (merged from old bonuses tab)
                 SectionHeader(
-                    title: t('المكافآت والخصومات', 'Bonuses & Deductions')),
+                  title: t('المكافآت والخصومات', 'Bonuses & Deductions'),
+                ),
               ],
             ),
           ),
           if (_bonuses.isEmpty)
             SliverToBoxAdapter(
               child: _EmptyCard(
-                message: t('لا توجد مكافآت أو خصومات هذا الشهر',
-                    'No bonuses or deductions this month'),
+                message: t(
+                  'لا توجد مكافآت أو خصومات هذا الشهر',
+                  'No bonuses or deductions this month',
+                ),
                 icon: LineIconType.heart,
               ),
             )
@@ -1523,8 +1686,9 @@ class _SpecialistSalaryScreenState extends State<SpecialistSalaryScreen> {
           SliverToBoxAdapter(
             child: Padding(
               padding: EdgeInsetsDirectional.only(top: ds.spacing.lg),
-              child:
-                  SectionHeader(title: t('سجل المدفوعات', 'Payment History')),
+              child: SectionHeader(
+                title: t('سجل المدفوعات', 'Payment History'),
+              ),
             ),
           ),
           if (_history.isEmpty)
@@ -1538,8 +1702,16 @@ class _SpecialistSalaryScreenState extends State<SpecialistSalaryScreen> {
             SliverSeparatedList(
               itemBuilder: (context, index) {
                 final item = _history[index];
+                final period = item.month != null
+                    ? _SpecialistMonths.label(
+                        context,
+                        item.month!,
+                        item.year ?? DateTime.now().year,
+                      )
+                    : t('راتب', 'Salary');
                 return _PaymentHistoryRow(
-                  label: item.employeeName ?? t('راتب', 'Salary'),
+                  label: period,
+                  subtitle: item.employeeName,
                   amount: _formatCurrency(context, item.netSalary),
                 );
               },
@@ -1617,7 +1789,7 @@ class _SalaryBreakdownRow extends StatelessWidget {
             width: ds.spacing.xl,
             height: ds.spacing.xl,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(ds.radii.medium),
             ),
             child: Center(
@@ -1635,9 +1807,14 @@ class _SalaryBreakdownRow extends StatelessWidget {
 
 class _PaymentHistoryRow extends StatelessWidget {
   final String label;
+  final String? subtitle;
   final String amount;
 
-  const _PaymentHistoryRow({required this.label, required this.amount});
+  const _PaymentHistoryRow({
+    required this.label,
+    this.subtitle,
+    required this.amount,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1647,7 +1824,22 @@ class _PaymentHistoryRow extends StatelessWidget {
       padding: EdgeInsetsDirectional.all(ds.spacing.md),
       child: Row(
         children: [
-          Expanded(child: DSText(label, role: DSTextRole.title)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                DSText(label, role: DSTextRole.title),
+                if (subtitle != null && subtitle!.isNotEmpty) ...[
+                  SizedBox(height: 2),
+                  DSText(
+                    subtitle!,
+                    role: DSTextRole.caption,
+                    color: ds.colors.textMuted,
+                  ),
+                ],
+              ],
+            ),
+          ),
           DSText(amount, role: DSTextRole.title),
           SizedBox(width: ds.spacing.sm),
           Container(
@@ -1656,7 +1848,7 @@ class _PaymentHistoryRow extends StatelessWidget {
               vertical: ds.spacing.xs / 2,
             ),
             decoration: BoxDecoration(
-              color: const Color(0xFF10B981).withOpacity(0.12),
+              color: const Color(0xFF10B981).withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(ds.radii.pill),
             ),
             child: DSText(
@@ -1731,11 +1923,7 @@ class _NotesScreenState extends State<NotesScreen> {
 
     return CustomScrollView(
       slivers: [
-        SliverToBoxAdapter(
-          child: SectionHeader(
-            title: t('الوارد', 'Inbox'),
-          ),
-        ),
+        SliverToBoxAdapter(child: SectionHeader(title: t('الوارد', 'Inbox'))),
         if (_inbox.isEmpty)
           SliverToBoxAdapter(
             child: _EmptyCard(
@@ -1840,9 +2028,7 @@ class _NotesScreenState extends State<NotesScreen> {
             itemCount: _outbox.length,
             spacing: ds.spacing.sm,
           ),
-        SliverToBoxAdapter(
-          child: SizedBox(height: ds.spacing.lg),
-        ),
+        SliverToBoxAdapter(child: SizedBox(height: ds.spacing.lg)),
       ],
     );
   }
@@ -1852,10 +2038,9 @@ class _NotesScreenState extends State<NotesScreen> {
 
 String _formatCurrency(BuildContext context, double amount) {
   String t(String ar, String en) => tr(context, ar: ar, en: en);
-  final formatted = amount.toStringAsFixed(0).replaceAllMapped(
-    RegExp(r'(\d)(?=(\d{3})+$)'),
-    (m) => '${m[1]},',
-  );
+  final formatted = amount
+      .toStringAsFixed(0)
+      .replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},');
   return t('$formatted ر.ع', 'OMR $formatted');
 }
 
@@ -1904,23 +2089,25 @@ class _SpecialistStatCard extends StatelessWidget {
   final String value;
   final LineIconType icon;
   final Color color;
+  final VoidCallback? onTap;
 
   const _SpecialistStatCard({
     required this.title,
     required this.value,
     required this.icon,
     required this.color,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final ds = DSProvider.of(context);
-    return Container(
+    final card = Container(
       padding: EdgeInsetsDirectional.all(ds.spacing.md),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(ds.radii.large),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
@@ -1928,23 +2115,15 @@ class _SpecialistStatCard extends StatelessWidget {
             width: ds.spacing.xl,
             height: ds.spacing.xl,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
+              color: color.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(ds.radii.medium),
             ),
             child: Center(
-              child: DSLineIcon(
-                type: icon,
-                color: color,
-                size: ds.spacing.md,
-              ),
+              child: DSLineIcon(type: icon, color: color, size: ds.spacing.md),
             ),
           ),
           SizedBox(height: ds.spacing.sm),
-          DSText(
-            value,
-            role: DSTextRole.headline,
-            color: color,
-          ),
+          DSText(value, role: DSTextRole.headline, color: color),
           SizedBox(height: ds.spacing.xs / 2),
           DSText(
             title,
@@ -1953,6 +2132,13 @@ class _SpecialistStatCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+
+    if (onTap == null) return card;
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: card,
     );
   }
 }
@@ -1975,15 +2161,12 @@ class _NextSessionCard extends StatelessWidget {
         gradient: LinearGradient(
           begin: AlignmentDirectional.topStart,
           end: AlignmentDirectional.bottomEnd,
-          colors: [
-            color,
-            color.withOpacity(0.8),
-          ],
+          colors: [color, color.withValues(alpha: 0.8)],
         ),
         borderRadius: BorderRadius.circular(ds.radii.xLarge),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.3),
+            color: color.withValues(alpha: 0.3),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -2001,7 +2184,7 @@ class _NextSessionCard extends StatelessWidget {
                   vertical: ds.spacing.xs / 2,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFFFFF).withOpacity(0.2),
+                  color: const Color(0xFFFFFFFF).withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(ds.radii.pill),
                 ),
                 child: DSText(
@@ -2028,15 +2211,17 @@ class _NextSessionCard extends StatelessWidget {
             children: [
               DSLineIcon(
                 type: LineIconType.home,
-                color: const Color(0xFFFFFFFF).withOpacity(0.8),
+                color: const Color(0xFFFFFFFF).withValues(alpha: 0.8),
                 size: 14,
               ),
               SizedBox(width: ds.spacing.xs),
               Flexible(
                 child: DSText(
-                  appointment.locationNotes ?? appointment.serviceName ?? t('عيادة', 'Clinic'),
+                  appointment.locationNotes ??
+                      appointment.serviceName ??
+                      t('عيادة', 'Clinic'),
                   role: DSTextRole.body,
-                  color: const Color(0xFFFFFFFF).withOpacity(0.9),
+                  color: const Color(0xFFFFFFFF).withValues(alpha: 0.9),
                 ),
               ),
             ],
@@ -2071,17 +2256,13 @@ class _SessionStatCard extends StatelessWidget {
     return Container(
       padding: EdgeInsetsDirectional.all(ds.spacing.md),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(ds.radii.large),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
-          DSText(
-            value,
-            role: DSTextRole.headline,
-            color: color,
-          ),
+          DSText(value, role: DSTextRole.headline, color: color),
           SizedBox(height: ds.spacing.xs / 2),
           DSText(
             title,
@@ -2113,7 +2294,7 @@ class _SessionListCard extends StatelessWidget {
         border: Border.all(color: ds.colors.border),
         boxShadow: [
           BoxShadow(
-            color: statusColor.withOpacity(0.08),
+            color: statusColor.withValues(alpha: 0.08),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -2125,7 +2306,7 @@ class _SessionListCard extends StatelessWidget {
             width: ds.spacing.xl,
             height: ds.spacing.xl,
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.12),
+              color: statusColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(ds.radii.medium),
             ),
             child: Center(
@@ -2141,10 +2322,7 @@ class _SessionListCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                DSText(
-                  appointment.patientName ?? '-',
-                  role: DSTextRole.title,
-                ),
+                DSText(appointment.patientName ?? '-', role: DSTextRole.title),
                 SizedBox(height: ds.spacing.xs / 2),
                 Row(
                   children: [
@@ -2153,7 +2331,7 @@ class _SessionListCard extends StatelessWidget {
                       role: DSTextRole.caption,
                       color: ds.colors.textSecondary,
                     ),
-                    if (appointment.locationNotes != null || appointment.serviceName != null) ...[
+                    if (appointment.serviceName != null) ...[
                       DSText(
                         ' \u2022 ',
                         role: DSTextRole.caption,
@@ -2161,12 +2339,44 @@ class _SessionListCard extends StatelessWidget {
                       ),
                       Flexible(
                         child: DSText(
-                          appointment.locationNotes ?? appointment.serviceName ?? '',
+                          appointment.serviceName ?? '',
                           role: DSTextRole.caption,
                           color: ds.colors.textSecondary,
                         ),
                       ),
                     ],
+                  ],
+                ),
+                SizedBox(height: ds.spacing.xs),
+                // Appointment number, session type and session progress.
+                Wrap(
+                  spacing: ds.spacing.xs,
+                  runSpacing: ds.spacing.xs,
+                  children: [
+                    _SessionMetaChip(
+                      icon: LineIconType.bookmark,
+                      label:
+                          '${tr(context, ar: '\u0645\u0648\u0639\u062f #', en: 'Appt #')}${appointment.id}',
+                      color: ds.colors.primary,
+                    ),
+                    _SessionMetaChip(
+                      icon: appointment.isHomeVisit
+                          ? LineIconType.home
+                          : LineIconType.heart,
+                      label: appointment.isHomeVisit
+                          ? tr(context, ar: '\u0645\u0646\u0632\u0644\u064a', en: 'Home')
+                          : tr(context, ar: '\u0641\u064a \u0627\u0644\u0645\u0631\u0643\u0632', en: 'At Center'),
+                      color: appointment.isHomeVisit
+                          ? const Color(0xFFF59E0B)
+                          : const Color(0xFF06B6D4),
+                    ),
+                    if (appointment.sessionProgress != null)
+                      _SessionMetaChip(
+                        icon: LineIconType.chart,
+                        label:
+                            '${tr(context, ar: '\u0627\u0644\u062c\u0644\u0633\u0629 ', en: 'Session ')}${appointment.sessionProgress!}',
+                        color: const Color(0xFF8B5CF6),
+                      ),
                   ],
                 ),
               ],
@@ -2178,7 +2388,7 @@ class _SessionListCard extends StatelessWidget {
               vertical: ds.spacing.xs / 2,
             ),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
+              color: statusColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(ds.radii.pill),
             ),
             child: DSText(
@@ -2196,6 +2406,153 @@ class _SessionListCard extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: card,
+    );
+  }
+}
+
+/// Prompts the specialist to acknowledge (confirm they reviewed) today's
+/// schedule. Shows a warning state with a button until acknowledged, then a
+/// green confirmed state with the acknowledgement time.
+class _ScheduleAckCard extends StatelessWidget {
+  final DateTime? acknowledgedAt;
+  final int sessionsCount;
+  final bool loading;
+  final VoidCallback onAcknowledge;
+
+  const _ScheduleAckCard({
+    required this.acknowledgedAt,
+    required this.sessionsCount,
+    required this.loading,
+    required this.onAcknowledge,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    String t(String ar, String en) => tr(context, ar: ar, en: en);
+    final done = acknowledgedAt != null;
+    final color = done ? const Color(0xFF10B981) : const Color(0xFFF59E0B);
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsetsDirectional.all(ds.spacing.md),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(ds.radii.large),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: ds.spacing.lg + ds.spacing.xs,
+                height: ds.spacing.lg + ds.spacing.xs,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(ds.radii.medium),
+                ),
+                child: Center(
+                  child: DSText(
+                    done ? '✓' : '!',
+                    role: DSTextRole.title,
+                    color: color,
+                  ),
+                ),
+              ),
+              SizedBox(width: ds.spacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    DSText(
+                      done
+                          ? t('تم اعتماد جدول اليوم', 'Today\'s schedule confirmed')
+                          : t('لم تعتمد جدول اليوم بعد', 'Today\'s schedule not confirmed'),
+                      role: DSTextRole.title,
+                    ),
+                    SizedBox(height: 2),
+                    DSText(
+                      done
+                          ? '${t('اعتُمد الساعة ', 'Confirmed at ')}${_formatTime(context, '${acknowledgedAt!.hour.toString().padLeft(2, '0')}:${acknowledgedAt!.minute.toString().padLeft(2, '0')}')}'
+                          : t(
+                              'راجع جلساتك ($sessionsCount) ثم اعتمدها',
+                              'Review your $sessionsCount sessions, then confirm',
+                            ),
+                      role: DSTextRole.caption,
+                      color: ds.colors.textSecondary,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (!done) ...[
+            SizedBox(height: ds.spacing.md),
+            GestureDetector(
+              onTap: loading ? null : onAcknowledge,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                width: double.infinity,
+                padding: EdgeInsetsDirectional.symmetric(
+                  vertical: ds.spacing.sm + 2,
+                ),
+                decoration: BoxDecoration(
+                  color: loading ? ds.colors.textMuted : color,
+                  borderRadius: BorderRadius.circular(ds.radii.large),
+                ),
+                child: Center(
+                  child: DSText(
+                    loading
+                        ? t('جاري الاعتماد...', 'Confirming...')
+                        : t('اعتماد جلسات اليوم', 'Confirm Today\'s Sessions'),
+                    role: DSTextRole.title,
+                    color: const Color(0xFFFFFFFF),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Small labelled pill used on the session card for appointment number,
+/// session type (home / at-center) and session progress.
+class _SessionMetaChip extends StatelessWidget {
+  final LineIconType icon;
+  final String label;
+  final Color color;
+
+  const _SessionMetaChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    return Container(
+      padding: EdgeInsetsDirectional.symmetric(
+        horizontal: ds.spacing.sm,
+        vertical: ds.spacing.xs / 2,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(ds.radii.pill),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DSLineIcon(type: icon, color: color, size: ds.spacing.sm + 2),
+          SizedBox(width: ds.spacing.xs),
+          DSText(label, role: DSTextRole.caption, color: color),
+        ],
+      ),
     );
   }
 }
@@ -2220,7 +2577,7 @@ class _BonusListCard extends StatelessWidget {
         border: Border.all(color: ds.colors.border),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.08),
+            color: color.withValues(alpha: 0.08),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -2235,15 +2592,12 @@ class _BonusListCard extends StatelessWidget {
               gradient: LinearGradient(
                 begin: AlignmentDirectional.topStart,
                 end: AlignmentDirectional.bottomEnd,
-                colors: [
-                  color,
-                  color.withOpacity(0.7),
-                ],
+                colors: [color, color.withValues(alpha: 0.7)],
               ),
               borderRadius: BorderRadius.circular(ds.radii.medium),
               boxShadow: [
                 BoxShadow(
-                  color: color.withOpacity(0.3),
+                  color: color.withValues(alpha: 0.3),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
@@ -2376,4 +2730,3 @@ class _ErrorView extends StatelessWidget {
     );
   }
 }
-

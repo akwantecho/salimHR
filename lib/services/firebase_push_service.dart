@@ -11,7 +11,11 @@ import 'api_client.dart';
 /// Service for handling Firebase Cloud Messaging (FCM) push notifications
 class FirebasePushService {
   final ApiClient _client;
-  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+
+  /// Lazy accessor — resolving FirebaseMessaging.instance in a field initializer
+  /// throws on platforms where Firebase isn't configured (e.g. web). Accessing
+  /// it lazily keeps the constructor safe; callers guard usage with [kIsWeb].
+  FirebaseMessaging get _messaging => FirebaseMessaging.instance;
 
   String? _fcmToken;
   StreamSubscription<RemoteMessage>? _foregroundSubscription;
@@ -29,6 +33,7 @@ class FirebasePushService {
 
   /// Initialize Firebase and request permissions
   Future<bool> initialize() async {
+    if (kIsWeb) return false; // Push notifications are unavailable on web.
     try {
       // Background handler is set up in main.dart
 
@@ -100,6 +105,7 @@ class FirebasePushService {
 
   /// Register FCM token with the server
   Future<bool> registerToken() async {
+    if (kIsWeb) return false; // No FCM token on web.
     if (_fcmToken == null) {
       // On iOS, ensure APNS token is available first
       if (Platform.isIOS) {
@@ -142,6 +148,7 @@ class FirebasePushService {
 
   /// Unregister FCM token (call on logout)
   Future<bool> unregisterToken() async {
+    if (kIsWeb) return false; // No FCM token registered on web.
     try {
       await _client.post('/notifications/unregister-token');
       return true;

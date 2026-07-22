@@ -26,6 +26,9 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
   bool _submitting = false;
   String? _error;
 
+  List<Appointment> _sessions = [];
+  bool _loadingSessions = true;
+
   // Pending action while the comment dialog is open. null = dialog closed.
   String? _pendingAction; // 'complete' | 'no_show'
   final TextEditingController _commentController = TextEditingController();
@@ -39,6 +42,18 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
       if (_commentController.text != _commentText) {
         setState(() => _commentText = _commentController.text);
       }
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadSessions());
+  }
+
+  Future<void> _loadSessions() async {
+    final sessions = await context.hrService.fetchTreatmentSessions(
+      _appointment.id,
+    );
+    if (!mounted) return;
+    setState(() {
+      _sessions = sessions;
+      _loadingSessions = false;
     });
   }
 
@@ -110,7 +125,8 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
     final ds = DSProvider.of(context);
     String t(String ar, String en) => tr(context, ar: ar, en: en);
 
-    final isTerminal = _appointment.isCompleted ||
+    final isTerminal =
+        _appointment.isCompleted ||
         _appointment.isCancelled ||
         _appointment.status == 'no_show';
 
@@ -137,17 +153,24 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                         _PatientCard(appointment: _appointment),
                         SizedBox(height: ds.spacing.md),
                         _InfoCard(appointment: _appointment),
+                        SizedBox(height: ds.spacing.md),
+                        _TreatmentPlanCard(
+                          sessions: _sessions,
+                          loading: _loadingSessions,
+                          currentId: _appointment.id,
+                        ),
                         if (_error != null) ...[
                           SizedBox(height: ds.spacing.md),
                           _ErrorBanner(message: _error!),
                         ],
                         SizedBox(height: ds.spacing.xl),
-                        if (!isTerminal) _ActionButtons(
-                          onEnd: _submitting
-                              ? null
-                              : () => _openCommentDialog('complete'),
-                          submitting: _submitting,
-                        ),
+                        if (!isTerminal)
+                          _ActionButtons(
+                            onEnd: _submitting
+                                ? null
+                                : () => _openCommentDialog('complete'),
+                            submitting: _submitting,
+                          ),
                         if (isTerminal)
                           _TerminalNotice(status: _appointment.status),
                         SizedBox(height: ds.spacing.xl),
@@ -195,12 +218,7 @@ class _TopBar extends StatelessWidget {
           ),
         ),
         SizedBox(width: ds.spacing.md),
-        Expanded(
-          child: DSText(
-            title,
-            role: DSTextRole.headline,
-          ),
-        ),
+        Expanded(child: DSText(title, role: DSTextRole.headline)),
       ],
     );
   }
@@ -223,9 +241,9 @@ class _StatusBadge extends StatelessWidget {
         vertical: ds.spacing.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(ds.radii.pill),
-        border: Border.all(color: color.withOpacity(0.4)),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: DSText(
         _statusLabel(context, status),
@@ -259,7 +277,7 @@ class _PatientCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(ds.radii.xLarge),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF6366F1).withOpacity(0.25),
+            color: const Color(0xFF6366F1).withValues(alpha: 0.25),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -271,7 +289,7 @@ class _PatientCard extends StatelessWidget {
             width: ds.spacing.xl + ds.spacing.sm,
             height: ds.spacing.xl + ds.spacing.sm,
             decoration: BoxDecoration(
-              color: const Color(0xFFFFFFFF).withOpacity(0.2),
+              color: const Color(0xFFFFFFFF).withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(ds.radii.large),
             ),
             child: Center(
@@ -292,18 +310,67 @@ class _PatientCard extends StatelessWidget {
                   role: DSTextRole.headline,
                   color: const Color(0xFFFFFFFF),
                 ),
-                if (appointment.patientPhone != null) ...[
+                SizedBox(height: ds.spacing.sm),
+                Wrap(
+                  spacing: ds.spacing.xs,
+                  runSpacing: ds.spacing.xs,
+                  children: [
+                    if (appointment.patientFileNo != null)
+                      _PatientChip(
+                        label: t('ملف #', 'File #') +
+                            appointment.patientFileNo!,
+                      ),
+                    if (appointment.patientGender != null)
+                      _PatientChip(
+                        label: appointment.patientGender == 'female'
+                            ? t('أنثى', 'Female')
+                            : t('ذكر', 'Male'),
+                      ),
+                    if (appointment.icdCode != null)
+                      _PatientChip(
+                        label: 'ICD: ${appointment.icdCode}',
+                      ),
+                  ],
+                ),
+                if (appointment.icdTitle != null) ...[
                   SizedBox(height: ds.spacing.xs),
                   DSText(
-                    appointment.patientPhone!,
-                    role: DSTextRole.body,
-                    color: const Color(0xFFFFFFFF).withOpacity(0.85),
+                    appointment.icdTitle!,
+                    role: DSTextRole.caption,
+                    color: const Color(0xFFFFFFFF).withValues(alpha: 0.85),
                   ),
                 ],
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Translucent white pill used on the patient card for file no / gender / ICD.
+class _PatientChip extends StatelessWidget {
+  final String label;
+
+  const _PatientChip({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    return Container(
+      padding: EdgeInsetsDirectional.symmetric(
+        horizontal: ds.spacing.sm,
+        vertical: ds.spacing.xs / 2,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFFFF).withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(ds.radii.pill),
+      ),
+      child: DSText(
+        label,
+        role: DSTextRole.caption,
+        color: const Color(0xFFFFFFFF),
       ),
     );
   }
@@ -339,7 +406,8 @@ class _InfoCard extends StatelessWidget {
           _InfoRow(
             icon: LineIconType.calendar,
             label: t('الوقت', 'Time'),
-            value: _formatTime(context, appointment.startTime) +
+            value:
+                _formatTime(context, appointment.startTime) +
                 (appointment.endTime != null
                     ? ' — ${_formatTime(context, appointment.endTime)}'
                     : ''),
@@ -395,15 +463,11 @@ class _InfoRow extends StatelessWidget {
           width: ds.spacing.lg,
           height: ds.spacing.lg,
           decoration: BoxDecoration(
-            color: ds.colors.primary.withOpacity(0.1),
+            color: ds.colors.primary.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(ds.radii.small),
           ),
           child: Center(
-            child: DSLineIcon(
-              type: icon,
-              color: ds.colors.primary,
-              size: 14,
-            ),
+            child: DSLineIcon(type: icon, color: ds.colors.primary, size: 14),
           ),
         ),
         SizedBox(width: ds.spacing.sm),
@@ -426,16 +490,150 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
+// ==================== TREATMENT PLAN / SESSION LOG ====================
+
+/// Session log for the patient's treatment plan. Each row shows the session
+/// number, the day name and date, plus the session status.
+class _TreatmentPlanCard extends StatelessWidget {
+  final List<Appointment> sessions;
+  final bool loading;
+  final int currentId;
+
+  const _TreatmentPlanCard({
+    required this.sessions,
+    required this.loading,
+    required this.currentId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    String t(String ar, String en) => tr(context, ar: ar, en: en);
+
+    if (!loading && sessions.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      padding: EdgeInsetsDirectional.all(ds.spacing.md),
+      decoration: BoxDecoration(
+        color: ds.colors.surface,
+        borderRadius: BorderRadius.circular(ds.radii.large),
+        border: Border.all(color: ds.colors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              DSLineIcon(
+                type: LineIconType.calendar,
+                color: ds.colors.primary,
+                size: ds.spacing.md,
+              ),
+              SizedBox(width: ds.spacing.sm),
+              DSText(
+                t('خطة العلاج · سجل الجلسات', 'Treatment Plan · Session Log'),
+                role: DSTextRole.title,
+              ),
+            ],
+          ),
+          SizedBox(height: ds.spacing.md),
+          if (loading)
+            DSText(
+              t('جاري التحميل...', 'Loading...'),
+              role: DSTextRole.caption,
+              color: ds.colors.textMuted,
+            )
+          else
+            for (var i = 0; i < sessions.length; i++) ...[
+              if (i > 0)
+                Padding(
+                  padding: EdgeInsetsDirectional.symmetric(
+                    vertical: ds.spacing.sm,
+                  ),
+                  child: Container(
+                    height: 1,
+                    color: ds.colors.border.withValues(alpha: 0.5),
+                  ),
+                ),
+              _SessionLogRow(
+                session: sessions[i],
+                isCurrent: sessions[i].id == currentId,
+              ),
+            ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SessionLogRow extends StatelessWidget {
+  final Appointment session;
+  final bool isCurrent;
+
+  const _SessionLogRow({required this.session, required this.isCurrent});
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    final color = _statusColor(session.status);
+    final total = session.sessionsTotal;
+    return Row(
+      children: [
+        // Session number badge
+        Container(
+          width: ds.spacing.lg + ds.spacing.xs,
+          height: ds.spacing.lg + ds.spacing.xs,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(ds.radii.medium),
+            border: isCurrent
+                ? Border.all(color: color, width: 1.5)
+                : null,
+          ),
+          child: Center(
+            child: DSText(
+              total != null ? '${session.sessionNo}/$total' : '${session.sessionNo}',
+              role: DSTextRole.caption,
+              color: color,
+            ),
+          ),
+        ),
+        SizedBox(width: ds.spacing.md),
+        // Day + date on one line, same size
+        Expanded(
+          child: DSText(
+            '${_dayName(context, session.appointmentDate)} ${_fullDate(context, session.appointmentDate)}',
+            role: DSTextRole.label,
+          ),
+        ),
+        // Status pill
+        Container(
+          padding: EdgeInsetsDirectional.symmetric(
+            horizontal: ds.spacing.sm,
+            vertical: ds.spacing.xs / 2,
+          ),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(ds.radii.pill),
+          ),
+          child: DSText(
+            _statusLabel(context, session.status),
+            role: DSTextRole.caption,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 // ==================== ACTION BUTTONS ====================
 
 class _ActionButtons extends StatelessWidget {
   final VoidCallback? onEnd;
   final bool submitting;
 
-  const _ActionButtons({
-    required this.onEnd,
-    required this.submitting,
-  });
+  const _ActionButtons({required this.onEnd, required this.submitting});
 
   @override
   Widget build(BuildContext context) {
@@ -482,15 +680,15 @@ class _OutcomeButton extends StatelessWidget {
               ? LinearGradient(
                   begin: AlignmentDirectional.topStart,
                   end: AlignmentDirectional.bottomEnd,
-                  colors: [color, color.withOpacity(0.8)],
+                  colors: [color, color.withValues(alpha: 0.8)],
                 )
               : null,
-          color: enabled ? null : color.withOpacity(0.3),
+          color: enabled ? null : color.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(ds.radii.large),
           boxShadow: enabled
               ? [
                   BoxShadow(
-                    color: color.withOpacity(0.3),
+                    color: color.withValues(alpha: 0.3),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -547,9 +745,14 @@ class _CommentDialog extends StatelessWidget {
         ? t('إنهاء الجلسة', 'End Session')
         : t('تسجيل عدم حضور', 'Mark No Show');
     final hint = isComplete
-        ? t('اكتب تعليقاً عن الجلسة (مطلوب)', 'Write a session comment (required)')
+        ? t(
+            'اكتب تعليقاً عن الجلسة (مطلوب)',
+            'Write a session comment (required)',
+          )
         : t('سبب عدم الحضور (مطلوب)', 'Reason for no-show (required)');
-    final color = isComplete ? const Color(0xFF10B981) : const Color(0xFFEF4444);
+    final color = isComplete
+        ? const Color(0xFF10B981)
+        : const Color(0xFFEF4444);
 
     final trimmed = value.trim();
     final canConfirm = trimmed.length >= 3 && !submitting;
@@ -583,8 +786,10 @@ class _CommentDialog extends StatelessWidget {
                           width: ds.spacing.xl,
                           height: ds.spacing.xl,
                           decoration: BoxDecoration(
-                            color: color.withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(ds.radii.medium),
+                            color: color.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(
+                              ds.radii.medium,
+                            ),
                           ),
                           child: Center(
                             child: DSLineIcon(
@@ -609,10 +814,7 @@ class _CommentDialog extends StatelessWidget {
                       color: ds.colors.textSecondary,
                     ),
                     SizedBox(height: ds.spacing.sm),
-                    _CommentField(
-                      controller: controller,
-                      enabled: !submitting,
-                    ),
+                    _CommentField(controller: controller, enabled: !submitting),
                     SizedBox(height: ds.spacing.xs),
                     DSText(
                       t(
@@ -729,20 +931,27 @@ class _TerminalNotice extends StatelessWidget {
     String t(String ar, String en) => tr(context, ar: ar, en: en);
     final color = _statusColor(status);
     final message = status == 'completed'
-        ? t('تم إنهاء هذه الجلسة بالفعل.', 'This session has already been ended.')
+        ? t(
+            'تم إنهاء هذه الجلسة بالفعل.',
+            'This session has already been ended.',
+          )
         : status == 'no_show'
-            ? t('تم تسجيل عدم حضور المريض.', 'Patient was marked as no-show.')
-            : t('تم إلغاء هذه الجلسة.', 'This session has been cancelled.');
+        ? t('تم تسجيل عدم حضور المريض.', 'Patient was marked as no-show.')
+        : t('تم إلغاء هذه الجلسة.', 'This session has been cancelled.');
     return Container(
       padding: EdgeInsetsDirectional.all(ds.spacing.md),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(ds.radii.large),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
-          DSLineIcon(type: LineIconType.bell, color: color, size: ds.spacing.md),
+          DSLineIcon(
+            type: LineIconType.bell,
+            color: color,
+            size: ds.spacing.md,
+          ),
           SizedBox(width: ds.spacing.sm),
           Expanded(
             child: DSText(message, role: DSTextRole.body, color: color),
@@ -765,9 +974,9 @@ class _ErrorBanner extends StatelessWidget {
     return Container(
       padding: EdgeInsetsDirectional.all(ds.spacing.md),
       decoration: BoxDecoration(
-        color: red.withOpacity(0.08),
+        color: red.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(ds.radii.large),
-        border: Border.all(color: red.withOpacity(0.3)),
+        border: Border.all(color: red.withValues(alpha: 0.3)),
       ),
       child: DSText(message, role: DSTextRole.body, color: red),
     );
@@ -778,6 +987,64 @@ class _ErrorBanner extends StatelessWidget {
 
 String _formatDate(DateTime date) =>
     '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+/// Localized weekday name for [date] (e.g. "الأحد" / "Sunday").
+String _dayName(BuildContext context, DateTime date) {
+  const ar = [
+    'الاثنين',
+    'الثلاثاء',
+    'الأربعاء',
+    'الخميس',
+    'الجمعة',
+    'السبت',
+    'الأحد',
+  ];
+  const en = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
+  ];
+  final i = date.weekday - 1; // 1=Mon..7=Sun
+  return tr(context, ar: ar[i], en: en[i]);
+}
+
+/// Full date with month name (e.g. "12 يوليو 2026" / "12 July 2026").
+String _fullDate(BuildContext context, DateTime date) {
+  const ar = [
+    'يناير',
+    'فبراير',
+    'مارس',
+    'أبريل',
+    'مايو',
+    'يونيو',
+    'يوليو',
+    'أغسطس',
+    'سبتمبر',
+    'أكتوبر',
+    'نوفمبر',
+    'ديسمبر',
+  ];
+  const en = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+  final month = tr(context, ar: ar[date.month - 1], en: en[date.month - 1]);
+  return '${date.day} $month ${date.year}';
+}
 
 String _formatTime(BuildContext context, String? time) =>
     formatTime12h(context, time);

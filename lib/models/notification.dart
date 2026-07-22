@@ -6,6 +6,7 @@ enum NotificationType {
   medicalExcuse,
   payrollPending,
   inventoryLow,
+  bonus,
   general,
 }
 
@@ -15,6 +16,7 @@ class AppNotification extends Equatable {
   final NotificationType type;
   final String title;
   final String? message;
+  final String? imageUrl;
   final bool isRead;
   final String? actionUrl;
   final Map<String, dynamic>? data;
@@ -26,6 +28,7 @@ class AppNotification extends Equatable {
     required this.type,
     required this.title,
     this.message,
+    this.imageUrl,
     required this.isRead,
     this.actionUrl,
     this.data,
@@ -39,6 +42,7 @@ class AppNotification extends Equatable {
       type: _parseType(json['type'] as String?),
       title: json['title'] as String,
       message: json['message'] as String?,
+      imageUrl: json['image_url'] as String?,
       isRead: json['is_read'] as bool? ?? json['read_at'] != null,
       actionUrl: json['action_url'] as String?,
       data: json['data'] as Map<String, dynamic>?,
@@ -59,6 +63,9 @@ class AppNotification extends Equatable {
         return NotificationType.payrollPending;
       case 'inventory_low':
         return NotificationType.inventoryLow;
+      case 'bonus':
+      case 'employee_bonus':
+        return NotificationType.bonus;
       default:
         return NotificationType.general;
     }
@@ -75,6 +82,8 @@ class AppNotification extends Equatable {
         return 'chart';
       case NotificationType.inventoryLow:
         return 'bookmark';
+      case NotificationType.bonus:
+        return 'heart';
       case NotificationType.general:
         return 'bell';
     }
@@ -86,6 +95,7 @@ class AppNotification extends Equatable {
     type: type,
     title: title,
     message: message,
+    imageUrl: imageUrl,
     isRead: true,
     actionUrl: actionUrl,
     data: data,
