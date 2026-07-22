@@ -9,6 +9,7 @@ import 'dart:async';
 
 import '../../design_system/components/line_icons.dart';
 import '../../design_system/ds_provider.dart';
+import '../../design_system/primitives/ds_button.dart';
 import '../../design_system/primitives/ds_card.dart';
 import '../../design_system/primitives/ds_text.dart';
 import '../../models/notification.dart';
@@ -3170,6 +3171,7 @@ class DocumentsScreen extends StatefulWidget {
 
 class _DocumentsScreenState extends State<DocumentsScreen> {
   bool _loading = true;
+  bool _error = false;
   final Map<String, UserDocument> _docs = {};
 
   // Fixed document slots (type → Arabic/English label).
@@ -3187,15 +3189,25 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   }
 
   Future<void> _load() async {
-    final docs = await context.authService.fetchDocuments();
-    if (!mounted) return;
-    setState(() {
-      _docs.clear();
-      for (final d in docs) {
-        _docs[d.type] = d;
-      }
-      _loading = false;
-    });
+    if (!_loading) setState(() => _loading = true);
+    try {
+      final docs = await context.authService.fetchDocuments();
+      if (!mounted) return;
+      setState(() {
+        _docs.clear();
+        for (final d in docs) {
+          _docs[d.type] = d;
+        }
+        _loading = false;
+        _error = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = true;
+      });
+    }
   }
 
   Future<void> _open(UserDocument doc) async {
@@ -3243,36 +3255,92 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       subtitle: t('البطاقات والشهادات', 'Cards & certificates'),
       child: _loading
           ? const ShimmerLoading()
-          : ListView(
-              children: [
-                Container(
-                  padding: EdgeInsetsDirectional.all(ds.spacing.md),
-                  margin: EdgeInsetsDirectional.only(bottom: ds.spacing.md),
-                  decoration: BoxDecoration(
-                    color: ds.colors.primary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(ds.radii.large),
-                  ),
-                  child: DSText(
-                    t(
-                      'المستندات تُضاف من قِبل الإدارة. يمكنك عرضها وتحميلها فقط.',
-                      'Documents are added by the administration. You can only view and download them.',
+          : _error
+              ? _DocumentsError(onRetry: _load)
+              : ListView(
+                  children: [
+                    Container(
+                      padding: EdgeInsetsDirectional.all(ds.spacing.md),
+                      margin: EdgeInsetsDirectional.only(bottom: ds.spacing.md),
+                      decoration: BoxDecoration(
+                        color: ds.colors.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(ds.radii.large),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: DSText(
+                              t(
+                                'المستندات تُضاف من قِبل الإدارة. يمكنك عرضها وتحميلها فقط.',
+                                'Documents are added by the administration. You can only view and download them.',
+                              ),
+                              role: DSTextRole.caption,
+                              color: ds.colors.textSecondary,
+                            ),
+                          ),
+                          SizedBox(width: ds.spacing.sm),
+                          GestureDetector(
+                            onTap: _load,
+                            behavior: HitTestBehavior.opaque,
+                            child: Padding(
+                              padding: EdgeInsetsDirectional.all(ds.spacing.xs),
+                              child: DSLineIcon(
+                                type: LineIconType.chart,
+                                color: ds.colors.primary,
+                                size: ds.spacing.md,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    role: DSTextRole.caption,
-                    color: ds.colors.textSecondary,
-                  ),
+                    for (final entry in _types)
+                      Padding(
+                        padding: EdgeInsetsDirectional.only(bottom: ds.spacing.md),
+                        child: _DocumentTile(
+                          title: t(entry.$2, entry.$3),
+                          doc: _docs[entry.$1],
+                          onView: () => _view(_docs[entry.$1]!),
+                          onDownload: () => _open(_docs[entry.$1]!),
+                        ),
+                      ),
+                  ],
                 ),
-                for (final entry in _types)
-                  Padding(
-                    padding: EdgeInsetsDirectional.only(bottom: ds.spacing.md),
-                    child: _DocumentTile(
-                      title: t(entry.$2, entry.$3),
-                      doc: _docs[entry.$1],
-                      onView: () => _view(_docs[entry.$1]!),
-                      onDownload: () => _open(_docs[entry.$1]!),
-                    ),
-                  ),
-              ],
-            ),
+    );
+  }
+}
+
+/// Full-screen error + retry state for the documents page.
+class _DocumentsError extends StatelessWidget {
+  final VoidCallback onRetry;
+
+  const _DocumentsError({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    String t(String ar, String en) => tr(context, ar: ar, en: en);
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DSText(
+            t('تعذّر تحميل المستندات', 'Could not load documents'),
+            role: DSTextRole.title,
+          ),
+          SizedBox(height: ds.spacing.xs),
+          DSText(
+            t('تحقّق من الاتصال وحاول مرة أخرى.', 'Check your connection and try again.'),
+            role: DSTextRole.caption,
+            color: ds.colors.textSecondary,
+          ),
+          SizedBox(height: ds.spacing.md),
+          DSButton(
+            label: t('إعادة المحاولة', 'Retry'),
+            onPressed: onRetry,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -3290,6 +3358,54 @@ class _DocumentTile extends StatelessWidget {
     required this.onDownload,
   });
 
+  String _fmtDate(DateTime d) =>
+      '${d.year}/${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}';
+
+  /// Leading preview: image thumbnail for pictures, a "PDF" badge for PDFs,
+  /// and a muted icon placeholder when no document is added.
+  Widget _thumbnail(DSTheme ds, Color color) {
+    final side = ds.spacing.xl;
+    Widget frame(Widget child, Color bg) => Container(
+          width: side,
+          height: side,
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(ds.radii.medium),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: child,
+        );
+
+    if (doc == null) {
+      return frame(
+        Center(child: DSLineIcon(type: LineIconType.bookmark, color: color, size: ds.spacing.md)),
+        color.withValues(alpha: 0.12),
+      );
+    }
+    if (doc!.isPdf) {
+      return frame(
+        Center(
+          child: DSText('PDF', role: DSTextRole.caption, color: const Color(0xFFEF4444)),
+        ),
+        const Color(0xFFEF4444).withValues(alpha: 0.12),
+      );
+    }
+    return frame(
+      Image.network(
+        doc!.url,
+        fit: BoxFit.cover,
+        width: side,
+        height: side,
+        errorBuilder: (_, _, _) => Center(
+          child: DSLineIcon(type: LineIconType.bookmark, color: color, size: ds.spacing.md),
+        ),
+        loadingBuilder: (context, child, progress) =>
+            progress == null ? child : const SizedBox.shrink(),
+      ),
+      color.withValues(alpha: 0.12),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final ds = DSProvider.of(context);
@@ -3304,17 +3420,7 @@ class _DocumentTile extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                width: ds.spacing.xl,
-                height: ds.spacing.xl,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(ds.radii.medium),
-                ),
-                child: Center(
-                  child: DSLineIcon(type: LineIconType.bookmark, color: color, size: ds.spacing.md),
-                ),
-              ),
+              _thumbnail(ds, color),
               SizedBox(width: ds.spacing.md),
               Expanded(
                 child: Column(
@@ -3323,7 +3429,12 @@ class _DocumentTile extends StatelessWidget {
                     DSText(title, role: DSTextRole.title, maxLines: 1),
                     SizedBox(height: 2),
                     DSText(
-                      has ? t('تم الرفع', 'Uploaded') : t('لم يُضف بعد', 'Not added yet'),
+                      has
+                          ? (doc!.uploadedAt != null
+                              ? t('تم الرفع • ${_fmtDate(doc!.uploadedAt!)}',
+                                  'Uploaded • ${_fmtDate(doc!.uploadedAt!)}')
+                              : t('تم الرفع', 'Uploaded'))
+                          : t('لم يُضف بعد', 'Not added yet'),
                       role: DSTextRole.caption,
                       color: has ? const Color(0xFF10B981) : ds.colors.textMuted,
                     ),

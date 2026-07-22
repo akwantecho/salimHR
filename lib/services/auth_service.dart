@@ -43,7 +43,7 @@ class AuthService extends ChangeNotifier {
     } on DioException catch (e) {
       final apiError = e.error;
       _error = apiError is ApiException ? apiError.message : 'Failed to load documents';
-      return [];
+      rethrow;
     }
   }
 
