@@ -11,6 +11,7 @@ class PromoBanner extends Equatable {
   final String subtitle;
   final String? actionLabel;
   final String? imageUrl;
+  final String? linkUrl;
   final int colorValue;
   final int sortOrder;
   final bool active;
@@ -21,6 +22,7 @@ class PromoBanner extends Equatable {
     required this.subtitle,
     this.actionLabel,
     this.imageUrl,
+    this.linkUrl,
     required this.colorValue,
     this.sortOrder = 0,
     this.active = true,
@@ -33,6 +35,7 @@ class PromoBanner extends Equatable {
       subtitle: json['subtitle'] as String? ?? '',
       actionLabel: json['action_label'] as String?,
       imageUrl: json['image_url'] as String?,
+      linkUrl: json['link_url'] as String?,
       colorValue: _parseColor(json['color']),
       sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
       active: json['active'] as bool? ?? true,

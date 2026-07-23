@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../design_system/components/line_icons.dart';
 import '../../design_system/ds_provider.dart';
@@ -85,7 +86,8 @@ class _SpecialistHomeScreenState extends State<SpecialistHomeScreen> {
       _approvedLeavesThisMonth = leavesSummary['approved_this_month'] ?? 0;
 
       // Promotional banners — managed from the server control panel.
-      _banners = await hrService.fetchPromoBanners();
+      final lang = AppScope.of(context).locale.languageCode;
+      _banners = await hrService.fetchPromoBanners(lang: lang);
       if (!mounted) return;
 
       setState(() => _isLoading = false);
@@ -369,13 +371,24 @@ class PromoBannerSlide extends StatelessWidget {
 
   const PromoBannerSlide({required this.banner});
 
+  /// Opens the banner's [PromoBanner.linkUrl] in the browser, when present.
+  Future<void> _openLink() async {
+    final link = banner.linkUrl;
+    if (link == null || link.isEmpty) return;
+    final uri = Uri.tryParse(link);
+    if (uri != null) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final ds = DSProvider.of(context);
     final base = Color(banner.colorValue);
     const white = Color(0xFFFFFFFF);
+    final hasLink = banner.linkUrl != null && banner.linkUrl!.isNotEmpty;
 
-    return Container(
+    final slide = Container(
       margin: EdgeInsetsDirectional.symmetric(horizontal: ds.spacing.xs),
       padding: EdgeInsets.all(ds.spacing.lg),
       decoration: BoxDecoration(
@@ -440,6 +453,13 @@ class PromoBannerSlide extends StatelessWidget {
           ],
         ],
       ),
+    );
+
+    if (!hasLink) return slide;
+    return GestureDetector(
+      onTap: _openLink,
+      behavior: HitTestBehavior.opaque,
+      child: slide,
     );
   }
 }

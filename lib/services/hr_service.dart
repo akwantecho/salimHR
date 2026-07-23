@@ -272,9 +272,12 @@ class HRService extends ChangeNotifier {
   /// Fetch the active promotional banners for the home carousel.
   /// Backed by `GET /api/banners` so the slides can be managed from the
   /// server control panel. Returns an empty list on failure.
-  Future<List<PromoBanner>> fetchPromoBanners() async {
+  Future<List<PromoBanner>> fetchPromoBanners({String lang = 'ar'}) async {
     try {
-      final response = await _client.get<Map<String, dynamic>>('/banners');
+      final response = await _client.get<Map<String, dynamic>>(
+        '/banners',
+        queryParameters: {'lang': lang},
+      );
       final data = response.data?['data'] as List<dynamic>? ?? [];
       return data
           .map((e) => PromoBanner.fromJson(e as Map<String, dynamic>))

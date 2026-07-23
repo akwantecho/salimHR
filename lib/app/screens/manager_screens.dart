@@ -8,6 +8,7 @@ import '../../models/models.dart';
 import '../../models/reception.dart';
 import '../../services/api_provider.dart';
 import '../../utils/time_format.dart';
+import '../app_state.dart';
 import '../i18n.dart';
 import '../ui/blocks.dart';
 import '../widgets/reason_prompt.dart';
@@ -40,6 +41,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
   }
 
   Future<void> _loadDashboard() async {
+    final lang = AppScope.of(context).locale.languageCode;
     setState(() {
       _isLoading = true;
       _error = null;
@@ -50,7 +52,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
       await hrService.fetchDashboard();
       final acks = await hrService.fetchScheduleAcknowledgements();
       final mstats = await hrService.fetchManagerDashboard();
-      final banners = await hrService.fetchPromoBanners();
+      final banners = await hrService.fetchPromoBanners(lang: lang);
 
       if (!mounted) return;
 

@@ -36,11 +36,12 @@ class _ReceptionHomeScreenState extends State<ReceptionHomeScreen> {
   }
 
   Future<void> _load() async {
+    final lang = AppScope.of(context).locale.languageCode;
     setState(() => _loading = true);
     final rec = context.receptionService;
     final hr = context.hrService;
     final data = await rec.fetchDashboard();
-    final banners = await hr.fetchPromoBanners();
+    final banners = await hr.fetchPromoBanners(lang: lang);
     if (!mounted) return;
     setState(() {
       _stats = (data['stats'] as Map?)?.cast<String, dynamic>() ?? {};
