@@ -14,7 +14,6 @@ import '../../design_system/primitives/ds_card.dart';
 import '../../design_system/primitives/ds_text.dart';
 import '../../models/notification.dart';
 import '../../models/user.dart';
-import '../../services/api_config.dart';
 import '../../services/api_provider.dart';
 import '../app_state.dart';
 import '../i18n.dart';
@@ -126,31 +125,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  /// Demo login — enters the app with the chosen role without a backend server.
-  /// Turns on demo mode so all API calls are served from local mock data, and
-  /// sets a local demo user so screens that read the current user work.
-  /// Useful for previewing/editing the UI while the API is unavailable.
-  void _handleDemoLogin(UserRole role) {
-    ApiConfig.demoMode = true;
-    context.authService.setDemoUser(
-      User(
-        id: 1,
-        name: role == UserRole.manager
-            ? 'مدير تجريبي'
-            : role == UserRole.specialist
-            ? 'أخصائي تجريبي'
-            : 'موظف تجريبي',
-        email: 'demo@salim.app',
-        phone: '+968 9123 4567',
-        employeeId: 1042,
-        roles: const ['Specialist'],
-        clinicName: 'مركز سالم للعلاج الطبيعي',
-        createdAt: DateTime(2023, 3, 1),
-      ),
-    );
-    widget.onRoleSelected(role);
-  }
-
   @override
   Widget build(BuildContext context) {
     final ds = DSProvider.of(context);
@@ -216,15 +190,15 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       SizedBox(height: ds.spacing.md),
                       DSText(
-                        t('نظام ادارة الموظفين', 'Salim HR'),
+                        t('تطبيق شؤون الموظفين', 'Salim HR'),
                         role: DSTextRole.display,
                         color: const Color(0xFFFFFFFF),
                       ),
                       SizedBox(height: ds.spacing.xs),
                       DSText(
                         t(
-                          'إدارة متكاملة للعيادات',
-                          'Complete Clinic Management',
+                          'تجربة أكثر سرعة وكفاءة وشفافية',
+                          'A faster, more efficient and transparent experience',
                         ),
                         role: DSTextRole.caption,
                         color: const Color(0xFFFFFFFF).withValues(alpha: 0.7),
@@ -386,66 +360,35 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       SizedBox(height: ds.spacing.lg),
 
-                      // ── Demo login (no server required) ──
+                      // Footer — brand line between two dividers
                       Row(
                         children: [
                           Expanded(
                             child: Container(
                               height: 1,
-                              color: const Color(0x33FFFFFF),
+                              color: const Color(0x40FFFFFF),
                             ),
                           ),
                           Padding(
                             padding: EdgeInsetsDirectional.symmetric(
-                              horizontal: ds.spacing.sm,
+                              horizontal: ds.spacing.md,
                             ),
                             child: DSText(
-                              t('دخول تجريبي', 'Demo access'),
-                              role: DSTextRole.caption,
-                              color: const Color(0xB3FFFFFF),
+                              t(
+                                '© سالم للخدمات الطبية 2026',
+                                '© Salim Medical Services 2026',
+                              ),
+                              role: DSTextRole.label,
+                              color: const Color(0xE6FFFFFF),
                             ),
                           ),
                           Expanded(
                             child: Container(
                               height: 1,
-                              color: const Color(0x33FFFFFF),
+                              color: const Color(0x40FFFFFF),
                             ),
                           ),
                         ],
-                      ),
-                      SizedBox(height: ds.spacing.md),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _DemoRoleButton(
-                              label: t('أخصائي', 'Specialist'),
-                              onTap: () =>
-                                  _handleDemoLogin(UserRole.specialist),
-                            ),
-                          ),
-                          SizedBox(width: ds.spacing.sm),
-                          Expanded(
-                            child: _DemoRoleButton(
-                              label: t('مدير', 'Manager'),
-                              onTap: () => _handleDemoLogin(UserRole.manager),
-                            ),
-                          ),
-                          SizedBox(width: ds.spacing.sm),
-                          Expanded(
-                            child: _DemoRoleButton(
-                              label: t('موظف', 'Worker'),
-                              onTap: () => _handleDemoLogin(UserRole.worker),
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: ds.spacing.lg),
-
-                      // Footer
-                      DSText(
-                        t('© 2024 نظام العيادة', '© 2024 Clinic System'),
-                        role: DSTextRole.caption,
-                        color: ds.colors.textMuted,
                       ),
                     ],
                   ),
@@ -460,36 +403,6 @@ class _LoginScreenState extends State<LoginScreen> {
 }
 
 /// Demo role button used on the login screen to enter the app without a server.
-class _DemoRoleButton extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-
-  const _DemoRoleButton({required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final ds = DSProvider.of(context);
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsetsDirectional.symmetric(vertical: ds.spacing.md),
-        decoration: BoxDecoration(
-          color: const Color(0x1AFFFFFF),
-          borderRadius: BorderRadius.circular(ds.radii.large),
-          border: Border.all(color: const Color(0x33FFFFFF)),
-        ),
-        child: Center(
-          child: DSText(
-            label,
-            role: DSTextRole.label,
-            color: const Color(0xFFFFFFFF),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// Loading indicator widget
 class _LoadingIndicator extends StatefulWidget {
   const _LoadingIndicator();
@@ -2524,7 +2437,7 @@ class AboutAppScreen extends StatelessWidget {
                 ),
                 SizedBox(height: ds.spacing.md),
                 DSText(
-                  t('نظام ادارة الموظفين', 'Salim HR'),
+                  t('تطبيق شؤون الموظفين', 'Salim HR'),
                   role: DSTextRole.headline,
                 ),
                 SizedBox(height: ds.spacing.xs),
@@ -2535,7 +2448,7 @@ class AboutAppScreen extends StatelessWidget {
                 ),
                 SizedBox(height: ds.spacing.xs),
                 DSText(
-                  t('إدارة متكاملة للعيادات', 'Complete Clinic Management'),
+                  t('تجربة أكثر سرعة وكفاءة وشفافية', 'A faster, more efficient and transparent experience'),
                   role: DSTextRole.caption,
                   color: ds.colors.textSecondary,
                 ),
@@ -3065,7 +2978,7 @@ class _SplashScreenState extends State<SplashScreen> {
             ),
             SizedBox(height: ds.spacing.lg),
             DSText(
-              tr(context, ar: 'نظام ادارة الموظفين', en: 'Salim HR'),
+              tr(context, ar: 'تطبيق شؤون الموظفين', en: 'Salim HR'),
               role: DSTextRole.display,
               color: const Color(0xFFFFFFFF),
             ),
@@ -3073,8 +2986,8 @@ class _SplashScreenState extends State<SplashScreen> {
             DSText(
               tr(
                 context,
-                ar: 'إدارة متكاملة للعيادات',
-                en: 'Complete Clinic Management',
+                ar: 'تجربة أكثر سرعة وكفاءة وشفافية',
+                en: 'A faster, more efficient and transparent experience',
               ),
               role: DSTextRole.caption,
               color: const Color(0xFFFFFFFF).withValues(alpha: 0.7),

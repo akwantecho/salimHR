@@ -525,6 +525,60 @@ class _QuickLinkCard extends StatelessWidget {
 
 // ==================== SESSIONS SCREEN ====================
 
+/// Header with previous/next-day arrows around the day label, letting the
+/// specialist step through yesterday / today / tomorrow (and beyond).
+class _DayNavHeader extends StatelessWidget {
+  final String label;
+  final VoidCallback onPrev;
+  final VoidCallback onNext;
+
+  const _DayNavHeader({
+    required this.label,
+    required this.onPrev,
+    required this.onNext,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+
+    Widget arrow(bool flip, VoidCallback onTap) => GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            padding: EdgeInsetsDirectional.all(ds.spacing.sm),
+            decoration: BoxDecoration(
+              color: ds.colors.surface,
+              borderRadius: BorderRadius.circular(ds.radii.medium),
+              border: Border.all(color: ds.colors.border.withValues(alpha: 0.5)),
+            ),
+            child: Transform.flip(
+              flipX: flip,
+              child: DSLineIcon(
+                type: LineIconType.arrowBack,
+                color: ds.colors.textPrimary,
+                size: ds.spacing.md,
+              ),
+            ),
+          ),
+        );
+
+    return Row(
+      children: [
+        arrow(false, onPrev), // اليوم السابق
+        SizedBox(width: ds.spacing.sm),
+        Expanded(
+          child: Center(
+            child: DSText(label, role: DSTextRole.title, maxLines: 1),
+          ),
+        ),
+        SizedBox(width: ds.spacing.sm),
+        arrow(true, onNext), // اليوم التالي
+      ],
+    );
+  }
+}
+
 class SessionsScreen extends StatefulWidget {
   const SessionsScreen({super.key});
 
@@ -539,6 +593,34 @@ class _SessionsScreenState extends State<SessionsScreen> {
   Map<String, int> _stats = {};
   DateTime? _acknowledgedAt;
   bool _acking = false;
+  late DateTime _selectedDate = _dateOnly(DateTime.now());
+
+  static DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+  bool get _isToday => _isSameDay(_selectedDate, DateTime.now());
+
+  /// Move the viewed day by [delta] days (−1 = yesterday, +1 = tomorrow).
+  void _changeDay(int delta) {
+    setState(() => _selectedDate = _dateOnly(_selectedDate.add(Duration(days: delta))));
+    _load();
+  }
+
+  /// Header label: "جلسات أمس/اليوم/الغد" + the date, else a plain date.
+  String _dayLabel(BuildContext context) {
+    String t(String ar, String en) => tr(context, ar: ar, en: en);
+    final diff = _selectedDate.difference(_dateOnly(DateTime.now())).inDays;
+    final rel = switch (diff) {
+      -1 => t('جلسات أمس', "Yesterday's Sessions"),
+      0 => t('جلسات اليوم', "Today's Sessions"),
+      1 => t('جلسات الغد', "Tomorrow's Sessions"),
+      _ => t('جلسات', 'Sessions'),
+    };
+    final d = _selectedDate;
+    final date =
+        '${d.year}/${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}';
+    return '$rel • $date';
+  }
 
   @override
   void initState() {
@@ -554,9 +636,9 @@ class _SessionsScreenState extends State<SessionsScreen> {
 
     try {
       final hrService = context.hrService;
-      final today = DateTime.now();
+      final d = _selectedDate;
       final dateStr =
-          '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+          '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
       final data = await hrService.fetchMyAppointments(date: dateStr);
       if (!mounted) return;
 
@@ -571,7 +653,8 @@ class _SessionsScreenState extends State<SessionsScreen> {
         'cancelled': (data['stats']?['cancelled'] as int?) ?? 0,
       };
 
-      _acknowledgedAt = await hrService.fetchTodayAcknowledgement();
+      _acknowledgedAt =
+          _isToday ? await hrService.fetchTodayAcknowledgement() : null;
       if (!mounted) return;
 
       setState(() => _isLoading = false);
@@ -592,6 +675,22 @@ class _SessionsScreenState extends State<SessionsScreen> {
       ),
     );
     if (result != null && mounted) {
+      await _load();
+    }
+  }
+
+  /// Opens the room picker for a session; reloads the day when a room changes
+  /// so the schedule reflects the new assignment (and others' availability).
+  Future<void> _openRoomPicker(Appointment appointment) async {
+    final changed = await Navigator.of(context).push<bool>(
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: const Color(0x66000000),
+        pageBuilder: (context, _, _) =>
+            _RoomPickerSheet(appointment: appointment),
+      ),
+    );
+    if (changed == true && mounted) {
       await _load();
     }
   }
@@ -625,14 +724,16 @@ class _SessionsScreenState extends State<SessionsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Acknowledge today's schedule
-              _ScheduleAckCard(
-                acknowledgedAt: _acknowledgedAt,
-                sessionsCount: _appointments.length,
-                loading: _acking,
-                onAcknowledge: _acknowledge,
-              ),
-              SizedBox(height: ds.spacing.lg),
+              // Acknowledge today's schedule (only while viewing today)
+              if (_isToday) ...[
+                _ScheduleAckCard(
+                  acknowledgedAt: _acknowledgedAt,
+                  sessionsCount: _appointments.length,
+                  loading: _acking,
+                  onAcknowledge: _acknowledge,
+                ),
+                SizedBox(height: ds.spacing.lg),
+              ],
 
               // Summary Stats
               Row(
@@ -664,14 +765,18 @@ class _SessionsScreenState extends State<SessionsScreen> {
               ),
               SizedBox(height: ds.spacing.lg),
 
-              SectionHeader(title: t('جلسات اليوم', 'Today\'s Sessions')),
+              _DayNavHeader(
+                label: _dayLabel(context),
+                onPrev: () => _changeDay(-1),
+                onNext: () => _changeDay(1),
+              ),
             ],
           ),
         ),
         if (_appointments.isEmpty)
           SliverToBoxAdapter(
             child: _EmptyCard(
-              message: t('لا توجد جلسات اليوم', 'No sessions today'),
+              message: t('لا توجد جلسات في هذا اليوم', 'No sessions on this day'),
               icon: LineIconType.calendar,
             ),
           )
@@ -680,6 +785,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
             itemBuilder: (context, index) => _SessionListCard(
               appointment: _appointments[index],
               onTap: () => _openDetail(_appointments[index]),
+              onPickRoom: () => _openRoomPicker(_appointments[index]),
             ),
             itemCount: _appointments.length,
             spacing: ds.spacing.sm,
@@ -2298,8 +2404,13 @@ class _SessionStatCard extends StatelessWidget {
 class _SessionListCard extends StatelessWidget {
   final Appointment appointment;
   final VoidCallback? onTap;
+  final VoidCallback? onPickRoom;
 
-  const _SessionListCard({required this.appointment, this.onTap});
+  const _SessionListCard({
+    required this.appointment,
+    this.onTap,
+    this.onPickRoom,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -2399,6 +2510,11 @@ class _SessionListCard extends StatelessWidget {
                       ),
                   ],
                 ),
+                // Room picker (center sessions only \u2014 home visits need none).
+                if (!appointment.isHomeVisit && onPickRoom != null) ...[
+                  SizedBox(height: ds.spacing.xs),
+                  _RoomChip(room: appointment.roomNumber, onTap: onPickRoom!),
+                ],
               ],
             ),
           ),
@@ -2426,6 +2542,287 @@ class _SessionListCard extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: card,
+    );
+  }
+}
+
+/// Small pill on a session card showing the chosen room, or a prompt to pick
+/// one. Tapping opens the room picker.
+class _RoomChip extends StatelessWidget {
+  final int? room;
+  final VoidCallback onTap;
+
+  const _RoomChip({required this.room, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    final has = room != null;
+    final color = has ? const Color(0xFF6366F1) : ds.colors.textMuted;
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: EdgeInsetsDirectional.symmetric(
+          horizontal: ds.spacing.sm,
+          vertical: ds.spacing.xs,
+        ),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: has ? 0.12 : 0.06),
+          borderRadius: BorderRadius.circular(ds.radii.pill),
+          border: Border.all(color: color.withValues(alpha: has ? 0.5 : 0.35)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DSLineIcon(type: LineIconType.home, color: color, size: ds.spacing.md),
+            SizedBox(width: ds.spacing.xs),
+            DSText(
+              has
+                  ? tr(context, ar: 'غرفة ${room!}', en: 'Room ${room!}')
+                  : tr(context, ar: 'اختر غرفة', en: 'Pick room'),
+              role: DSTextRole.caption,
+              color: color,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Bottom sheet to choose a treatment room (3–7) for a session. Rooms already
+/// taken by another specialist in the same hour are shown disabled. Saving a
+/// room that just got taken returns a 409 which is surfaced inline.
+class _RoomPickerSheet extends StatefulWidget {
+  final Appointment appointment;
+
+  const _RoomPickerSheet({required this.appointment});
+
+  @override
+  State<_RoomPickerSheet> createState() => _RoomPickerSheetState();
+}
+
+class _RoomPickerSheetState extends State<_RoomPickerSheet> {
+  RoomOptions? _options;
+  bool _loading = true;
+  bool _saving = false;
+  String? _message;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadOptions());
+  }
+
+  Future<void> _loadOptions() async {
+    final opts = await context.hrService.fetchRoomOptions(widget.appointment.id);
+    if (!mounted) return;
+    setState(() {
+      _options = opts ?? const RoomOptions();
+      _loading = false;
+    });
+  }
+
+  Future<void> _select(int? room) async {
+    if (_saving) return;
+    setState(() {
+      _saving = true;
+      _message = null;
+    });
+    final res = await context.hrService.assignRoom(widget.appointment.id, room);
+    if (!mounted) return;
+    if (res.success) {
+      Navigator.of(context).pop(true);
+      return;
+    }
+    setState(() {
+      _saving = false;
+      _message = res.conflict
+          ? (res.error ??
+              tr(context,
+                  ar: 'هذه الغرفة محجوزة في نفس الساعة',
+                  en: 'This room is taken for the same hour'))
+          : (res.error ?? tr(context, ar: 'تعذّر الحفظ', en: 'Could not save'));
+    });
+    await _loadOptions(); // refresh availability after a conflict
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    String t(String ar, String en) => tr(context, ar: ar, en: en);
+    final opts = _options ?? const RoomOptions();
+    final current = widget.appointment.roomNumber ?? opts.current;
+
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsetsDirectional.fromSTEB(
+          ds.spacing.lg,
+          ds.spacing.lg,
+          ds.spacing.lg,
+          ds.spacing.xl,
+        ),
+        decoration: BoxDecoration(
+          color: ds.colors.background,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(ds.radii.xLarge),
+            topRight: Radius.circular(ds.radii.xLarge),
+          ),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              DSText(t('اختر رقم الغرفة', 'Pick a room'), role: DSTextRole.headline),
+              SizedBox(height: ds.spacing.xs),
+              DSText(
+                '${widget.appointment.patientName ?? ''} • ${_formatTime(context, widget.appointment.startTime)}',
+                role: DSTextRole.caption,
+                color: ds.colors.textSecondary,
+              ),
+              SizedBox(height: ds.spacing.lg),
+
+              if (_loading)
+                Padding(
+                  padding: EdgeInsetsDirectional.all(ds.spacing.lg),
+                  child: Center(
+                    child: DSText(
+                      t('جارٍ التحميل...', 'Loading...'),
+                      role: DSTextRole.caption,
+                      color: ds.colors.textSecondary,
+                    ),
+                  ),
+                )
+              else
+                Wrap(
+                  spacing: ds.spacing.sm,
+                  runSpacing: ds.spacing.sm,
+                  children: [
+                    for (final r in opts.rooms)
+                      _RoomOptionButton(
+                        room: r,
+                        selected: r == current,
+                        takenBy: (r != current) ? opts.taken[r] : null,
+                        onTap: () => _select(r),
+                      ),
+                  ],
+                ),
+
+              if (_message != null) ...[
+                SizedBox(height: ds.spacing.md),
+                Container(
+                  padding: EdgeInsetsDirectional.all(ds.spacing.sm),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(ds.radii.medium),
+                  ),
+                  child: DSText(
+                    _message!,
+                    role: DSTextRole.caption,
+                    color: const Color(0xFFEF4444),
+                  ),
+                ),
+              ],
+
+              SizedBox(height: ds.spacing.lg),
+              Row(
+                children: [
+                  if (current != null)
+                    Expanded(
+                      child: DSButton(
+                        label: t('إزالة الغرفة', 'Clear room'),
+                        variant: DSButtonVariant.ghost,
+                        onPressed: _saving ? null : () => _select(null),
+                      ),
+                    ),
+                  if (current != null) SizedBox(width: ds.spacing.sm),
+                  Expanded(
+                    child: DSButton(
+                      label: t('إغلاق', 'Close'),
+                      variant: DSButtonVariant.ghost,
+                      onPressed: () => Navigator.of(context).pop(false),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One selectable room square inside the picker. Disabled (with the holder's
+/// name) when another specialist already booked it this hour.
+class _RoomOptionButton extends StatelessWidget {
+  final int room;
+  final bool selected;
+  final String? takenBy;
+  final VoidCallback onTap;
+
+  const _RoomOptionButton({
+    required this.room,
+    required this.selected,
+    required this.takenBy,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    final taken = takenBy != null;
+    final Color color = selected
+        ? const Color(0xFF6366F1)
+        : taken
+            ? const Color(0xFFEF4444)
+            : ds.colors.textSecondary;
+
+    return GestureDetector(
+      onTap: taken ? null : onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Opacity(
+        opacity: taken ? 0.5 : 1,
+        child: Container(
+          width: 92,
+          padding: EdgeInsetsDirectional.symmetric(vertical: ds.spacing.md),
+          decoration: BoxDecoration(
+            color: selected
+                ? color.withValues(alpha: 0.14)
+                : ds.colors.surface,
+            borderRadius: BorderRadius.circular(ds.radii.large),
+            border: Border.all(
+              color: color.withValues(alpha: selected ? 0.9 : 0.4),
+              width: selected ? 2 : 1,
+            ),
+          ),
+          child: Column(
+            children: [
+              DSText(
+                tr(context, ar: 'غرفة $room', en: 'Room $room'),
+                role: DSTextRole.title,
+                color: color,
+              ),
+              if (taken) ...[
+                SizedBox(height: 2),
+                DSText(
+                  takenBy!.isEmpty
+                      ? tr(context, ar: 'محجوزة', en: 'Taken')
+                      : takenBy!,
+                  role: DSTextRole.caption,
+                  color: const Color(0xFFEF4444),
+                  maxLines: 1,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

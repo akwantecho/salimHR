@@ -764,6 +764,46 @@ class HRService extends ChangeNotifier {
     }
   }
 
+  /// Room availability for a session's time slot.
+  /// Backed by `GET /api/appointments/{id}/room-options`.
+  Future<RoomOptions?> fetchRoomOptions(int appointmentId) async {
+    try {
+      final response = await _client.get<Map<String, dynamic>>(
+        '/appointments/$appointmentId/room-options',
+      );
+      final data = response.data?['data'] as Map<String, dynamic>?;
+      return data != null ? RoomOptions.fromJson(data) : const RoomOptions();
+    } on DioException catch (e) {
+      _handleError(e);
+      return null;
+    }
+  }
+
+  /// Assign (or clear, when [room] is null) the treatment room for a session.
+  /// Backed by `POST /api/appointments/{id}/room`. A 409 means another
+  /// specialist already holds that room this hour — surfaced as [conflict].
+  Future<RoomAssignResult> assignRoom(int appointmentId, int? room) async {
+    try {
+      final response = await _client.post<Map<String, dynamic>>(
+        '/appointments/$appointmentId/room',
+        data: {'room_number': room},
+      );
+      final data = response.data?['data'] as Map<String, dynamic>?;
+      return RoomAssignResult(
+        success: true,
+        roomNumber: (data?['room_number'] as num?)?.toInt(),
+      );
+    } on DioException catch (e) {
+      final apiError = e.error;
+      final code = apiError is ApiException ? apiError.statusCode : null;
+      return RoomAssignResult(
+        success: false,
+        conflict: code == 409,
+        error: apiError is ApiException ? apiError.message : null,
+      );
+    }
+  }
+
   void _setLoading(bool value) {
     _isLoading = value;
     notifyListeners();

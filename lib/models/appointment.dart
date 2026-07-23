@@ -20,6 +20,7 @@ class Appointment extends Equatable {
   final int? sessionsTotal;
   final int? sessionDurationMinutes;
   final String? sessionType; // 'home' or 'center'
+  final int? roomNumber; // assigned treatment room (null = not chosen)
 
   const Appointment({
     required this.id,
@@ -40,6 +41,7 @@ class Appointment extends Equatable {
     this.sessionsTotal,
     this.sessionDurationMinutes,
     this.sessionType,
+    this.roomNumber,
   });
 
   factory Appointment.fromJson(Map<String, dynamic> json) {
@@ -63,6 +65,7 @@ class Appointment extends Equatable {
       sessionsTotal: json['sessions_total'] as int?,
       sessionDurationMinutes: json['session_duration_minutes'] as int?,
       sessionType: json['session_type'] as String?,
+      roomNumber: (json['room_number'] as num?)?.toInt(),
     );
   }
 
@@ -82,5 +85,69 @@ class Appointment extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, appointmentDate, status];
+  List<Object?> get props => [id, appointmentDate, status, roomNumber];
+}
+
+/// Room availability for a single session's time slot, from
+/// `GET /api/appointments/{id}/room-options`.
+class RoomOptions {
+  /// All selectable rooms (server-driven; defaults to 3–7).
+  final List<int> rooms;
+
+  /// room number → name of the specialist who already holds it this hour.
+  final Map<int, String> taken;
+
+  /// The room currently assigned to this appointment (null = none).
+  final int? current;
+
+  const RoomOptions({
+    this.rooms = const [3, 4, 5, 6, 7],
+    this.taken = const {},
+    this.current,
+  });
+
+  factory RoomOptions.fromJson(Map<String, dynamic> json) {
+    final rooms = (json['rooms'] as List?)
+            ?.map((e) => (e as num).toInt())
+            .toList() ??
+        const [3, 4, 5, 6, 7];
+
+    final takenMap = <int, String>{};
+    final raw = json['taken'];
+    if (raw is List) {
+      for (final t in raw) {
+        if (t is Map) {
+          final r = (t['room'] ?? t['room_number']) as num?;
+          if (r != null) takenMap[r.toInt()] = (t['specialist'] ?? '').toString();
+        }
+      }
+    } else if (raw is Map) {
+      raw.forEach((k, v) {
+        final r = int.tryParse(k.toString());
+        if (r != null) takenMap[r] = v.toString();
+      });
+    }
+
+    return RoomOptions(
+      rooms: rooms,
+      taken: takenMap,
+      current: (json['current'] as num?)?.toInt(),
+    );
+  }
+}
+
+/// Result of assigning/clearing a session's room. [conflict] is true when the
+/// server rejected the room (409) because another specialist holds it this hour.
+class RoomAssignResult {
+  final bool success;
+  final int? roomNumber;
+  final bool conflict;
+  final String? error;
+
+  const RoomAssignResult({
+    required this.success,
+    this.roomNumber,
+    this.conflict = false,
+    this.error,
+  });
 }

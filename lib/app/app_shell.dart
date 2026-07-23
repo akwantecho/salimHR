@@ -284,8 +284,8 @@ class _RoleShellState extends State<RoleShell> {
                       builder: (context, _) => TopBarCustom(
                         title: _title(context, role, current),
                         subtitle: tr(context,
-                            ar: 'مرحبًا بك في تطبيق الموظفين - يتم عرض المحتوى وفقًا لصلاحيات حسابك',
-                            en: 'Welcome to the staff app - content is shown according to your account permissions'),
+                            ar: 'مرحباً بك في تطبيق سالم لشؤون الموظفين',
+                            en: 'Welcome to Salim staff affairs app'),
                         onNotifications: () {
                           app.showNotifications();
                         },
