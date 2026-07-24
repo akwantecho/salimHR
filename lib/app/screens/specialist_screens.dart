@@ -2164,11 +2164,11 @@ class _NotesScreenState extends State<NotesScreen> {
                     ),
                     // Admin replies threaded under the note.
                     if (note.replies.isNotEmpty) ...[
-                      SizedBox(height: ds.spacing.xs),
+                      SizedBox(height: ds.spacing.sm),
                       DSText(
                         t('رد الإدارة', 'Admin reply'),
-                        role: DSTextRole.caption,
-                        color: ds.colors.primary,
+                        role: DSTextRole.label,
+                        color: const Color(0xFF10B981),
                       ),
                       for (final reply in note.replies)
                         _NoteReplyTile(reply: reply),
@@ -2196,17 +2196,17 @@ class _NoteReplyTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ds = DSProvider.of(context);
+    // Distinct green accent so the admin's reply clearly stands out from the
+    // employee's own message.
+    const accent = Color(0xFF10B981);
     return Container(
       margin: EdgeInsetsDirectional.only(top: ds.spacing.sm, start: ds.spacing.lg),
-      padding: EdgeInsetsDirectional.all(ds.spacing.sm),
+      padding: EdgeInsetsDirectional.all(ds.spacing.md),
       decoration: BoxDecoration(
-        color: ds.colors.primary.withValues(alpha: 0.06),
+        color: accent.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(ds.radii.medium),
         border: BorderDirectional(
-          start: BorderSide(
-            color: ds.colors.primary.withValues(alpha: 0.5),
-            width: 2,
-          ),
+          start: BorderSide(color: accent, width: 3),
         ),
       ),
       child: Column(
@@ -2216,15 +2216,15 @@ class _NoteReplyTile extends StatelessWidget {
             children: [
               DSLineIcon(
                 type: LineIconType.chat,
-                color: ds.colors.primary,
+                color: accent,
                 size: ds.spacing.md,
               ),
               SizedBox(width: ds.spacing.xs),
               Expanded(
                 child: DSText(
                   reply.creatorName ?? tr(context, ar: 'الإدارة', en: 'Admin'),
-                  role: DSTextRole.label,
-                  color: ds.colors.primary,
+                  role: DSTextRole.title,
+                  color: accent,
                 ),
               ),
               DSText(
@@ -2237,8 +2237,8 @@ class _NoteReplyTile extends StatelessWidget {
           SizedBox(height: ds.spacing.xs),
           DSText(
             reply.note,
-            role: DSTextRole.body,
-            color: ds.colors.textSecondary,
+            role: DSTextRole.title,
+            color: ds.colors.textPrimary,
           ),
         ],
       ),
@@ -2594,13 +2594,15 @@ class _SessionListCard extends StatelessWidget {
                             '${tr(context, ar: '\u0627\u0644\u062c\u0644\u0633\u0629 ', en: 'Session ')}${appointment.sessionProgress!}',
                         color: const Color(0xFF8B5CF6),
                       ),
+                    // Room picker chip \u2014 inline next to the other chips (center
+                    // sessions only; home visits need no room).
+                    if (!appointment.isHomeVisit && onPickRoom != null)
+                      _RoomChip(
+                        room: appointment.roomNumber,
+                        onTap: onPickRoom!,
+                      ),
                   ],
                 ),
-                // Room picker (center sessions only \u2014 home visits need none).
-                if (!appointment.isHomeVisit && onPickRoom != null) ...[
-                  SizedBox(height: ds.spacing.xs),
-                  _RoomChip(room: appointment.roomNumber, onTap: onPickRoom!),
-                ],
               ],
             ),
           ),

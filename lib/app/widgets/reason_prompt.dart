@@ -23,7 +23,7 @@ Future<String?> promptForReason(
       barrierDismissible: true,
       barrierColor: const Color(0xCC000000),
       transitionDuration: const Duration(milliseconds: 150),
-      pageBuilder: (ctx, _, __) => _ReasonPrompt(
+      pageBuilder: (ctx, _, _) => _ReasonPrompt(
         title: title,
         hint: hint,
         confirmLabel: confirmLabel,
@@ -117,7 +117,9 @@ class _ReasonPromptState extends State<_ReasonPrompt> {
                 child: EditableText(
                   controller: _controller,
                   focusNode: _focusNode,
-                  style: ds.typography.body.copyWith(color: ds.colors.textPrimary),
+                  style: ds.typography.body.copyWith(
+                    color: ds.colors.textPrimary,
+                  ),
                   cursorColor: ds.colors.primary,
                   backgroundCursorColor: ds.colors.textMuted,
                   maxLines: 5,

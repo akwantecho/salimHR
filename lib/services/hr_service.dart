@@ -462,6 +462,33 @@ class HRService extends ChangeNotifier {
     }
   }
 
+  /// Admin: all employee→admin notes (with replies) for the notes inbox.
+  /// Backed by `GET /api/manager/notes`.
+  Future<List<EmployeeNote>> fetchAdminNotes() async {
+    try {
+      final response = await _client.get<Map<String, dynamic>>('/manager/notes');
+      final data = response.data?['data'] as List<dynamic>? ?? [];
+      return data
+          .map((e) => EmployeeNote.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      _handleError(e);
+      return [];
+    }
+  }
+
+  /// Admin: reply to an employee note.
+  /// Backed by `POST /api/manager/notes/{note}/reply`.
+  Future<bool> replyToNote(int noteId, String reply) async {
+    try {
+      await _client.post('/manager/notes/$noteId/reply', data: {'note': reply});
+      return true;
+    } on DioException catch (e) {
+      _handleError(e);
+      return false;
+    }
+  }
+
   /// Summary of the authenticated employee's own leaves.
   /// Returns a map: `{pending: int, approved: int, rejected: int,
   /// approved_this_month: int}`. Empty map on failure (error set on service).

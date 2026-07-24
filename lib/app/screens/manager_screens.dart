@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import '../../design_system/components/line_icons.dart';
 import '../../design_system/ds_provider.dart';
+import '../../design_system/primitives/ds_button.dart';
 import '../../design_system/primitives/ds_card.dart';
 import '../../design_system/primitives/ds_text.dart';
 import '../../models/models.dart';
@@ -276,6 +277,24 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                           PageRouteBuilder(
                             pageBuilder: (context, _, _) =>
                                 const ReceptionNotifyScreen(),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: ds.spacing.sm),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _MgrLink(
+                        label: t('ملاحظات الموظفين', 'Employee Notes'),
+                        icon: LineIconType.chat,
+                        color: const Color(0xFF8B5CF6),
+                        onTap: () => Navigator.of(context).push(
+                          PageRouteBuilder(
+                            pageBuilder: (context, _, _) =>
+                                const ManagerNotesScreen(),
                           ),
                         ),
                       ),
@@ -2457,5 +2476,199 @@ String _invoiceStatusLabel(BuildContext context, String status) {
       return tr(context, ar: 'مجانية', en: 'Free');
     default:
       return tr(context, ar: 'مسودّة', en: 'Draft');
+  }
+}
+
+// ==================== EMPLOYEE NOTES (admin inbox) ====================
+
+/// Admin inbox for employee notes — lists every employee→admin note (with its
+/// category prefix and threaded replies) and lets the admin reply from the app.
+/// Separate from the notifications screen.
+class ManagerNotesScreen extends StatefulWidget {
+  const ManagerNotesScreen({super.key});
+
+  @override
+  State<ManagerNotesScreen> createState() => _ManagerNotesScreenState();
+}
+
+class _ManagerNotesScreenState extends State<ManagerNotesScreen> {
+  bool _loading = true;
+  List<EmployeeNote> _notes = [];
+  final Set<int> _replying = {};
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  Future<void> _load() async {
+    final notes = await context.hrService.fetchAdminNotes();
+    if (!mounted) return;
+    setState(() {
+      _notes = notes;
+      _loading = false;
+    });
+  }
+
+  Future<void> _reply(EmployeeNote note) async {
+    final text = await promptForReason(
+      context,
+      title: tr(context, ar: 'رد على الملاحظة', en: 'Reply to note'),
+      hint: tr(context, ar: 'اكتب ردك للموظف...', en: 'Write your reply...'),
+      confirmLabel: tr(context, ar: 'إرسال', en: 'Send'),
+    );
+    if (text == null || !mounted) return;
+    setState(() => _replying.add(note.id));
+    final ok = await context.hrService.replyToNote(note.id, text);
+    if (!mounted) return;
+    setState(() => _replying.remove(note.id));
+    if (ok) await _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    String t(String ar, String en) => tr(context, ar: ar, en: en);
+
+    return Container(
+      color: ds.colors.background,
+      child: SafeArea(
+        child: Padding(
+          padding: EdgeInsetsDirectional.all(ds.spacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: DSLineIcon(
+                      type: LineIconType.arrowBack,
+                      color: ds.colors.primary,
+                      size: ds.spacing.lg,
+                    ),
+                  ),
+                  SizedBox(width: ds.spacing.md),
+                  DSText(
+                    t('ملاحظات الموظفين', 'Employee Notes'),
+                    role: DSTextRole.headline,
+                  ),
+                ],
+              ),
+              SizedBox(height: ds.spacing.md),
+              Expanded(
+                child: _loading
+                    ? const ShimmerLoading()
+                    : _notes.isEmpty
+                        ? Center(
+                            child: DSText(
+                              t('لا توجد ملاحظات', 'No notes'),
+                              role: DSTextRole.body,
+                              color: ds.colors.textSecondary,
+                            ),
+                          )
+                        : ListView.separated(
+                            itemCount: _notes.length,
+                            separatorBuilder: (_, _) =>
+                                SizedBox(height: ds.spacing.sm),
+                            itemBuilder: (context, i) => _ManagerNoteCard(
+                              note: _notes[i],
+                              replying: _replying.contains(_notes[i].id),
+                              onReply: () => _reply(_notes[i]),
+                            ),
+                          ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ManagerNoteCard extends StatelessWidget {
+  final EmployeeNote note;
+  final bool replying;
+  final VoidCallback onReply;
+
+  const _ManagerNoteCard({
+    required this.note,
+    required this.replying,
+    required this.onReply,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    String t(String ar, String en) => tr(context, ar: ar, en: en);
+    return DSCard(
+      padding: EdgeInsetsDirectional.all(ds.spacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: DSText(
+                  note.employeeName ?? t('موظف', 'Employee'),
+                  role: DSTextRole.title,
+                ),
+              ),
+              DSText(
+                '${note.createdAt.year}-${note.createdAt.month.toString().padLeft(2, '0')}-${note.createdAt.day.toString().padLeft(2, '0')}',
+                role: DSTextRole.caption,
+                color: ds.colors.textMuted,
+              ),
+            ],
+          ),
+          SizedBox(height: ds.spacing.xs),
+          DSText(note.note, role: DSTextRole.body, color: ds.colors.textSecondary),
+
+          // Existing replies threaded under the note.
+          for (final reply in note.replies)
+            Container(
+              margin: EdgeInsetsDirectional.only(
+                top: ds.spacing.sm,
+                start: ds.spacing.lg,
+              ),
+              padding: EdgeInsetsDirectional.all(ds.spacing.sm),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(ds.radii.medium),
+                border: const BorderDirectional(
+                  start: BorderSide(color: Color(0xFF10B981), width: 3),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  DSText(
+                    reply.creatorName ?? t('الإدارة', 'Admin'),
+                    role: DSTextRole.label,
+                    color: const Color(0xFF10B981),
+                  ),
+                  SizedBox(height: 2),
+                  DSText(reply.note, role: DSTextRole.body),
+                ],
+              ),
+            ),
+
+          SizedBox(height: ds.spacing.md),
+          DSButton(
+            label: replying
+                ? t('جاري الإرسال...', 'Sending...')
+                : t('رد', 'Reply'),
+            variant: DSButtonVariant.primary,
+            leading: DSLineIcon(
+              type: LineIconType.chat,
+              color: const Color(0xFFFFFFFF),
+              size: ds.spacing.md,
+            ),
+            onPressed: replying ? null : onReply,
+          ),
+        ],
+      ),
+    );
   }
 }

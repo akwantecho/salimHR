@@ -5,6 +5,7 @@ class EmployeeNote extends Equatable {
   final int id;
   final int? parentId;
   final int employeeId;
+  final String? employeeName;
   final String note;
   final String visibility; // admin_to_employee or employee_to_admin
   final DateTime? readAt;
@@ -18,6 +19,7 @@ class EmployeeNote extends Equatable {
     required this.id,
     this.parentId,
     required this.employeeId,
+    this.employeeName,
     required this.note,
     required this.visibility,
     this.readAt,
@@ -32,6 +34,7 @@ class EmployeeNote extends Equatable {
       id: json['id'] as int,
       parentId: json['parent_id'] as int?,
       employeeId: json['employee_id'] as int,
+      employeeName: json['employee']?['name'] as String?,
       note: json['note'] as String,
       visibility: json['visibility'] as String,
       readAt: json['read_at'] != null

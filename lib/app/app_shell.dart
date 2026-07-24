@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart' show SystemNavigator;
 import 'package:flutter/widgets.dart';
 
 import '../design_system/components/bottom_nav.dart';
@@ -5,6 +6,9 @@ import '../design_system/components/bottom_nav_with_fab.dart';
 import '../design_system/components/line_icons.dart';
 import '../design_system/components/top_bar.dart';
 import '../design_system/ds_provider.dart';
+import '../design_system/primitives/ds_button.dart';
+import '../design_system/primitives/ds_card.dart';
+import '../design_system/primitives/ds_text.dart';
 import '../services/api_provider.dart';
 import 'app_state.dart';
 import 'i18n.dart';
@@ -228,8 +232,54 @@ class _RoleShellState extends State<RoleShell> {
     };
   }
 
+  /// Android hardware/gesture back: step back inside the app (close overlays,
+  /// return to the Home tab) and only ask to exit once already on Home.
+  Future<void> _handleBack(BuildContext context, AppState app) async {
+    if (_showAddPopup) {
+      setState(() => _showAddPopup = false);
+      return;
+    }
+    if (app.showNotificationsScreen) {
+      app.hideNotifications();
+      return;
+    }
+    if (app.profileSubScreen != ProfileSubScreen.none) {
+      app.hideProfileSub();
+      return;
+    }
+    if (app.specialistSubScreen != SpecialistSubScreen.none) {
+      app.hideSpecialistSub();
+      return;
+    }
+    if (app.tabIndexFor(role) != 0) {
+      app.setTab(role, 0);
+      return;
+    }
+    // Already on Home → confirm before leaving the app.
+    final shouldExit = await Navigator.of(context).push<bool>(
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: const Color(0x66000000),
+        pageBuilder: (context, _, _) => const _ExitConfirmDialog(),
+      ),
+    );
+    if (shouldExit == true) SystemNavigator.pop();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final app = AppScope.of(context);
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _handleBack(context, app);
+      },
+      child: _buildContent(context),
+    );
+  }
+
+  Widget _buildContent(BuildContext context) {
     final ds = DSProvider.of(context);
     final app = AppScope.of(context);
     final items = _items(context, role);
@@ -343,6 +393,62 @@ class _RoleShellState extends State<RoleShell> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Confirmation shown when the user presses Back on the Home tab. Pops `true`
+/// to exit the app, `false`/null to stay.
+class _ExitConfirmDialog extends StatelessWidget {
+  const _ExitConfirmDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    String t(String ar, String en) => tr(context, ar: ar, en: en);
+    return Center(
+      child: Padding(
+        padding: EdgeInsetsDirectional.all(ds.spacing.xl),
+        child: DSCard(
+          padding: EdgeInsetsDirectional.all(ds.spacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              DSText(
+                t('الخروج من التطبيق', 'Exit app'),
+                role: DSTextRole.title,
+              ),
+              SizedBox(height: ds.spacing.xs),
+              DSText(
+                t('هل تريد الخروج من التطبيق؟', 'Do you want to exit the app?'),
+                role: DSTextRole.body,
+                color: ds.colors.textSecondary,
+              ),
+              SizedBox(height: ds.spacing.lg),
+              Row(
+                children: [
+                  Expanded(
+                    child: DSButton(
+                      label: t('إلغاء', 'Cancel'),
+                      variant: DSButtonVariant.ghost,
+                      onPressed: () => Navigator.of(context).pop(false),
+                    ),
+                  ),
+                  SizedBox(width: ds.spacing.sm),
+                  Expanded(
+                    child: DSButton(
+                      label: t('خروج', 'Exit'),
+                      variant: DSButtonVariant.primary,
+                      onPressed: () => Navigator.of(context).pop(true),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

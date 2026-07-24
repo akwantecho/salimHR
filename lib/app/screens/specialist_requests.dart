@@ -283,6 +283,10 @@ class RequestFormScaffold extends StatelessWidget {
   final String? errorMessage;
   final String? successMessage;
 
+  /// Hides the fixed bottom submit button — for forms that place their own
+  /// submit button inline (e.g. directly under a text field).
+  final bool hideSubmitButton;
+
   const RequestFormScaffold({
     super.key,
     required this.title,
@@ -295,6 +299,7 @@ class RequestFormScaffold extends StatelessWidget {
     this.submitting = false,
     this.errorMessage,
     this.successMessage,
+    this.hideSubmitButton = false,
   });
 
   @override
@@ -334,16 +339,18 @@ class RequestFormScaffold extends StatelessWidget {
                   ),
                 ),
               ),
-              SizedBox(height: ds.spacing.md),
-              DSButton(
-                label: submitting
-                    ? tr(context, ar: 'جاري الإرسال...', en: 'Submitting...')
-                    : submitLabel,
-                onPressed: (canSubmit && !submitting) ? onSubmit : null,
-                variant: DSButtonVariant.primary,
-                size: DSButtonSize.large,
-                expanded: true,
-              ),
+              if (!hideSubmitButton) ...[
+                SizedBox(height: ds.spacing.md),
+                DSButton(
+                  label: submitting
+                      ? tr(context, ar: 'جاري الإرسال...', en: 'Submitting...')
+                      : submitLabel,
+                  onPressed: (canSubmit && !submitting) ? onSubmit : null,
+                  variant: DSButtonVariant.primary,
+                  size: DSButtonSize.large,
+                  expanded: true,
+                ),
+              ],
             ],
           ),
         ),
@@ -1403,6 +1410,7 @@ class _NoteRequestScreenState extends State<NoteRequestScreen> {
         onSubmit: _submit,
         errorMessage: _error,
         successMessage: _success,
+        hideSubmitButton: true,
         children: [
           SelectFieldCard(
             label: t('نوع الرسالة', 'Message Type'),
@@ -1421,6 +1429,18 @@ class _NoteRequestScreenState extends State<NoteRequestScreen> {
             required: true,
             minLines: 6,
             maxLines: 10,
+          ),
+          // Send button sits directly under the message box (not pinned to the
+          // bottom of the page).
+          SizedBox(height: ds.spacing.md),
+          DSButton(
+            label: _submitting
+                ? t('جاري الإرسال...', 'Submitting...')
+                : t('إرسال', 'Send'),
+            onPressed: (_canSubmit && !_submitting) ? _submit : null,
+            variant: DSButtonVariant.primary,
+            size: DSButtonSize.large,
+            expanded: true,
           ),
         ],
       ),
