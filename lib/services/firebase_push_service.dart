@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'api_client.dart';
 
@@ -16,6 +17,22 @@ class FirebasePushService {
   /// throws on platforms where Firebase isn't configured (e.g. web). Accessing
   /// it lazily keeps the constructor safe; callers guard usage with [kIsWeb].
   FirebaseMessaging get _messaging => FirebaseMessaging.instance;
+
+  /// Shows notifications while the app is in the foreground (FCM does not do
+  /// this automatically) and owns the sound-enabled Android channel.
+  final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
+
+  /// High-importance channel WITH sound. Its id matches the manifest's
+  /// `default_notification_channel_id`, so background FCM notifications use it
+  /// (and therefore play a sound) too.
+  static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
+    'salim_high',
+    'إشعارات سالم',
+    description: 'تنبيهات التطبيق',
+    importance: Importance.high,
+    playSound: true,
+  );
 
   String? _fcmToken;
   StreamSubscription<RemoteMessage>? _foregroundSubscription;
@@ -53,6 +70,9 @@ class FirebasePushService {
         return false;
       }
 
+      // Set up local notifications + the sound-enabled Android channel.
+      await _setupLocalNotifications();
+
       // On iOS, wait for APNS token before getting FCM token
       if (Platform.isIOS) {
         String? apnsToken = await _messaging.getAPNSToken();
@@ -75,9 +95,11 @@ class FirebasePushService {
         _registerTokenWithServer(newToken);
       });
 
-      // Handle foreground messages
+      // Handle foreground messages — FCM doesn't show these automatically, so
+      // display a local notification (with sound) ourselves.
       _foregroundSubscription = FirebaseMessaging.onMessage.listen((message) {
         debugPrint('Foreground message: ${message.notification?.title}');
+        _showLocalNotification(message);
         onForegroundMessage?.call(message);
       });
 
@@ -101,6 +123,53 @@ class FirebasePushService {
       debugPrint('Firebase initialization error: $e');
       return false;
     }
+  }
+
+  /// Initializes the local-notifications plugin and creates the sound-enabled
+  /// Android channel used for both foreground and background notifications.
+  Future<void> _setupLocalNotifications() async {
+    const initSettings = InitializationSettings(
+      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      iOS: DarwinInitializationSettings(),
+    );
+    await _localNotifications.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: (response) {
+        final payload = response.payload;
+        debugPrint('Local notification tapped: $payload');
+      },
+    );
+    await _localNotifications
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(_channel);
+  }
+
+  /// Displays a heads-up notification (with sound) for a foreground message.
+  void _showLocalNotification(RemoteMessage message) {
+    final notification = message.notification;
+    if (notification == null) return;
+    _localNotifications.show(
+      notification.hashCode,
+      notification.title,
+      notification.body,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channel.id,
+          _channel.name,
+          channelDescription: _channel.description,
+          importance: Importance.high,
+          priority: Priority.high,
+          playSound: true,
+          icon: '@mipmap/ic_launcher',
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
+      ),
+    );
   }
 
   /// Register FCM token with the server

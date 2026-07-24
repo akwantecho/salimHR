@@ -3,6 +3,7 @@ import 'package:equatable/equatable.dart';
 /// Employee note model matching Laravel's EmployeeNote model
 class EmployeeNote extends Equatable {
   final int id;
+  final int? parentId;
   final int employeeId;
   final String note;
   final String visibility; // admin_to_employee or employee_to_admin
@@ -10,19 +11,26 @@ class EmployeeNote extends Equatable {
   final String? creatorName;
   final DateTime createdAt;
 
+  /// Admin replies threaded under this note (empty for reply items themselves).
+  final List<EmployeeNote> replies;
+
   const EmployeeNote({
     required this.id,
+    this.parentId,
     required this.employeeId,
     required this.note,
     required this.visibility,
     this.readAt,
     this.creatorName,
     required this.createdAt,
+    this.replies = const [],
   });
 
   factory EmployeeNote.fromJson(Map<String, dynamic> json) {
+    final rawReplies = json['replies'] as List<dynamic>? ?? const [];
     return EmployeeNote(
       id: json['id'] as int,
+      parentId: json['parent_id'] as int?,
       employeeId: json['employee_id'] as int,
       note: json['note'] as String,
       visibility: json['visibility'] as String,
@@ -31,6 +39,9 @@ class EmployeeNote extends Equatable {
           : null,
       creatorName: json['creator']?['name'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
+      replies: rawReplies
+          .map((e) => EmployeeNote.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
   }
 

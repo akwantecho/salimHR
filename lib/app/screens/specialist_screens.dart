@@ -384,38 +384,53 @@ class PromoBannerSlide extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ds = DSProvider.of(context);
-    final base = Color(banner.colorValue);
     const white = Color(0xFFFFFFFF);
     final hasLink = banner.linkUrl != null && banner.linkUrl!.isNotEmpty;
+    final hasImage = banner.imageUrl != null && banner.imageUrl!.isNotEmpty;
+    // Accent color is used ONLY when there is no image.
+    final base = Color(banner.colorValue ?? 0xFF6366F1);
+
+    // With an image: show it clean (no colored gradient/frame) — just a light
+    // neutral darken so overlaid text stays legible. Without an image: use color.
+    final decoration = hasImage
+        ? BoxDecoration(
+            borderRadius: BorderRadius.circular(ds.radii.large),
+            image: DecorationImage(
+              image: NetworkImage(banner.imageUrl!),
+              fit: BoxFit.cover,
+              colorFilter: const ColorFilter.mode(
+                Color(0x33000000),
+                BlendMode.darken,
+              ),
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x1A000000),
+                blurRadius: 12,
+                offset: Offset(0, 6),
+              ),
+            ],
+          )
+        : BoxDecoration(
+            borderRadius: BorderRadius.circular(ds.radii.large),
+            gradient: LinearGradient(
+              begin: AlignmentDirectional.topStart,
+              end: AlignmentDirectional.bottomEnd,
+              colors: [base, base.withValues(alpha: 0.72)],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: base.withValues(alpha: 0.35),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          );
 
     final slide = Container(
       margin: EdgeInsetsDirectional.symmetric(horizontal: ds.spacing.xs),
       padding: EdgeInsets.all(ds.spacing.lg),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(ds.radii.large),
-        gradient: LinearGradient(
-          begin: AlignmentDirectional.topStart,
-          end: AlignmentDirectional.bottomEnd,
-          colors: [base, base.withValues(alpha: 0.72)],
-        ),
-        image: banner.imageUrl != null
-            ? DecorationImage(
-                image: NetworkImage(banner.imageUrl!),
-                fit: BoxFit.cover,
-                colorFilter: ColorFilter.mode(
-                  base.withValues(alpha: 0.55),
-                  BlendMode.darken,
-                ),
-              )
-            : null,
-        boxShadow: [
-          BoxShadow(
-            color: base.withValues(alpha: 0.35),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
+      decoration: decoration,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
@@ -2147,6 +2162,17 @@ class _NotesScreenState extends State<NotesScreen> {
                       role: DSTextRole.body,
                       color: ds.colors.textSecondary,
                     ),
+                    // Admin replies threaded under the note.
+                    if (note.replies.isNotEmpty) ...[
+                      SizedBox(height: ds.spacing.xs),
+                      DSText(
+                        t('رد الإدارة', 'Admin reply'),
+                        role: DSTextRole.caption,
+                        color: ds.colors.primary,
+                      ),
+                      for (final reply in note.replies)
+                        _NoteReplyTile(reply: reply),
+                    ],
                   ],
                 ),
               );
@@ -2156,6 +2182,66 @@ class _NotesScreenState extends State<NotesScreen> {
           ),
         SliverToBoxAdapter(child: SizedBox(height: ds.spacing.lg)),
       ],
+    );
+  }
+}
+
+/// A single admin reply threaded under an employee's note. Indented with a
+/// start accent so it reads as a response within the conversation.
+class _NoteReplyTile extends StatelessWidget {
+  final EmployeeNote reply;
+
+  const _NoteReplyTile({required this.reply});
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    return Container(
+      margin: EdgeInsetsDirectional.only(top: ds.spacing.sm, start: ds.spacing.lg),
+      padding: EdgeInsetsDirectional.all(ds.spacing.sm),
+      decoration: BoxDecoration(
+        color: ds.colors.primary.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(ds.radii.medium),
+        border: BorderDirectional(
+          start: BorderSide(
+            color: ds.colors.primary.withValues(alpha: 0.5),
+            width: 2,
+          ),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              DSLineIcon(
+                type: LineIconType.chat,
+                color: ds.colors.primary,
+                size: ds.spacing.md,
+              ),
+              SizedBox(width: ds.spacing.xs),
+              Expanded(
+                child: DSText(
+                  reply.creatorName ?? tr(context, ar: 'الإدارة', en: 'Admin'),
+                  role: DSTextRole.label,
+                  color: ds.colors.primary,
+                ),
+              ),
+              DSText(
+                _formatDate(reply.createdAt),
+                role: DSTextRole.caption,
+                color: ds.colors.textMuted,
+              ),
+            ],
+          ),
+          SizedBox(height: ds.spacing.xs),
+          DSText(
+            reply.note,
+            role: DSTextRole.body,
+            color: ds.colors.textSecondary,
+          ),
+        ],
+      ),
     );
   }
 }

@@ -12,7 +12,10 @@ class PromoBanner extends Equatable {
   final String? actionLabel;
   final String? imageUrl;
   final String? linkUrl;
-  final int colorValue;
+
+  /// Background accent used only when [imageUrl] is null. Null when the server
+  /// sends no color (e.g. image banners) — the slide then shows just the image.
+  final int? colorValue;
   final int sortOrder;
   final bool active;
 
@@ -23,7 +26,7 @@ class PromoBanner extends Equatable {
     this.actionLabel,
     this.imageUrl,
     this.linkUrl,
-    required this.colorValue,
+    this.colorValue,
     this.sortOrder = 0,
     this.active = true,
   });
@@ -42,16 +45,14 @@ class PromoBanner extends Equatable {
     );
   }
 
-  /// Parses a `#RRGGBB`/`#AARRGGBB` hex string into an ARGB int.
-  /// Falls back to a neutral indigo when missing or malformed.
-  static int _parseColor(dynamic raw) {
-    const fallback = 0xFF6366F1;
+  /// Parses a `#RRGGBB`/`#AARRGGBB` hex string into an ARGB int, or null when
+  /// the server sends no/invalid color (e.g. image banners have color = null).
+  static int? _parseColor(dynamic raw) {
     if (raw is int) return raw;
-    if (raw is! String || raw.isEmpty) return fallback;
+    if (raw is! String || raw.isEmpty) return null;
     var hex = raw.replaceFirst('#', '').trim();
     if (hex.length == 6) hex = 'FF$hex';
-    final value = int.tryParse(hex, radix: 16);
-    return value ?? fallback;
+    return int.tryParse(hex, radix: 16);
   }
 
   @override
