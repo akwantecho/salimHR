@@ -27,7 +27,7 @@ class FirebasePushService {
   /// `default_notification_channel_id`, so background FCM notifications use it
   /// (and therefore play a sound) too.
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
-    'salim_high',
+    'high_importance_channel_v2',
     'إشعارات سالم',
     description: 'تنبيهات التطبيق',
     importance: Importance.high,
