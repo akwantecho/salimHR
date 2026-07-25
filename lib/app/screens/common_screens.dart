@@ -804,7 +804,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                       ),
                                     ),
                                     child: DSLineIcon(
-                                      type: LineIconType.home,
+                                      type: LineIconType.trash,
                                       color: const Color(0xFFFFFFFF),
                                       size: ds.spacing.lg,
                                     ),

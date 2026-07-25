@@ -432,43 +432,42 @@ class _DashboardCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      // Compact single-row layout: icon beside the value + title, so cards
+      // stay short.
+      child: Row(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: EdgeInsetsDirectional.all(ds.spacing.xs),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFFFFF).withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(ds.radii.medium),
-                ),
-                child: DSLineIcon(
-                  type: icon,
+          Container(
+            padding: EdgeInsetsDirectional.all(ds.spacing.xs),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFFFFF).withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(ds.radii.medium),
+            ),
+            child: DSLineIcon(
+              type: icon,
+              color: const Color(0xFFFFFFFF),
+              size: ds.spacing.md,
+            ),
+          ),
+          SizedBox(width: ds.spacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DSText(
+                  value,
+                  role: DSTextRole.title,
                   color: const Color(0xFFFFFFFF),
-                  size: ds.spacing.md,
+                  maxLines: 1,
                 ),
-              ),
-            ],
-          ),
-          SizedBox(height: ds.spacing.sm),
-          DSText(
-            value,
-            role: DSTextRole.headline,
-            color: const Color(0xFFFFFFFF),
-          ),
-          SizedBox(height: ds.spacing.xs / 2),
-          DSText(
-            title,
-            role: DSTextRole.caption,
-            color: const Color(0xFFFFFFFF).withValues(alpha: 0.9),
-          ),
-          SizedBox(height: ds.spacing.xs),
-          DSText(
-            trend,
-            role: DSTextRole.caption,
-            color: const Color(0xFFFFFFFF).withValues(alpha: 0.7),
+                DSText(
+                  title,
+                  role: DSTextRole.caption,
+                  color: const Color(0xFFFFFFFF).withValues(alpha: 0.9),
+                  maxLines: 1,
+                ),
+              ],
+            ),
           ),
         ],
       ),

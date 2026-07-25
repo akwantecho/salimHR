@@ -79,6 +79,7 @@ flutter:
     - assets/icons/heroicons/heart.svg
     - assets/icons/heroicons/bookmark.svg
     - assets/icons/heroicons/arrow-back.svg
+    - assets/icons/heroicons/trash.svg
     - assets/logo/salimhr bg.png
 
   fonts:
