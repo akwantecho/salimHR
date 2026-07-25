@@ -3,6 +3,7 @@ import 'package:equatable/equatable.dart';
 /// Appointment model matching Laravel's Appointment model
 class Appointment extends Equatable {
   final int id;
+  final int? patientId;
   final String? patientName;
   final String? patientPhone;
   final String? patientFileNo;
@@ -24,6 +25,7 @@ class Appointment extends Equatable {
 
   const Appointment({
     required this.id,
+    this.patientId,
     this.patientName,
     this.patientPhone,
     this.patientFileNo,
@@ -47,6 +49,7 @@ class Appointment extends Equatable {
   factory Appointment.fromJson(Map<String, dynamic> json) {
     return Appointment(
       id: json['id'] as int,
+      patientId: (json['patient']?['id'] as num?)?.toInt(),
       patientName: json['patient']?['name'] as String?,
       patientPhone: json['patient']?['phone'] as String?,
       patientFileNo:

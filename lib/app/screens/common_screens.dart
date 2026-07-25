@@ -100,8 +100,12 @@ class _LoginScreenState extends State<LoginScreen> {
         // Save role to storage for session persistence
         await apiClient.setRole(role.name);
 
-        // Initialize and register FCM token for push notifications
-        pushService.initialize().then((_) => pushService.registerToken());
+        // Initialize and register FCM token for push notifications (with the
+        // UI language so the server localizes notifications).
+        final lang = widget.currentLang;
+        pushService
+            .initialize()
+            .then((_) => pushService.registerToken(locale: lang));
 
         widget.onRoleSelected(role);
       } else {
@@ -2941,9 +2945,12 @@ class _SplashScreenState extends State<SplashScreen> {
             orElse: () => UserRole.worker,
           );
 
-          // Re-register FCM token for push notifications
+          // Re-register FCM token for push notifications (with UI language).
           final pushService = context.firebasePushService;
-          pushService.initialize().then((_) => pushService.registerToken());
+          final lang = AppScope.of(context).locale.languageCode;
+          pushService
+              .initialize()
+              .then((_) => pushService.registerToken(locale: lang));
 
           widget.onRestoreRole?.call(role);
         }

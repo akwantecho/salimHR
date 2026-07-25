@@ -477,6 +477,24 @@ class HRService extends ChangeNotifier {
     }
   }
 
+  /// Patient reports & radiology images (uploaded from the web panel), shown
+  /// read-only inside the patient's file. Backed by
+  /// `GET /api/patients/{id}/reports`.
+  Future<List<PatientReport>> fetchPatientReports(int patientId) async {
+    try {
+      final response = await _client.get<Map<String, dynamic>>(
+        '/patients/$patientId/reports',
+      );
+      final data = response.data?['data'] as List<dynamic>? ?? [];
+      return data
+          .map((e) => PatientReport.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      _handleError(e);
+      return [];
+    }
+  }
+
   /// Admin: reply to an employee note.
   /// Backed by `POST /api/manager/notes/{note}/reply`.
   Future<bool> replyToNote(int noteId, String reply) async {

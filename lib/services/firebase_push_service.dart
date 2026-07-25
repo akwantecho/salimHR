@@ -172,8 +172,14 @@ class FirebasePushService {
     );
   }
 
-  /// Register FCM token with the server
-  Future<bool> registerToken() async {
+  /// The UI language to attach when registering the token, so the server can
+  /// localize the push notifications it sends to this device.
+  String? _locale;
+
+  /// Register FCM token with the server. [locale] ('ar'/'en') is stored on the
+  /// device server-side so notifications arrive in the user's language.
+  Future<bool> registerToken({String? locale}) async {
+    if (locale != null) _locale = locale;
     if (kIsWeb) return false; // No FCM token on web.
     if (_fcmToken == null) {
       // On iOS, ensure APNS token is available first
@@ -207,6 +213,7 @@ class FirebasePushService {
       await _client.post('/notifications/register-token', data: {
         'fcm_token': token,
         'device_type': Platform.isIOS ? 'ios' : 'android',
+        if (_locale != null) 'locale': _locale,
       });
       return true;
     } catch (e) {

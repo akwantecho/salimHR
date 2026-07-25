@@ -1,8 +1,10 @@
 import 'package:flutter/widgets.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../design_system/components/line_icons.dart';
 import '../../design_system/ds_provider.dart';
 import '../../design_system/primitives/ds_button.dart';
+import '../../design_system/primitives/ds_card.dart';
 import '../../design_system/primitives/ds_text.dart';
 import '../../models/models.dart';
 import '../../services/api_provider.dart';
@@ -29,6 +31,9 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
   List<Appointment> _sessions = [];
   bool _loadingSessions = true;
 
+  List<PatientReport> _reports = [];
+  bool _loadingReports = true;
+
   // Pending action while the comment dialog is open. null = dialog closed.
   String? _pendingAction; // 'complete' | 'no_show'
   final TextEditingController _commentController = TextEditingController();
@@ -43,7 +48,10 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
         setState(() => _commentText = _commentController.text);
       }
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadSessions());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadSessions();
+      _loadReports();
+    });
   }
 
   Future<void> _loadSessions() async {
@@ -54,6 +62,20 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
     setState(() {
       _sessions = sessions;
       _loadingSessions = false;
+    });
+  }
+
+  Future<void> _loadReports() async {
+    final pid = _appointment.patientId;
+    if (pid == null) {
+      if (mounted) setState(() => _loadingReports = false);
+      return;
+    }
+    final reports = await context.hrService.fetchPatientReports(pid);
+    if (!mounted) return;
+    setState(() {
+      _reports = reports;
+      _loadingReports = false;
     });
   }
 
@@ -151,6 +173,11 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                         _StatusBadge(status: _appointment.status),
                         SizedBox(height: ds.spacing.md),
                         _PatientCard(appointment: _appointment),
+                        SizedBox(height: ds.spacing.md),
+                        _PatientReportsCard(
+                          reports: _reports,
+                          loading: _loadingReports,
+                        ),
                         SizedBox(height: ds.spacing.md),
                         _InfoCard(appointment: _appointment),
                         SizedBox(height: ds.spacing.md),
@@ -1081,5 +1108,139 @@ String _statusLabel(BuildContext context, String status) {
       return t('ملغاة', 'Cancelled');
     default:
       return status;
+  }
+}
+
+/// Read-only list of the patient's reports & radiology images (uploaded from
+/// the web control panel). Tapping a report opens it (image/PDF) externally.
+class _PatientReportsCard extends StatelessWidget {
+  final List<PatientReport> reports;
+  final bool loading;
+
+  const _PatientReportsCard({required this.reports, required this.loading});
+
+  Future<void> _open(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri != null) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    String t(String ar, String en) => tr(context, ar: ar, en: en);
+
+    return DSCard(
+      padding: EdgeInsetsDirectional.all(ds.spacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              DSLineIcon(
+                type: LineIconType.chart,
+                color: const Color(0xFF6366F1),
+                size: ds.spacing.md,
+              ),
+              SizedBox(width: ds.spacing.sm),
+              DSText(
+                t('تقارير وأشعّة المريض', 'Patient Reports & X-rays'),
+                role: DSTextRole.title,
+              ),
+            ],
+          ),
+          SizedBox(height: ds.spacing.sm),
+          if (loading)
+            DSText(
+              t('جارٍ التحميل...', 'Loading...'),
+              role: DSTextRole.caption,
+              color: ds.colors.textSecondary,
+            )
+          else if (reports.isEmpty)
+            DSText(
+              t('لا توجد تقارير أو أشعّة', 'No reports or X-rays'),
+              role: DSTextRole.caption,
+              color: ds.colors.textMuted,
+            )
+          else
+            for (final r in reports) ...[
+              _ReportTile(report: r, onOpen: () => _open(r.url)),
+              SizedBox(height: ds.spacing.sm),
+            ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ReportTile extends StatelessWidget {
+  final PatientReport report;
+  final VoidCallback onOpen;
+
+  const _ReportTile({required this.report, required this.onOpen});
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    String t(String ar, String en) => tr(context, ar: ar, en: en);
+    final isXray = report.category == 'xray';
+    final color =
+        isXray ? const Color(0xFF06B6D4) : const Color(0xFF8B5CF6);
+
+    return GestureDetector(
+      onTap: onOpen,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: EdgeInsetsDirectional.all(ds.spacing.sm),
+        decoration: BoxDecoration(
+          color: ds.colors.surfaceAlt,
+          borderRadius: BorderRadius.circular(ds.radii.medium),
+          border: Border.all(color: ds.colors.border.withValues(alpha: 0.5)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: ds.spacing.xl,
+              height: ds.spacing.xl,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(ds.radii.medium),
+              ),
+              child: Center(
+                child: report.isPdf
+                    ? DSText('PDF',
+                        role: DSTextRole.caption, color: color)
+                    : DSLineIcon(
+                        type: LineIconType.chart,
+                        color: color,
+                        size: ds.spacing.md,
+                      ),
+              ),
+            ),
+            SizedBox(width: ds.spacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  DSText(report.title, role: DSTextRole.label, maxLines: 1),
+                  SizedBox(height: 2),
+                  DSText(
+                    report.categoryLabelAr,
+                    role: DSTextRole.caption,
+                    color: color,
+                  ),
+                ],
+              ),
+            ),
+            DSText(
+              t('عرض', 'View'),
+              role: DSTextRole.caption,
+              color: ds.colors.primary,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
