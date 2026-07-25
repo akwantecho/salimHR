@@ -9,6 +9,7 @@ import '../../design_system/primitives/ds_button.dart';
 import '../../design_system/primitives/ds_card.dart';
 import '../../design_system/primitives/ds_text.dart';
 import '../../models/models.dart';
+import '../widgets/attachment_picker.dart';
 import '../../services/api_provider.dart';
 import '../../utils/time_format.dart';
 import '../app_state.dart';
@@ -2162,6 +2163,12 @@ class _NotesScreenState extends State<NotesScreen> {
                       role: DSTextRole.body,
                       color: ds.colors.textSecondary,
                     ),
+                    if (note.attachmentUrl != null)
+                      NoteAttachmentChip(
+                        url: note.attachmentUrl!,
+                        name: note.attachmentName,
+                        isImage: note.attachmentIsImage,
+                      ),
                     // Admin replies threaded under the note.
                     if (note.replies.isNotEmpty) ...[
                       SizedBox(height: ds.spacing.sm),
@@ -2240,6 +2247,12 @@ class _NoteReplyTile extends StatelessWidget {
             role: DSTextRole.title,
             color: ds.colors.textPrimary,
           ),
+          if (reply.attachmentUrl != null)
+            NoteAttachmentChip(
+              url: reply.attachmentUrl!,
+              name: reply.attachmentName,
+              isImage: reply.attachmentIsImage,
+            ),
         ],
       ),
     );

@@ -12,6 +12,7 @@ import '../../utils/time_format.dart';
 import '../app_state.dart';
 import '../i18n.dart';
 import '../ui/blocks.dart';
+import '../widgets/attachment_picker.dart';
 import '../widgets/reason_prompt.dart';
 import 'reception_screens.dart'
     show ReceptionNotifyScreen, ReceptionAppointmentCard;
@@ -2511,15 +2512,21 @@ class _ManagerNotesScreenState extends State<ManagerNotesScreen> {
   }
 
   Future<void> _reply(EmployeeNote note) async {
-    final text = await promptForReason(
-      context,
-      title: tr(context, ar: 'رد على الملاحظة', en: 'Reply to note'),
-      hint: tr(context, ar: 'اكتب ردك للموظف...', en: 'Write your reply...'),
-      confirmLabel: tr(context, ar: 'إرسال', en: 'Send'),
+    final result = await Navigator.of(context).push<_ReplyResult>(
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: const Color(0x66000000),
+        pageBuilder: (context, _, _) => const _ReplySheet(),
+      ),
     );
-    if (text == null || !mounted) return;
+    if (result == null || !mounted) return;
     setState(() => _replying.add(note.id));
-    final ok = await context.hrService.replyToNote(note.id, text);
+    final ok = await context.hrService.replyToNote(
+      note.id,
+      result.text,
+      fileBytes: result.attachment?.bytes,
+      filename: result.attachment?.filename,
+    );
     if (!mounted) return;
     setState(() => _replying.remove(note.id));
     if (ok) await _load();
@@ -2623,6 +2630,12 @@ class _ManagerNoteCard extends StatelessWidget {
           ),
           SizedBox(height: ds.spacing.xs),
           DSText(note.note, role: DSTextRole.body, color: ds.colors.textSecondary),
+          if (note.attachmentUrl != null)
+            NoteAttachmentChip(
+              url: note.attachmentUrl!,
+              name: note.attachmentName,
+              isImage: note.attachmentIsImage,
+            ),
 
           // Existing replies threaded under the note.
           for (final reply in note.replies)
@@ -2649,6 +2662,12 @@ class _ManagerNoteCard extends StatelessWidget {
                   ),
                   SizedBox(height: 2),
                   DSText(reply.note, role: DSTextRole.body),
+                  if (reply.attachmentUrl != null)
+                    NoteAttachmentChip(
+                      url: reply.attachmentUrl!,
+                      name: reply.attachmentName,
+                      isImage: reply.attachmentIsImage,
+                    ),
                 ],
               ),
             ),
@@ -2667,6 +2686,144 @@ class _ManagerNoteCard extends StatelessWidget {
             onPressed: replying ? null : onReply,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Result of the admin reply sheet: the text plus an optional attachment.
+class _ReplyResult {
+  final String text;
+  final PickedAttachment? attachment;
+  const _ReplyResult(this.text, this.attachment);
+}
+
+/// Bottom sheet for the admin to reply to an employee note with text and an
+/// optional image/file attachment.
+class _ReplySheet extends StatefulWidget {
+  const _ReplySheet();
+
+  @override
+  State<_ReplySheet> createState() => _ReplySheetState();
+}
+
+class _ReplySheetState extends State<_ReplySheet> {
+  final TextEditingController _controller = TextEditingController();
+  final FocusNode _focus = FocusNode();
+  String _value = '';
+  PickedAttachment? _attachment;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(() {
+      if (_controller.text != _value) setState(() => _value = _controller.text);
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focus.requestFocus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  Future<void> _attach() async {
+    final picked = await pickAttachment(context);
+    if (picked != null && mounted) setState(() => _attachment = picked);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    String t(String ar, String en) => tr(context, ar: ar, en: en);
+    final canSend = _value.trim().isNotEmpty || _attachment != null;
+
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsetsDirectional.fromSTEB(
+          ds.spacing.lg,
+          ds.spacing.lg,
+          ds.spacing.lg,
+          ds.spacing.xl,
+        ),
+        decoration: BoxDecoration(
+          color: ds.colors.background,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(ds.radii.xLarge),
+            topRight: Radius.circular(ds.radii.xLarge),
+          ),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              DSText(t('رد على الملاحظة', 'Reply to note'),
+                  role: DSTextRole.headline),
+              SizedBox(height: ds.spacing.md),
+              Container(
+                padding: EdgeInsetsDirectional.symmetric(
+                  horizontal: ds.spacing.md,
+                  vertical: ds.spacing.sm,
+                ),
+                decoration: BoxDecoration(
+                  color: ds.colors.surfaceAlt,
+                  borderRadius: BorderRadius.circular(ds.radii.large),
+                  border: Border.all(color: ds.colors.border, width: 1.5),
+                ),
+                child: EditableText(
+                  controller: _controller,
+                  focusNode: _focus,
+                  style: ds.typography.body
+                      .copyWith(color: ds.colors.textPrimary),
+                  cursorColor: ds.colors.primary,
+                  backgroundCursorColor: ds.colors.textMuted,
+                  maxLines: 4,
+                  minLines: 2,
+                  textAlign: ds.textDirection == TextDirection.rtl
+                      ? TextAlign.right
+                      : TextAlign.left,
+                ),
+              ),
+              SizedBox(height: ds.spacing.md),
+              AttachmentField(
+                attachment: _attachment,
+                onAttach: _attach,
+                onRemove: () => setState(() => _attachment = null),
+              ),
+              SizedBox(height: ds.spacing.lg),
+              Row(
+                children: [
+                  Expanded(
+                    child: DSButton(
+                      label: t('إلغاء', 'Cancel'),
+                      variant: DSButtonVariant.ghost,
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ),
+                  SizedBox(width: ds.spacing.sm),
+                  Expanded(
+                    child: DSButton(
+                      label: t('إرسال', 'Send'),
+                      variant: DSButtonVariant.primary,
+                      onPressed: canSend
+                          ? () => Navigator.of(context).pop(
+                              _ReplyResult(_value.trim(), _attachment))
+                          : null,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

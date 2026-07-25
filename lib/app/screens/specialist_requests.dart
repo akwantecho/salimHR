@@ -9,6 +9,7 @@ import '../../design_system/primitives/ds_text.dart';
 import '../../models/models.dart';
 import '../../services/api_provider.dart';
 import '../i18n.dart';
+import '../widgets/attachment_picker.dart';
 import 'specialist_leave_calendar.dart';
 
 // ==================== ADD POPUP (BOTTOM SHEET) ====================
@@ -1342,6 +1343,12 @@ class _NoteRequestScreenState extends State<NoteRequestScreen> {
   bool _submitting = false;
   String? _error;
   String? _success;
+  PickedAttachment? _attachment;
+
+  Future<void> _attach() async {
+    final picked = await pickAttachment(context);
+    if (picked != null && mounted) setState(() => _attachment = picked);
+  }
 
   /// Message categories the user picks from before writing the body.
   static const List<(String ar, String en)> _categories = [
@@ -1370,7 +1377,11 @@ class _NoteRequestScreenState extends State<NoteRequestScreen> {
     });
     // Prepend the chosen category so it reaches the admin with the message.
     final body = '[$_category] ${_noteCtrl.text.trim()}';
-    final ok = await context.hrService.sendMyNote(body);
+    final ok = await context.hrService.sendMyNote(
+      body,
+      fileBytes: _attachment?.bytes,
+      filename: _attachment?.filename,
+    );
     if (!mounted) return;
     setState(() {
       _submitting = false;
@@ -1382,6 +1393,7 @@ class _NoteRequestScreenState extends State<NoteRequestScreen> {
         );
         _noteCtrl.clear();
         _category = null;
+        _attachment = null;
       } else {
         _error =
             context.hrService.error ??
@@ -1429,6 +1441,12 @@ class _NoteRequestScreenState extends State<NoteRequestScreen> {
             required: true,
             minLines: 6,
             maxLines: 10,
+          ),
+          SizedBox(height: ds.spacing.md),
+          AttachmentField(
+            attachment: _attachment,
+            onAttach: _attach,
+            onRemove: () => setState(() => _attachment = null),
           ),
           // Send button sits directly under the message box (not pinned to the
           // bottom of the page).

@@ -448,12 +448,23 @@ class HRService extends ChangeNotifier {
   }
 
   /// Send a note from employee to admin (self-service)
-  Future<bool> sendMyNote(String note) async {
+  Future<bool> sendMyNote(
+    String note, {
+    Uint8List? fileBytes,
+    String? filename,
+  }) async {
     _setLoading(true);
     _error = null;
 
     try {
-      await _client.post('/employee/notes', data: {'note': note});
+      final Object data = (fileBytes != null && filename != null)
+          ? FormData.fromMap({
+              'note': note,
+              'attachment':
+                  MultipartFile.fromBytes(fileBytes, filename: filename),
+            })
+          : {'note': note};
+      await _client.post('/employee/notes', data: data);
       _setLoading(false);
       return true;
     } on DioException catch (e) {
@@ -497,9 +508,21 @@ class HRService extends ChangeNotifier {
 
   /// Admin: reply to an employee note.
   /// Backed by `POST /api/manager/notes/{note}/reply`.
-  Future<bool> replyToNote(int noteId, String reply) async {
+  Future<bool> replyToNote(
+    int noteId,
+    String reply, {
+    Uint8List? fileBytes,
+    String? filename,
+  }) async {
     try {
-      await _client.post('/manager/notes/$noteId/reply', data: {'note': reply});
+      final Object data = (fileBytes != null && filename != null)
+          ? FormData.fromMap({
+              'note': reply,
+              'attachment':
+                  MultipartFile.fromBytes(fileBytes, filename: filename),
+            })
+          : {'note': reply};
+      await _client.post('/manager/notes/$noteId/reply', data: data);
       return true;
     } on DioException catch (e) {
       _handleError(e);
