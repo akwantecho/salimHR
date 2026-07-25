@@ -506,6 +506,22 @@ class HRService extends ChangeNotifier {
     }
   }
 
+  /// Downloads a protected file (e.g. a patient report) with the auth token
+  /// applied by the client interceptor, returning its bytes.
+  Future<Uint8List?> downloadFileBytes(String url) async {
+    try {
+      final response = await _client.get<List<int>>(
+        url,
+        options: Options(responseType: ResponseType.bytes),
+      );
+      final data = response.data;
+      return data != null ? Uint8List.fromList(data) : null;
+    } on DioException catch (e) {
+      _handleError(e);
+      return null;
+    }
+  }
+
   /// Admin: reply to an employee note.
   /// Backed by `POST /api/manager/notes/{note}/reply`.
   Future<bool> replyToNote(

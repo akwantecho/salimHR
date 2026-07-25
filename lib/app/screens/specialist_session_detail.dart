@@ -1,5 +1,9 @@
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/widgets.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../design_system/components/line_icons.dart';
 import '../../design_system/ds_provider.dart';
@@ -1119,11 +1123,31 @@ class _PatientReportsCard extends StatelessWidget {
 
   const _PatientReportsCard({required this.reports, required this.loading});
 
-  Future<void> _open(String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri != null) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+  /// Reports are private clinic files behind auth — download with the token,
+  /// then show images in-app and open other files with the system viewer.
+  Future<void> _open(BuildContext context, PatientReport report) async {
+    final bytes = await context.hrService.downloadFileBytes(report.url);
+    if (bytes == null || !context.mounted) return;
+
+    if (report.isImage) {
+      Navigator.of(context).push(
+        PageRouteBuilder(
+          opaque: false,
+          barrierColor: const Color(0xE6000000),
+          pageBuilder: (context, _, _) => _ReportImageViewer(bytes: bytes),
+        ),
+      );
+      return;
     }
+
+    final dir = await getTemporaryDirectory();
+    final urlPath = Uri.parse(report.url).path;
+    final ext = urlPath.contains('.')
+        ? urlPath.substring(urlPath.lastIndexOf('.'))
+        : (report.isPdf ? '.pdf' : '');
+    final file = File('${dir.path}/report_${report.id}$ext');
+    await file.writeAsBytes(bytes);
+    await OpenFilex.open(file.path);
   }
 
   @override
@@ -1165,7 +1189,7 @@ class _PatientReportsCard extends StatelessWidget {
             )
           else
             for (final r in reports) ...[
-              _ReportTile(report: r, onOpen: () => _open(r.url)),
+              _ReportTile(report: r, onOpen: () => _open(context, r)),
               SizedBox(height: ds.spacing.sm),
             ],
         ],
@@ -1239,6 +1263,32 @@ class _ReportTile extends StatelessWidget {
               color: ds.colors.primary,
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Full-screen viewer for a downloaded report image (bytes already fetched with
+/// the auth token). Tap anywhere to dismiss.
+class _ReportImageViewer extends StatelessWidget {
+  final Uint8List bytes;
+
+  const _ReportImageViewer({required this.bytes});
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    return GestureDetector(
+      onTap: () => Navigator.of(context).pop(),
+      child: Container(
+        color: const Color(0xE6000000),
+        alignment: Alignment.center,
+        padding: EdgeInsets.all(ds.spacing.lg),
+        child: InteractiveViewer(
+          minScale: 0.8,
+          maxScale: 4,
+          child: Image.memory(bytes, fit: BoxFit.contain),
         ),
       ),
     );
