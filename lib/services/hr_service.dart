@@ -506,6 +506,36 @@ class HRService extends ChangeNotifier {
     }
   }
 
+  /// Fetch the physical examination for an appointment (creates a draft shape
+  /// when none exists). Backed by `GET /api/appointments/{id}/physical-exam`.
+  Future<PhysicalExam?> fetchPhysicalExam(int appointmentId) async {
+    try {
+      final r = await _client.get<Map<String, dynamic>>(
+        '/appointments/$appointmentId/physical-exam',
+      );
+      final data = r.data?['data'] as Map<String, dynamic>?;
+      return data != null ? PhysicalExam.fromJson(data) : PhysicalExam();
+    } on DioException catch (e) {
+      _handleError(e);
+      return null;
+    }
+  }
+
+  /// Save the physical examination. Backed by
+  /// `POST /api/appointments/{id}/physical-exam`.
+  Future<bool> savePhysicalExam(int appointmentId, PhysicalExam exam) async {
+    try {
+      await _client.post(
+        '/appointments/$appointmentId/physical-exam',
+        data: exam.toJson(),
+      );
+      return true;
+    } on DioException catch (e) {
+      _handleError(e);
+      return false;
+    }
+  }
+
   /// Downloads a protected file (e.g. a patient report) with the auth token
   /// applied by the client interceptor, returning its bytes.
   Future<Uint8List?> downloadFileBytes(String url) async {

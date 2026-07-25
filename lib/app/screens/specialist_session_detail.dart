@@ -14,6 +14,7 @@ import '../../models/models.dart';
 import '../../services/api_provider.dart';
 import '../../utils/time_format.dart';
 import '../i18n.dart';
+import 'physical_exam_screen.dart';
 
 /// Detail screen for a single appointment with two outcome actions:
 /// "End session" (status=completed) and "No show" (status=no_show).
@@ -181,6 +182,52 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                         _PatientReportsCard(
                           reports: _reports,
                           loading: _loadingReports,
+                        ),
+                        SizedBox(height: ds.spacing.md),
+                        GestureDetector(
+                          onTap: () => Navigator.of(context).push(
+                            PageRouteBuilder(
+                              pageBuilder: (context, _, _) => PhysicalExamScreen(
+                                appointmentId: _appointment.id,
+                                patientName: _appointment.patientName,
+                              ),
+                            ),
+                          ),
+                          behavior: HitTestBehavior.opaque,
+                          child: DSCard(
+                            padding: EdgeInsetsDirectional.all(ds.spacing.md),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: ds.spacing.xl,
+                                  height: ds.spacing.xl,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF6366F1)
+                                        .withValues(alpha: 0.12),
+                                    borderRadius:
+                                        BorderRadius.circular(ds.radii.medium),
+                                  ),
+                                  child: Center(
+                                    child: DSLineIcon(
+                                      type: LineIconType.heart,
+                                      color: const Color(0xFF6366F1),
+                                      size: ds.spacing.md,
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(width: ds.spacing.md),
+                                Expanded(
+                                  child: DSText(
+                                    t('الفحص الفيزيائي', 'Physical Examination'),
+                                    role: DSTextRole.title,
+                                  ),
+                                ),
+                                DSText('→',
+                                    role: DSTextRole.title,
+                                    color: ds.colors.textMuted),
+                              ],
+                            ),
+                          ),
                         ),
                         SizedBox(height: ds.spacing.md),
                         _InfoCard(appointment: _appointment),

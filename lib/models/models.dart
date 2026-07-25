@@ -13,4 +13,5 @@ export 'employee_note.dart';
 export 'attendance.dart';
 export 'promo_banner.dart';
 export 'patient_report.dart';
+export 'physical_exam.dart';
 export 'schedule_acknowledgement.dart';
