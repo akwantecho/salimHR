@@ -115,7 +115,7 @@ class User extends Equatable {
       employeeId: json['employee_id'] as int?,
       employeeNumber:
           (json['employee_number'] ?? json['employee_no'])?.toString(),
-      createdAt: parseDate(json['created_at']),
+      createdAt: parseDate(json['member_since'] ?? json['created_at']),
       hireDate: parseDate(json['hire_date'] ?? json['joined_at']),
       avatarUrl: json['avatar_url'] as String?,
     );
