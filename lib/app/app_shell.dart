@@ -144,12 +144,13 @@ class _RoleShellState extends State<RoleShell> {
   String _title(BuildContext context, UserRole role, int index) {
     String t(String ar, String en) => tr(context, ar: ar, en: en);
 
-    // Home tab greets each user by their first name.
+    // Home tab greets each user by their first name, in the UI language.
     if (index == 0) {
-      final name = context.authService.currentUser?.name ?? '';
-      final first = name.trim().isEmpty
+      final lang = AppScope.of(context).locale.languageCode;
+      final fullName = context.authService.currentUser?.localizedName(lang) ?? '';
+      final first = fullName.trim().isEmpty
           ? ''
-          : name.trim().split(RegExp(r'\s+')).first;
+          : fullName.trim().split(RegExp(r'\s+')).first;
       return first.isEmpty
           ? t('أهلاً', 'Welcome')
           : t('أهلاً $first', 'Welcome $first');

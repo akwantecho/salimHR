@@ -1267,8 +1267,9 @@ class MoreScreen extends StatelessWidget {
     String t(String ar, String en) => tr(context, ar: ar, en: en);
 
     final roleColor = _roleColor(role);
-    // Use actual user name from API if available
-    final userName = user?.name ?? t('مستخدم', 'User');
+    // Use the API user name matching the UI language when available.
+    final userName =
+        user?.localizedName(app.locale.languageCode) ?? t('مستخدم', 'User');
 
     return CustomScrollView(
       slivers: [
@@ -1327,11 +1328,11 @@ class MoreScreen extends StatelessWidget {
                                   isEn: app.locale.languageCode == 'en',
                                 ),
                               ),
-                              if (user?.employeeId != null)
+                              if (user?.displayEmployeeNumber != null)
                                 _HeaderPill(
                                   label: t(
-                                    'رقم الموظف ${user!.employeeId}',
-                                    'ID ${user.employeeId}',
+                                    'رقم الموظف ${user!.displayEmployeeNumber}',
+                                    'ID ${user.displayEmployeeNumber}',
                                   ),
                                 ),
                             ],
@@ -1373,14 +1374,14 @@ class MoreScreen extends StatelessWidget {
                   _AccountInfo(
                     icon: LineIconType.bookmark,
                     label: t('رقم الموظف', 'Employee ID'),
-                    value: user?.employeeId != null ? '${user!.employeeId}' : '-',
+                    value: user?.displayEmployeeNumber ?? '-',
                     color: const Color(0xFF8B5CF6),
                   ),
                   _AccountInfo(
                     icon: LineIconType.calendar,
                     label: t('عضو منذ', 'Member since'),
-                    value: user?.createdAt != null
-                        ? '${user!.createdAt!.year}'
+                    value: user?.memberSince != null
+                        ? '${user!.memberSince!.year}'
                         : '-',
                     color: const Color(0xFFF59E0B),
                   ),

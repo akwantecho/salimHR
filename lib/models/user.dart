@@ -4,6 +4,8 @@ import 'package:equatable/equatable.dart';
 class User extends Equatable {
   final int id;
   final String name;
+  final String? nameAr;
+  final String? nameEn;
   final String email;
   final String? phone;
   final List<String> roles;
@@ -11,12 +13,16 @@ class User extends Equatable {
   final int? clinicId;
   final String? clinicName;
   final int? employeeId;
+  final String? employeeNumber;
   final DateTime? createdAt;
+  final DateTime? hireDate;
   final String? avatarUrl;
 
   const User({
     required this.id,
     required this.name,
+    this.nameAr,
+    this.nameEn,
     required this.email,
     this.phone,
     this.roles = const [],
@@ -24,9 +30,28 @@ class User extends Equatable {
     this.clinicId,
     this.clinicName,
     this.employeeId,
+    this.employeeNumber,
     this.createdAt,
+    this.hireDate,
     this.avatarUrl,
   });
+
+  /// Name matching the UI language ('ar' → Arabic name when available).
+  String localizedName(String lang) {
+    if (lang == 'ar') {
+      return (nameAr != null && nameAr!.trim().isNotEmpty) ? nameAr! : name;
+    }
+    return (nameEn != null && nameEn!.trim().isNotEmpty) ? nameEn! : name;
+  }
+
+  /// Official employee number to display (falls back to the internal id).
+  String? get displayEmployeeNumber =>
+      (employeeNumber != null && employeeNumber!.trim().isNotEmpty)
+          ? employeeNumber
+          : (employeeId != null ? '$employeeId' : null);
+
+  /// Join date to show for "member since" (hire date preferred).
+  DateTime? get memberSince => hireDate ?? createdAt;
 
   /// Get the primary role (first role in the list)
   String? get primaryRole => roles.isNotEmpty ? roles.first : null;
@@ -73,9 +98,14 @@ class User extends Equatable {
       clinicId = json['clinic_id'] as int?;
     }
 
+    DateTime? parseDate(dynamic v) =>
+        (v is String && v.isNotEmpty) ? DateTime.tryParse(v) : null;
+
     return User(
       id: json['id'] as int,
       name: json['name'] as String,
+      nameAr: json['name_ar'] as String?,
+      nameEn: json['name_en'] as String?,
       email: json['email'] as String,
       phone: json['phone'] as String?,
       roles: roles,
@@ -83,9 +113,10 @@ class User extends Equatable {
       clinicId: clinicId,
       clinicName: clinicName,
       employeeId: json['employee_id'] as int?,
-      createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'] as String)
-          : null,
+      employeeNumber:
+          (json['employee_number'] ?? json['employee_no'])?.toString(),
+      createdAt: parseDate(json['created_at']),
+      hireDate: parseDate(json['hire_date'] ?? json['joined_at']),
       avatarUrl: json['avatar_url'] as String?,
     );
   }
