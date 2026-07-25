@@ -2741,17 +2741,21 @@ class _ReplySheetState extends State<_ReplySheet> {
     final ds = DSProvider.of(context);
     String t(String ar, String en) => tr(context, ar: ar, en: en);
     final canSend = _value.trim().isNotEmpty || _attachment != null;
+    // Lift the sheet above the keyboard so it never covers the input/buttons.
+    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
 
     return Align(
       alignment: Alignment.bottomCenter,
-      child: Container(
-        width: double.infinity,
-        padding: EdgeInsetsDirectional.fromSTEB(
-          ds.spacing.lg,
-          ds.spacing.lg,
-          ds.spacing.lg,
-          ds.spacing.xl,
-        ),
+      child: Padding(
+        padding: EdgeInsets.only(bottom: keyboard),
+        child: Container(
+          width: double.infinity,
+          padding: EdgeInsetsDirectional.fromSTEB(
+            ds.spacing.lg,
+            ds.spacing.lg,
+            ds.spacing.lg,
+            ds.spacing.xl,
+          ),
         decoration: BoxDecoration(
           color: ds.colors.background,
           borderRadius: BorderRadius.only(
@@ -2823,6 +2827,7 @@ class _ReplySheetState extends State<_ReplySheet> {
               ),
             ],
           ),
+        ),
         ),
       ),
     );
