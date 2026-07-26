@@ -24,7 +24,13 @@ class PxSection {
   final String ar;
   final String en;
   final List<PxField> fields;
-  const PxSection(this.key, this.ar, this.en, this.fields);
+
+  /// Read-only sections are auto-filled from the backend (e.g. patient data)
+  /// and shown as plain values the specialist can't edit.
+  final bool readOnly;
+
+  const PxSection(this.key, this.ar, this.en, this.fields,
+      {this.readOnly = false});
 }
 
 /// Yes/No + a few shared option sets.
@@ -48,7 +54,7 @@ const List<PxSection> physicalExamSchema = [
     ]),
     PxField('occupation_education', 'المهنة/التعليم', 'Occupation/Education', PxFieldType.text),
     PxField('address', 'العنوان', 'Address', PxFieldType.textarea),
-  ]),
+  ], readOnly: true),
   PxSection('general_features', 'السمات العامة', 'General Features', [
     PxField('height_cm', 'الطول (سم)', 'Height (cm)', PxFieldType.decimalNum),
     PxField('weight_kg', 'الوزن (كجم)', 'Weight (kg)', PxFieldType.decimalNum),

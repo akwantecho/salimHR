@@ -226,11 +226,57 @@ class _PhysicalExamScreenState extends State<PhysicalExamScreen> {
     final ds = DSProvider.of(context);
     String tr2(PxField f) => tr(context, ar: f.ar, en: f.en);
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final f in s.fields) ...[
-          _field(s.key, f, tr2(f)),
-          SizedBox(height: ds.spacing.md),
+        if (s.readOnly) ...[
+          DSText(
+            tr(context,
+                ar: 'بيانات المريض من النظام (غير قابلة للتعديل)',
+                en: 'Patient data from the system (read-only)'),
+            role: DSTextRole.caption,
+            color: ds.colors.textMuted,
+          ),
+          SizedBox(height: ds.spacing.sm),
         ],
+        for (final f in s.fields) ...[
+          s.readOnly
+              ? _readOnlyField(s.key, f, tr2(f))
+              : _field(s.key, f, tr2(f)),
+          SizedBox(height: s.readOnly ? ds.spacing.sm : ds.spacing.md),
+        ],
+      ],
+    );
+  }
+
+  Widget _readOnlyField(String section, PxField f, String label) {
+    final ds = DSProvider.of(context);
+    final raw = _exam!.value(section, f.key);
+    String display;
+    if (raw == null || raw.toString().isEmpty) {
+      display = '—';
+    } else if (f.type == PxFieldType.boolean) {
+      display = (raw == true || raw == 1 || raw == '1')
+          ? tr(context, ar: 'نعم', en: 'Yes')
+          : tr(context, ar: 'لا', en: 'No');
+    } else if (f.type == PxFieldType.select) {
+      final opt = f.options.where((o) => o.value == raw.toString());
+      final isAr = tr(context, ar: 'ar', en: 'en') == 'ar';
+      display = opt.isNotEmpty
+          ? (isAr ? opt.first.ar : opt.first.en)
+          : raw.toString();
+    } else {
+      display = raw.toString();
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          flex: 2,
+          child: DSText(label,
+              role: DSTextRole.caption, color: ds.colors.textSecondary),
+        ),
+        SizedBox(width: ds.spacing.sm),
+        Expanded(flex: 3, child: DSText(display, role: DSTextRole.body)),
       ],
     );
   }
