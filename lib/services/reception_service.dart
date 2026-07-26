@@ -62,6 +62,20 @@ class ReceptionService extends ChangeNotifier {
     }
   }
 
+  /// Full patient file for reception: profile + appointments + sessions summary.
+  /// Backed by `GET /api/reception/patients/{id}`.
+  Future<Map<String, dynamic>?> fetchPatientDetail(int id) async {
+    try {
+      final res = await _client.get<Map<String, dynamic>>(
+        '/reception/patients/$id',
+      );
+      return res.data?['data'] as Map<String, dynamic>?;
+    } on DioException catch (e) {
+      _error = e.message;
+      return null;
+    }
+  }
+
   Future<Patient?> createPatient({
     required String name,
     String? phone,

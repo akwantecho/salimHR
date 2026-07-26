@@ -572,7 +572,16 @@ class _ReceptionPatientsScreenState extends State<ReceptionPatientsScreen> {
               : ListView.separated(
                   itemCount: _patients.length,
                   separatorBuilder: (_, __) => SizedBox(height: ds.spacing.sm),
-                  itemBuilder: (context, i) => _PatientCard(patient: _patients[i]),
+                  itemBuilder: (context, i) => GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => Navigator.of(context).push(
+                      PageRouteBuilder(
+                        pageBuilder: (context, _, _) =>
+                            ReceptionPatientDetailScreen(patient: _patients[i]),
+                      ),
+                    ),
+                    child: _PatientCard(patient: _patients[i]),
+                  ),
                 ),
         ),
       ],
@@ -1676,5 +1685,197 @@ String _statusLabel(BuildContext context, String status) {
       return tr(context, ar: 'لم يحضر', en: 'No show');
     default:
       return tr(context, ar: 'محجوز', en: 'Booked');
+  }
+}
+
+// ==================== PATIENT DETAIL (reception) ====================
+
+/// Full patient file for reception: profile, appointments and remaining
+/// sessions. Data comes from GET /api/reception/patients/{id}.
+class ReceptionPatientDetailScreen extends StatefulWidget {
+  final Patient patient;
+
+  const ReceptionPatientDetailScreen({super.key, required this.patient});
+
+  @override
+  State<ReceptionPatientDetailScreen> createState() =>
+      _ReceptionPatientDetailScreenState();
+}
+
+class _ReceptionPatientDetailScreenState
+    extends State<ReceptionPatientDetailScreen> {
+  bool _loading = true;
+  Map<String, dynamic>? _data;
+  List<ReceptionAppointment> _appointments = [];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  Future<void> _load() async {
+    final d = await context.receptionService.fetchPatientDetail(widget.patient.id);
+    if (!mounted) return;
+    setState(() {
+      _data = d;
+      _appointments = ((d?['appointments'] as List?) ?? [])
+          .map((e) => ReceptionAppointment.fromJson(e as Map<String, dynamic>))
+          .toList();
+      _loading = false;
+    });
+  }
+
+  int _summary(String key) {
+    final s = _data?['sessions_summary'] as Map?;
+    return (s?[key] as num?)?.toInt() ?? 0;
+  }
+
+  String _field(String key) {
+    final v = _data?[key];
+    return (v == null || v.toString().isEmpty) ? '—' : v.toString();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    String t(String ar, String en) => tr(context, ar: ar, en: en);
+    final p = widget.patient;
+
+    return Container(
+      color: ds.colors.background,
+      child: SafeArea(
+        child: Padding(
+          padding: EdgeInsetsDirectional.all(ds.spacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: DSLineIcon(
+                        type: LineIconType.arrowBack,
+                        color: ds.colors.primary,
+                        size: ds.spacing.lg),
+                  ),
+                  SizedBox(width: ds.spacing.md),
+                  Expanded(
+                    child: DSText(p.name, role: DSTextRole.headline, maxLines: 1),
+                  ),
+                ],
+              ),
+              SizedBox(height: ds.spacing.md),
+              Expanded(
+                child: _loading
+                    ? const ShimmerLoading()
+                    : ListView(
+                        children: [
+                          // Profile
+                          DSCard(
+                            padding: EdgeInsetsDirectional.all(ds.spacing.md),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _row(t('رقم الملف', 'File No'),
+                                    p.fileNumber ?? _field('file_number')),
+                                _row(t('الجوال', 'Phone'),
+                                    p.phone ?? _field('phone')),
+                                _row(
+                                    t('الجنس', 'Gender'),
+                                    p.gender == 'female'
+                                        ? t('أنثى', 'Female')
+                                        : t('ذكر', 'Male')),
+                                _row(t('الجنسية', 'Nationality'),
+                                    p.nationality ?? _field('nationality')),
+                                _row(t('تاريخ الميلاد', 'Date of birth'),
+                                    _field('date_of_birth')),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: ds.spacing.md),
+                          // Sessions summary
+                          SectionHeader(title: t('الجلسات', 'Sessions')),
+                          Row(
+                            children: [
+                              Expanded(
+                                  child: _summaryCard(
+                                      t('الإجمالي', 'Total'),
+                                      _summary('total'),
+                                      const Color(0xFF6366F1))),
+                              SizedBox(width: ds.spacing.sm),
+                              Expanded(
+                                  child: _summaryCard(
+                                      t('مكتملة', 'Done'),
+                                      _summary('completed'),
+                                      const Color(0xFF10B981))),
+                              SizedBox(width: ds.spacing.sm),
+                              Expanded(
+                                  child: _summaryCard(
+                                      t('متبقّية', 'Left'),
+                                      _summary('remaining'),
+                                      const Color(0xFFF59E0B))),
+                            ],
+                          ),
+                          SizedBox(height: ds.spacing.md),
+                          // Appointments
+                          SectionHeader(
+                              title: t('المواعيد', 'Appointments')),
+                          if (_appointments.isEmpty)
+                            _EmptyBox(
+                                message:
+                                    t('لا توجد مواعيد', 'No appointments'))
+                          else
+                            for (final a in _appointments) ...[
+                              ReceptionAppointmentCard(appointment: a),
+                              SizedBox(height: ds.spacing.sm),
+                            ],
+                          SizedBox(height: ds.spacing.xl),
+                        ],
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _row(String label, String value) {
+    final ds = DSProvider.of(context);
+    return Padding(
+      padding: EdgeInsetsDirectional.only(bottom: ds.spacing.sm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+              flex: 2,
+              child: DSText(label,
+                  role: DSTextRole.caption, color: ds.colors.textSecondary)),
+          SizedBox(width: ds.spacing.sm),
+          Expanded(flex: 3, child: DSText(value, role: DSTextRole.body)),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryCard(String label, int value, Color color) {
+    final ds = DSProvider.of(context);
+    return Container(
+      padding: EdgeInsetsDirectional.all(ds.spacing.md),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(ds.radii.large),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        children: [
+          DSText('$value', role: DSTextRole.headline, color: color),
+          SizedBox(height: ds.spacing.xs),
+          DSText(label,
+              role: DSTextRole.caption, color: ds.colors.textSecondary),
+        ],
+      ),
+    );
   }
 }
