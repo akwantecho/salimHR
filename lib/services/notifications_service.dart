@@ -181,6 +181,8 @@ class NotificationsService extends ChangeNotifier {
         return 'inventory_low';
       case NotificationType.bonus:
         return 'bonus';
+      case NotificationType.noteReply:
+        return 'employee_note_reply';
       case NotificationType.general:
         return 'general';
     }

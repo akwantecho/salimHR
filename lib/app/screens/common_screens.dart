@@ -1022,6 +1022,8 @@ class _ApiNotificationCard extends StatelessWidget {
         return const Color(0xFFF59E0B); // Amber
       case NotificationType.bonus:
         return const Color(0xFF10B981); // Emerald
+      case NotificationType.noteReply:
+        return const Color(0xFF10B981); // Green — admin reply
       case NotificationType.general:
         return const Color(0xFF10B981); // Emerald
     }
@@ -1039,6 +1041,8 @@ class _ApiNotificationCard extends StatelessWidget {
         return LineIconType.chart;
       case NotificationType.bonus:
         return LineIconType.heart;
+      case NotificationType.noteReply:
+        return LineIconType.chat;
       case NotificationType.general:
         return LineIconType.bell;
     }
@@ -1059,6 +1063,8 @@ class _ApiNotificationCard extends StatelessWidget {
         return t('مخزون', 'Inventory');
       case NotificationType.bonus:
         return t('مكافآت', 'Bonuses');
+      case NotificationType.noteReply:
+        return t('رد الإدارة', 'Admin Reply');
       case NotificationType.general:
         return t('عام', 'General');
     }

@@ -7,6 +7,7 @@ enum NotificationType {
   payrollPending,
   inventoryLow,
   bonus,
+  noteReply,
   general,
 }
 
@@ -66,6 +67,8 @@ class AppNotification extends Equatable {
       case 'bonus':
       case 'employee_bonus':
         return NotificationType.bonus;
+      case 'employee_note_reply':
+        return NotificationType.noteReply;
       default:
         return NotificationType.general;
     }
@@ -84,6 +87,8 @@ class AppNotification extends Equatable {
         return 'bookmark';
       case NotificationType.bonus:
         return 'heart';
+      case NotificationType.noteReply:
+        return 'chat';
       case NotificationType.general:
         return 'bell';
     }
