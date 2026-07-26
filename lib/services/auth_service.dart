@@ -116,9 +116,8 @@ class AuthService extends ChangeNotifier {
     _error = null;
 
     try {
-      // Get CSRF cookie first (for Sanctum)
-      await _client.getCsrfCookie();
-
+      // Token (Bearer) auth doesn't need Sanctum's CSRF cookie; skipping it
+      // avoids a slow/hanging pre-flight request that could stall login.
       final response = await _client.post<Map<String, dynamic>>(
         '/login',
         data: {'email': email, 'password': password},
