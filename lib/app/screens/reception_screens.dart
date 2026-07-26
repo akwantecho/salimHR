@@ -96,6 +96,8 @@ class _ReceptionHomeScreenState extends State<ReceptionHomeScreen> {
                       value: '${_stat('today_total')}',
                       icon: LineIconType.calendar,
                       color: const Color(0xFF6366F1),
+                      onTap: () =>
+                          AppScope.of(context).setTab(UserRole.reception, 1),
                     ),
                   ),
                   SizedBox(width: ds.spacing.sm),
@@ -105,6 +107,8 @@ class _ReceptionHomeScreenState extends State<ReceptionHomeScreen> {
                       value: '${_stat('today_booked')}',
                       icon: LineIconType.chart,
                       color: const Color(0xFF10B981),
+                      onTap: () =>
+                          AppScope.of(context).setTab(UserRole.reception, 1),
                     ),
                   ),
                 ],
@@ -118,6 +122,8 @@ class _ReceptionHomeScreenState extends State<ReceptionHomeScreen> {
                       value: '${_stat('today_cancelled')}',
                       icon: LineIconType.bookmark,
                       color: const Color(0xFFEF4444),
+                      onTap: () =>
+                          AppScope.of(context).setTab(UserRole.reception, 1),
                     ),
                   ),
                   SizedBox(width: ds.spacing.sm),
@@ -127,6 +133,8 @@ class _ReceptionHomeScreenState extends State<ReceptionHomeScreen> {
                       value: '${_stat('patients_total')}',
                       icon: LineIconType.heart,
                       color: const Color(0xFF8B5CF6),
+                      onTap: () =>
+                          AppScope.of(context).setTab(UserRole.reception, 2),
                     ),
                   ),
                 ],
@@ -1084,8 +1092,14 @@ class _ReceptionNotifyScreenState extends State<ReceptionNotifyScreen> {
       color: ds.colors.background,
       child: SafeArea(
         child: Padding(
-          padding: EdgeInsetsDirectional.all(ds.spacing.lg),
-          child: Column(
+          padding: EdgeInsetsDirectional.fromSTEB(
+            ds.spacing.lg,
+            ds.spacing.lg,
+            ds.spacing.lg,
+            ds.spacing.lg + MediaQuery.viewInsetsOf(context).bottom,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
@@ -1213,7 +1227,7 @@ class _ReceptionNotifyScreenState extends State<ReceptionNotifyScreen> {
                 SizedBox(height: ds.spacing.md),
                 DSText(_msg!, role: DSTextRole.caption, color: _success ? const Color(0xFF10B981) : const Color(0xFFEF4444)),
               ],
-              const Spacer(),
+              SizedBox(height: ds.spacing.lg),
               GestureDetector(
                 onTap: _submitting ? null : _send,
                 child: Container(
@@ -1233,6 +1247,7 @@ class _ReceptionNotifyScreenState extends State<ReceptionNotifyScreen> {
                 ),
               ),
             ],
+            ),
           ),
         ),
       ),
@@ -1458,18 +1473,20 @@ class _RecStatCard extends StatelessWidget {
   final String value;
   final LineIconType icon;
   final Color color;
+  final VoidCallback? onTap;
 
   const _RecStatCard({
     required this.title,
     required this.value,
     required this.icon,
     required this.color,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final ds = DSProvider.of(context);
-    return Container(
+    final card = Container(
       padding: EdgeInsetsDirectional.all(ds.spacing.md),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
@@ -1494,6 +1511,13 @@ class _RecStatCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+
+    if (onTap == null) return card;
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: card,
     );
   }
 }

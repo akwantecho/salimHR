@@ -45,12 +45,13 @@ class InventoryItem extends Equatable {
       name: json['name'] as String? ?? '-',
       sku: json['sku'] as String?,
       description: json['description'] as String?,
-      quantity: (json['current_quantity'] ??
-              json['quantity'] ??
-              json['available_quantity']) as int? ??
+      quantity: ((json['current_quantity'] ??
+                  json['quantity'] ??
+                  json['available_quantity']) as num?)
+              ?.toInt() ??
           0,
       minQuantity:
-          (json['reorder_level'] ?? json['min_quantity']) as int?,
+          ((json['reorder_level'] ?? json['min_quantity']) as num?)?.toInt(),
       unitPrice: money(
         json['average_cost'] ?? json['selling_price'] ?? json['unit_price'],
       ),
@@ -124,15 +125,18 @@ class InventoryRequest extends Equatable {
   });
 
   factory InventoryRequest.fromJson(Map<String, dynamic> json) {
+    DateTime parseDate(dynamic v) =>
+        (v is String) ? (DateTime.tryParse(v) ?? DateTime.now()) : DateTime.now();
     return InventoryRequest(
-      id: json['id'] as int,
-      employeeId: json['employee_id'] as int,
-      status: _parseStatus(json['status'] as String),
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      employeeId: (json['employee_id'] as num?)?.toInt() ?? 0,
+      status: _parseStatus(json['status'] as String? ?? 'pending'),
       notes: json['notes'] as String?,
-      employeeName: json['employee']?['user']?['name'] as String?,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      employeeName: (json['employee']?['user']?['name'] ??
+          json['employee']?['name']) as String?,
+      createdAt: parseDate(json['created_at']),
       approvedAt: json['approved_at'] != null
-          ? DateTime.parse(json['approved_at'] as String)
+          ? DateTime.tryParse(json['approved_at'].toString())
           : null,
       items: (json['items'] as List<dynamic>?)
           ?.map((e) => InventoryRequestItem.fromJson(e as Map<String, dynamic>))
@@ -175,11 +179,11 @@ class InventoryRequestItem extends Equatable {
 
   factory InventoryRequestItem.fromJson(Map<String, dynamic> json) {
     return InventoryRequestItem(
-      id: json['id'] as int,
-      inventoryRequestId: json['inventory_request_id'] as int,
-      inventoryItemId: json['inventory_item_id'] as int,
-      quantity: json['quantity'] as int,
-      itemName: json['inventory_item']?['name'] as String?,
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      inventoryRequestId: (json['inventory_request_id'] as num?)?.toInt() ?? 0,
+      inventoryItemId: (json['inventory_item_id'] as num?)?.toInt() ?? 0,
+      quantity: (json['quantity'] as num?)?.toInt() ?? 0,
+      itemName: (json['inventory_item']?['name'] ?? json['name']) as String?,
     );
   }
 

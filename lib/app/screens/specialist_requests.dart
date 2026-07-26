@@ -310,11 +310,12 @@ class RequestFormScaffold extends StatelessWidget {
       color: ds.colors.background,
       child: SafeArea(
         child: Padding(
+          // Lift the form (incl. the submit button) above the keyboard.
           padding: EdgeInsetsDirectional.fromSTEB(
             ds.spacing.lg,
             ds.spacing.lg,
             ds.spacing.lg,
-            ds.spacing.lg,
+            ds.spacing.lg + MediaQuery.viewInsetsOf(context).bottom,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
