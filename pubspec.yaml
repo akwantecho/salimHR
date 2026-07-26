@@ -83,6 +83,10 @@ flutter:
     - assets/icons/heroicons/bookmark.svg
     - assets/icons/heroicons/arrow-back.svg
     - assets/icons/heroicons/trash.svg
+    - assets/body/front.png
+    - assets/body/back.png
+    - assets/body/left.png
+    - assets/body/right.png
     - assets/logo/salimhr bg.png
 
   fonts:

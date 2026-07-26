@@ -629,7 +629,7 @@ class _BodyView extends StatelessWidget {
           SizedBox(height: ds.spacing.xs),
           LayoutBuilder(
             builder: (context, c) {
-              const h = 180.0;
+              const h = 340.0;
               final w = c.maxWidth;
               return GestureDetector(
                 onTapUp: (d) => onTapAt(
@@ -639,15 +639,16 @@ class _BodyView extends StatelessWidget {
                   width: w,
                   height: h,
                   decoration: BoxDecoration(
-                    color: ds.colors.surfaceAlt,
+                    color: const Color(0xFFF6F7FB),
                     borderRadius: BorderRadius.circular(ds.radii.medium),
                     border: Border.all(color: ds.colors.border),
                   ),
                   child: Stack(
                     children: [
                       Positioned.fill(
-                        child: CustomPaint(
-                          painter: _BodyPainter(ds.colors.textMuted),
+                        child: Image.asset(
+                          'assets/body/${view.value}.png',
+                          fit: BoxFit.contain,
                         ),
                       ),
                       for (final m in marks)
@@ -755,70 +756,3 @@ class _BodyMarkRow extends StatelessWidget {
   }
 }
 
-/// Draws a simple human-body silhouette for the body-marks chart, replacing the
-/// old emoji placeholder.
-class _BodyPainter extends CustomPainter {
-  final Color color;
-
-  const _BodyPainter(this.color);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-    final cx = w / 2;
-
-    final stroke = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..strokeJoin = StrokeJoin.round
-      ..strokeCap = StrokeCap.round;
-    final fill = Paint()
-      ..color = color.withValues(alpha: 0.10)
-      ..style = PaintingStyle.fill;
-
-    void figure(Path p) {
-      canvas.drawPath(p, fill);
-      canvas.drawPath(p, stroke);
-    }
-
-    // Head + neck
-    figure(Path()
-      ..addOval(Rect.fromCircle(center: Offset(cx, h * 0.10), radius: h * 0.07)));
-
-    // Torso (shoulders → hips)
-    figure(Path()
-      ..moveTo(cx - w * 0.15, h * 0.20)
-      ..lineTo(cx + w * 0.15, h * 0.20)
-      ..lineTo(cx + w * 0.11, h * 0.52)
-      ..lineTo(cx - w * 0.11, h * 0.52)
-      ..close());
-
-    // Arms
-    final armW = w * 0.055;
-    figure(Path()
-      ..addRRect(RRect.fromRectAndRadius(
-          Rect.fromLTWH(cx - w * 0.15 - armW, h * 0.21, armW, h * 0.30),
-          Radius.circular(armW))));
-    figure(Path()
-      ..addRRect(RRect.fromRectAndRadius(
-          Rect.fromLTWH(cx + w * 0.15, h * 0.21, armW, h * 0.30),
-          Radius.circular(armW))));
-
-    // Legs
-    final legW = w * 0.08;
-    figure(Path()
-      ..addRRect(RRect.fromRectAndRadius(
-          Rect.fromLTWH(cx - w * 0.11, h * 0.52, legW, h * 0.42),
-          Radius.circular(legW * 0.5))));
-    figure(Path()
-      ..addRRect(RRect.fromRectAndRadius(
-          Rect.fromLTWH(cx + w * 0.11 - legW, h * 0.52, legW, h * 0.42),
-          Radius.circular(legW * 0.5))));
-  }
-
-  @override
-  bool shouldRepaint(covariant _BodyPainter oldDelegate) =>
-      oldDelegate.color != color;
-}
