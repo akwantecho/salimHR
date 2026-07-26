@@ -40,14 +40,39 @@ class ApiClient {
     ]);
   }
 
-  // Token management
-  Future<String?> getToken() => _storage.read(key: _tokenKey);
+  // Token management. The token is cached in memory and reads are time-boxed so
+  // a slow/hanging secure-storage call (seen on some Android devices) can never
+  // stall an outgoing request — which otherwise hangs login forever.
+  String? _cachedToken;
+  bool _tokenLoaded = false;
 
-  Future<void> setToken(String token) => _storage.write(key: _tokenKey, value: token);
+  Future<String?> getToken() async {
+    try {
+      _cachedToken =
+          await _storage.read(key: _tokenKey).timeout(const Duration(seconds: 3));
+      _tokenLoaded = true;
+    } catch (_) {
+      // Keep the last known value on timeout/error.
+    }
+    return _cachedToken;
+  }
 
-  Future<void> clearToken() => _storage.delete(key: _tokenKey);
+  /// Cached token for synchronous access inside interceptors (never blocks).
+  String? get cachedToken => _cachedToken;
+  bool get tokenLoaded => _tokenLoaded;
 
-  Future<bool> hasToken() async => await getToken() != null;
+  Future<void> setToken(String token) async {
+    _cachedToken = token;
+    _tokenLoaded = true;
+    await _storage.write(key: _tokenKey, value: token);
+  }
+
+  Future<void> clearToken() async {
+    _cachedToken = null;
+    await _storage.delete(key: _tokenKey);
+  }
+
+  Future<bool> hasToken() async => (await getToken()) != null;
 
   // Role management (for session persistence)
   Future<void> setRole(String role) => _storage.write(key: _roleKey, value: role);
@@ -125,7 +150,12 @@ class _AuthInterceptor extends Interceptor {
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
-    final token = await _client.getToken();
+    // Use the in-memory token when already loaded (never blocks); only read
+    // secure storage the first time, and even then it's time-boxed in getToken.
+    String? token = _client.cachedToken;
+    if (token == null && !_client.tokenLoaded) {
+      token = await _client.getToken();
+    }
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
     }

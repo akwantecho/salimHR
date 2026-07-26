@@ -23,10 +23,11 @@ class ApiConfig {
   // Sanctum CSRF cookie endpoint
   static String get csrfCookieUrl => '$baseUrl/sanctum/csrf-cookie';
 
-  // Timeouts
-  static const Duration connectTimeout = Duration(seconds: 30);
-  static const Duration receiveTimeout = Duration(seconds: 30);
-  static const Duration sendTimeout = Duration(seconds: 30);
+  // Timeouts — kept modest so a stalled request surfaces an error quickly
+  // instead of appearing to load forever.
+  static const Duration connectTimeout = Duration(seconds: 15);
+  static const Duration receiveTimeout = Duration(seconds: 20);
+  static const Duration sendTimeout = Duration(seconds: 15);
 
   // Headers
   static Map<String, String> get defaultHeaders => {
