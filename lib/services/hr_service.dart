@@ -682,6 +682,8 @@ class HRService extends ChangeNotifier {
     String? subject,
     required String details,
     double? amount,
+    int? patientId,
+    int? toSpecialistId,
   }) async {
     _setLoading(true);
     _error = null;
@@ -693,6 +695,8 @@ class HRService extends ChangeNotifier {
           if (subject != null && subject.isNotEmpty) 'subject': subject,
           'details': details,
           'amount': ?amount,
+          if (patientId != null) 'patient_id': patientId,
+          if (toSpecialistId != null) 'to_specialist_id': toSpecialistId,
         },
       );
       _setLoading(false);

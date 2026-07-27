@@ -7,6 +7,7 @@ import '../../design_system/primitives/ds_button.dart';
 import '../../design_system/primitives/ds_card.dart';
 import '../../design_system/primitives/ds_text.dart';
 import '../../models/models.dart';
+import '../../models/reception.dart';
 import '../../services/api_provider.dart';
 import '../i18n.dart';
 import '../widgets/attachment_picker.dart';
@@ -1481,22 +1482,62 @@ class PatientTransferRequestScreen extends StatefulWidget {
 
 class _PatientTransferRequestScreenState
     extends State<PatientTransferRequestScreen> {
-  final _patientCtrl = TextEditingController();
+  final _searchCtrl = TextEditingController();
   final _detailsCtrl = TextEditingController();
   bool _submitting = false;
   String? _error;
   String? _success;
 
+  List<Patient> _results = [];
+  Patient? _selectedPatient;
+  bool _searching = false;
+
+  List<NamedRef> _specialists = [];
+  NamedRef? _selectedSpecialist;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchCtrl.addListener(_onSearchChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadSpecialists());
+  }
+
+  Future<void> _loadSpecialists() async {
+    final s = await context.receptionService.fetchSpecialists();
+    if (mounted) setState(() => _specialists = s);
+  }
+
+  void _onSearchChanged() {
+    if (_selectedPatient != null) setState(() => _selectedPatient = null);
+    final q = _searchCtrl.text.trim();
+    if (q.length < 2) {
+      setState(() => _results = []);
+      return;
+    }
+    _search(q);
+  }
+
+  Future<void> _search(String q) async {
+    setState(() => _searching = true);
+    final r = await context.receptionService.searchPatients(q);
+    if (!mounted || _searchCtrl.text.trim() != q) return;
+    setState(() {
+      _results = r;
+      _searching = false;
+    });
+  }
+
   @override
   void dispose() {
-    _patientCtrl.dispose();
+    _searchCtrl.dispose();
     _detailsCtrl.dispose();
     super.dispose();
   }
 
   bool get _canSubmit =>
-      _patientCtrl.text.trim().isNotEmpty &&
-      _detailsCtrl.text.trim().length >= 5;
+      _selectedPatient != null &&
+      _selectedSpecialist != null &&
+      _detailsCtrl.text.trim().length >= 3;
 
   Future<void> _submit() async {
     if (!_canSubmit) return;
@@ -1505,25 +1546,28 @@ class _PatientTransferRequestScreenState
       _error = null;
       _success = null;
     });
+    final details =
+        '${tr(context, ar: 'نقل إلى', en: 'Transfer to')}: ${_selectedSpecialist!.name}\n${_detailsCtrl.text.trim()}';
     final ok = await context.hrService.submitEmployeeRequest(
       type: 'patient_transfer',
-      subject: _patientCtrl.text.trim(),
-      details: _detailsCtrl.text.trim(),
+      subject: _selectedPatient!.name,
+      details: details,
+      patientId: _selectedPatient!.id,
+      toSpecialistId: _selectedSpecialist!.id,
     );
     if (!mounted) return;
     setState(() {
       _submitting = false;
       if (ok) {
-        _success = tr(
-          context,
-          ar: 'تم إرسال طلب النقل بنجاح',
-          en: 'Transfer request submitted',
-        );
-        _patientCtrl.clear();
+        _success = tr(context,
+            ar: 'تم إرسال طلب النقل بنجاح', en: 'Transfer request submitted');
+        _searchCtrl.clear();
         _detailsCtrl.clear();
+        _selectedPatient = null;
+        _selectedSpecialist = null;
+        _results = [];
       } else {
-        _error =
-            context.hrService.error ??
+        _error = context.hrService.error ??
             tr(context, ar: 'فشل الإرسال', en: 'Submit failed');
       }
     });
@@ -1533,8 +1577,11 @@ class _PatientTransferRequestScreenState
   Widget build(BuildContext context) {
     final ds = DSProvider.of(context);
     String t(String ar, String en) => tr(context, ar: ar, en: en);
+    final showResults =
+        _selectedPatient == null && _searchCtrl.text.trim().length >= 2;
+
     return ListenableBuilder(
-      listenable: Listenable.merge([_patientCtrl, _detailsCtrl]),
+      listenable: Listenable.merge([_searchCtrl, _detailsCtrl]),
       builder: (context, _) => RequestFormScaffold(
         title: t('طلب نقل مريض', 'Patient Transfer'),
         subtitle: t('تحويل مريض لأخصائي آخر', 'Transfer to another specialist'),
@@ -1547,25 +1594,155 @@ class _PatientTransferRequestScreenState
         successMessage: _success,
         children: [
           SingleLineFieldCard(
-            label: t('اسم المريض', 'Patient Name'),
-            hint: t('أدخل اسم المريض', 'Enter patient name'),
-            controller: _patientCtrl,
+            label: t('المريض', 'Patient'),
+            hint: t('ابحث باسم أو رقم المريض', 'Search by name or file'),
+            controller: _searchCtrl,
             required: true,
             icon: LineIconType.heart,
           ),
+          if (_selectedPatient != null) ...[
+            SizedBox(height: ds.spacing.sm),
+            _TransferSelected(
+              label:
+                  '${_selectedPatient!.name}${_selectedPatient!.fileNumber != null ? ' · ${_selectedPatient!.fileNumber}' : ''}',
+              onClear: () {
+                _searchCtrl.clear();
+                setState(() => _selectedPatient = null);
+              },
+            ),
+          ] else if (showResults) ...[
+            SizedBox(height: ds.spacing.sm),
+            if (_searching)
+              DSText(t('جارٍ البحث...', 'Searching...'),
+                  role: DSTextRole.caption, color: ds.colors.textSecondary)
+            else if (_results.isEmpty)
+              DSText(t('لا نتائج', 'No results'),
+                  role: DSTextRole.caption, color: ds.colors.textMuted)
+            else
+              for (final p in _results.take(8))
+                _TransferResult(
+                  label:
+                      '${p.name}${p.fileNumber != null ? ' · ${p.fileNumber}' : ''}',
+                  onTap: () => setState(() {
+                    _selectedPatient = p;
+                    _results = [];
+                  }),
+                ),
+          ],
+          SizedBox(height: ds.spacing.lg),
+          DSText(t('نقل إلى أخصائي', 'Transfer to specialist'),
+              role: DSTextRole.label, color: ds.colors.textSecondary),
+          SizedBox(height: ds.spacing.xs),
+          if (_specialists.isEmpty)
+            DSText(t('جارٍ التحميل...', 'Loading...'),
+                role: DSTextRole.caption, color: ds.colors.textSecondary)
+          else
+            Wrap(
+              spacing: ds.spacing.xs,
+              runSpacing: ds.spacing.xs,
+              children: [
+                for (final s in _specialists)
+                  GestureDetector(
+                    onTap: () => setState(() => _selectedSpecialist = s),
+                    behavior: HitTestBehavior.opaque,
+                    child: Container(
+                      padding: EdgeInsetsDirectional.symmetric(
+                          horizontal: ds.spacing.md, vertical: ds.spacing.xs),
+                      decoration: BoxDecoration(
+                        color: _selectedSpecialist?.id == s.id
+                            ? ds.colors.primary
+                            : ds.colors.surfaceAlt,
+                        borderRadius: BorderRadius.circular(ds.radii.pill),
+                        border: Border.all(color: ds.colors.border),
+                      ),
+                      child: DSText(s.name,
+                          role: DSTextRole.caption,
+                          color: _selectedSpecialist?.id == s.id
+                              ? const Color(0xFFFFFFFF)
+                              : ds.colors.textPrimary),
+                    ),
+                  ),
+              ],
+            ),
           SizedBox(height: ds.spacing.lg),
           MultilineFieldCard(
-            label: t('تفاصيل الطلب', 'Request Details'),
-            hint: t(
-              'سبب النقل، الأخصائي المقترح، ملاحظات...',
-              'Reason, target specialist, notes...',
-            ),
+            label: t('سبب النقل', 'Reason'),
+            hint: t('سبب النقل وملاحظات...', 'Reason and notes...'),
             controller: _detailsCtrl,
             required: true,
-            minLines: 4,
-            maxLines: 8,
+            minLines: 3,
+            maxLines: 6,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TransferSelected extends StatelessWidget {
+  final String label;
+  final VoidCallback onClear;
+  const _TransferSelected({required this.label, required this.onClear});
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    return Container(
+      padding: EdgeInsetsDirectional.all(ds.spacing.sm),
+      decoration: BoxDecoration(
+        color: ds.colors.primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(ds.radii.medium),
+        border: Border.all(color: ds.colors.primary.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          DSLineIcon(
+              type: LineIconType.heart,
+              color: ds.colors.primary,
+              size: ds.spacing.md),
+          SizedBox(width: ds.spacing.sm),
+          Expanded(child: DSText(label, role: DSTextRole.label, maxLines: 1)),
+          GestureDetector(
+            onTap: onClear,
+            behavior: HitTestBehavior.opaque,
+            child: DSText('✕',
+                role: DSTextRole.caption, color: ds.colors.textMuted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TransferResult extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _TransferResult({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        margin: EdgeInsetsDirectional.only(bottom: ds.spacing.xs),
+        padding: EdgeInsetsDirectional.all(ds.spacing.sm),
+        decoration: BoxDecoration(
+          color: ds.colors.surfaceAlt,
+          borderRadius: BorderRadius.circular(ds.radii.medium),
+          border: Border.all(color: ds.colors.border.withValues(alpha: 0.5)),
+        ),
+        child: Row(
+          children: [
+            DSLineIcon(
+                type: LineIconType.search,
+                color: ds.colors.textMuted,
+                size: ds.spacing.md),
+            SizedBox(width: ds.spacing.sm),
+            Expanded(child: DSText(label, role: DSTextRole.body, maxLines: 1)),
+          ],
+        ),
       ),
     );
   }

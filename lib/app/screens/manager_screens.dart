@@ -3036,8 +3036,15 @@ class _AdminExpenseScreenState extends State<AdminExpenseScreen> {
                             ),
                           ),
                           SizedBox(height: ds.spacing.md),
-                          // Category
-                          _label(t('الفئة', 'Category')),
+                          // Category (dropdown from backend)
+                          _label(t('التصنيف', 'Category')),
+                          if (_categories.isEmpty)
+                            DSText(
+                              t('لا توجد تصنيفات (تأكد من نشر مسار التصنيفات)',
+                                  'No categories (backend route not deployed)'),
+                              role: DSTextRole.caption,
+                              color: const Color(0xFFEF4444),
+                            ),
                           Wrap(
                             spacing: ds.spacing.xs,
                             runSpacing: ds.spacing.xs,
@@ -3069,7 +3076,7 @@ class _AdminExpenseScreenState extends State<AdminExpenseScreen> {
                             ],
                           ),
                           SizedBox(height: ds.spacing.md),
-                          _label(t('المورّد', 'Vendor')),
+                          _label(t('اسم المستفيد', 'Beneficiary')),
                           _ExpInput(controller: _vendor),
                           SizedBox(height: ds.spacing.md),
                           Row(
@@ -3143,7 +3150,7 @@ class _AdminExpenseScreenState extends State<AdminExpenseScreen> {
                             ],
                           ),
                           SizedBox(height: ds.spacing.md),
-                          _label(t('ملاحظات', 'Description')),
+                          _label(t('الوصف', 'Description')),
                           _ExpInput(controller: _desc, multiline: true),
                           SizedBox(height: ds.spacing.md),
                           if (_message != null) ...[
