@@ -203,6 +203,41 @@ class _ReceptionHomeScreenState extends State<ReceptionHomeScreen> {
                   ),
                 ),
               ),
+              SizedBox(height: ds.spacing.sm),
+              // Specialists schedule
+              GestureDetector(
+                onTap: () => Navigator.of(context).push(
+                  PageRouteBuilder(
+                    pageBuilder: (context, _, __) =>
+                        const ReceptionScheduleScreen(),
+                  ),
+                ),
+                child: Container(
+                  width: double.infinity,
+                  padding: EdgeInsetsDirectional.all(ds.spacing.md),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(ds.radii.large),
+                    border: Border.all(
+                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.4)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      DSLineIcon(
+                          type: LineIconType.calendar,
+                          color: const Color(0xFF8B5CF6),
+                          size: ds.spacing.md),
+                      SizedBox(width: ds.spacing.sm),
+                      DSText(
+                        t('جدول الأخصائيين', 'Specialists Schedule'),
+                        role: DSTextRole.title,
+                        color: const Color(0xFF8B5CF6),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               SizedBox(height: ds.spacing.lg),
 
               // Self-service quick links
@@ -1874,6 +1909,208 @@ class _ReceptionPatientDetailScreenState
           SizedBox(height: ds.spacing.xs),
           DSText(label,
               role: DSTextRole.caption, color: ds.colors.textSecondary),
+        ],
+      ),
+    );
+  }
+}
+
+// ==================== SPECIALISTS SCHEDULE (reception) ====================
+
+/// A day's schedule grouped by specialist (like the web timetable, fitted to
+/// the phone). Uses the existing reception/appointments endpoint.
+class ReceptionScheduleScreen extends StatefulWidget {
+  const ReceptionScheduleScreen({super.key});
+
+  @override
+  State<ReceptionScheduleScreen> createState() =>
+      _ReceptionScheduleScreenState();
+}
+
+class _ReceptionScheduleScreenState extends State<ReceptionScheduleScreen> {
+  bool _loading = true;
+  DateTime _date = DateTime.now();
+  List<ReceptionAppointment> _items = [];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  String get _dateStr =>
+      '${_date.year}-${_date.month.toString().padLeft(2, '0')}-${_date.day.toString().padLeft(2, '0')}';
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    final items = await context.receptionService.fetchAppointments(date: _dateStr);
+    if (!mounted) return;
+    setState(() {
+      _items = items;
+      _loading = false;
+    });
+  }
+
+  void _shiftDate(int days) {
+    setState(() => _date = _date.add(Duration(days: days)));
+    _load();
+  }
+
+  Map<String, List<ReceptionAppointment>> _bySpecialist() {
+    final map = <String, List<ReceptionAppointment>>{};
+    for (final a in _items) {
+      final key =
+          a.specialistName ?? tr(context, ar: 'غير محدد', en: 'Unassigned');
+      map.putIfAbsent(key, () => []).add(a);
+    }
+    for (final list in map.values) {
+      list.sort((x, y) => (x.startTime ?? '').compareTo(y.startTime ?? ''));
+    }
+    return map;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    String t(String ar, String en) => tr(context, ar: ar, en: en);
+    final groups = _bySpecialist();
+    final keys = groups.keys.toList()..sort();
+
+    return Container(
+      color: ds.colors.background,
+      child: SafeArea(
+        child: Padding(
+          padding: EdgeInsetsDirectional.all(ds.spacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: DSLineIcon(
+                        type: LineIconType.arrowBack,
+                        color: ds.colors.primary,
+                        size: ds.spacing.lg),
+                  ),
+                  SizedBox(width: ds.spacing.md),
+                  DSText(t('جدول الأخصائيين', 'Specialists Schedule'),
+                      role: DSTextRole.headline),
+                ],
+              ),
+              SizedBox(height: ds.spacing.md),
+              DSCard(
+                padding: EdgeInsetsDirectional.all(ds.spacing.sm),
+                child: Row(
+                  children: [
+                    _DateArrow(
+                        icon: LineIconType.arrowBack,
+                        onTap: () => _shiftDate(-1)),
+                    Expanded(
+                        child: Center(
+                            child:
+                                DSText(_dateStr, role: DSTextRole.title))),
+                    Transform.flip(
+                      flipX: true,
+                      child: _DateArrow(
+                          icon: LineIconType.arrowBack,
+                          onTap: () => _shiftDate(1)),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: ds.spacing.md),
+              Expanded(
+                child: _loading
+                    ? const ShimmerLoading()
+                    : keys.isEmpty
+                        ? _EmptyBox(
+                            message: t('لا توجد مواعيد', 'No appointments'))
+                        : ListView(
+                            children: [
+                              for (final k in keys) ...[
+                                _SpecialistScheduleCard(
+                                    name: k, items: groups[k]!),
+                                SizedBox(height: ds.spacing.md),
+                              ],
+                              SizedBox(height: ds.spacing.xl),
+                            ],
+                          ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SpecialistScheduleCard extends StatelessWidget {
+  final String name;
+  final List<ReceptionAppointment> items;
+
+  const _SpecialistScheduleCard({required this.name, required this.items});
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    String t(String ar, String en) => tr(context, ar: ar, en: en);
+    return DSCard(
+      padding: EdgeInsetsDirectional.all(ds.spacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: ds.spacing.lg,
+                height: ds.spacing.lg,
+                decoration: BoxDecoration(
+                  color: ds.colors.primary.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                    child: DSLineIcon(
+                        type: LineIconType.heart,
+                        color: ds.colors.primary,
+                        size: ds.spacing.md)),
+              ),
+              SizedBox(width: ds.spacing.sm),
+              Expanded(child: DSText(name, role: DSTextRole.title, maxLines: 1)),
+              DSText('${items.length} ${t('موعد', 'appt')}',
+                  role: DSTextRole.caption, color: ds.colors.textSecondary),
+            ],
+          ),
+          SizedBox(height: ds.spacing.sm),
+          for (final a in items)
+            Padding(
+              padding: EdgeInsetsDirectional.only(bottom: ds.spacing.xs),
+              child: Row(
+                children: [
+                  Container(
+                    padding: EdgeInsetsDirectional.symmetric(
+                        horizontal: ds.spacing.sm, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: ds.colors.surfaceAlt,
+                      borderRadius: BorderRadius.circular(ds.radii.small),
+                    ),
+                    child: DSText(a.startTime ?? '—',
+                        role: DSTextRole.caption, color: ds.colors.textPrimary),
+                  ),
+                  SizedBox(width: ds.spacing.sm),
+                  Expanded(
+                    child: DSText(
+                      '${a.patient?.name ?? '-'}${a.serviceName != null ? ' · ${a.serviceName}' : ''}',
+                      role: DSTextRole.body,
+                      maxLines: 1,
+                    ),
+                  ),
+                  DSText(_statusLabel(context, a.status),
+                      role: DSTextRole.caption,
+                      color: _statusColor(a.status)),
+                ],
+              ),
+            ),
         ],
       ),
     );
