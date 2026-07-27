@@ -300,6 +300,20 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                         ),
                       ),
                     ),
+                    SizedBox(width: ds.spacing.sm),
+                    Expanded(
+                      child: _MgrLink(
+                        label: t('تسجيل مصروف', 'Record Expense'),
+                        icon: LineIconType.chart,
+                        color: const Color(0xFF10B981),
+                        onTap: () => Navigator.of(context).push(
+                          PageRouteBuilder(
+                            pageBuilder: (context, _, _) =>
+                                const AdminExpenseScreen(),
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
                 SizedBox(height: ds.spacing.lg),
@@ -2829,6 +2843,395 @@ class _ReplySheetState extends State<_ReplySheet> {
           ),
         ),
         ),
+      ),
+    );
+  }
+}
+
+// ==================== ADMIN EXPENSE (record) ====================
+
+/// Record an expense from the phone (goes to the web accounting flow). The
+/// invoice image can be captured or uploaded — the fast part.
+class AdminExpenseScreen extends StatefulWidget {
+  const AdminExpenseScreen({super.key});
+
+  @override
+  State<AdminExpenseScreen> createState() => _AdminExpenseScreenState();
+}
+
+class _AdminExpenseScreenState extends State<AdminExpenseScreen> {
+  final _vendor = TextEditingController();
+  final _desc = TextEditingController();
+  final _before = TextEditingController();
+  final _vat = TextEditingController(text: '0');
+  DateTime _date = DateTime.now();
+  List<NamedRef> _categories = [];
+  NamedRef? _category;
+  String _payment = 'cash';
+  PickedAttachment? _receipt;
+  bool _loading = true;
+  bool _submitting = false;
+  String? _message;
+  bool _ok = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  @override
+  void dispose() {
+    _vendor.dispose();
+    _desc.dispose();
+    _before.dispose();
+    _vat.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    final cats = await context.hrService.fetchExpenseCategories();
+    if (!mounted) return;
+    setState(() {
+      _categories = cats;
+      _category = cats.isNotEmpty ? cats.first : null;
+      _loading = false;
+    });
+  }
+
+  String get _dateStr =>
+      '${_date.year}-${_date.month.toString().padLeft(2, '0')}-${_date.day.toString().padLeft(2, '0')}';
+
+  double get _total =>
+      (double.tryParse(_before.text) ?? 0) + (double.tryParse(_vat.text) ?? 0);
+
+  Future<void> _pick() async {
+    final p = await pickAttachment(context);
+    if (p != null && mounted) setState(() => _receipt = p);
+  }
+
+  Future<void> _submit() async {
+    final before = double.tryParse(_before.text) ?? 0;
+    if (_category == null || before <= 0) {
+      setState(() => _message = tr(context,
+          ar: 'اختر الفئة وأدخل مبلغاً صحيحاً', en: 'Choose category and a valid amount'));
+      return;
+    }
+    setState(() {
+      _submitting = true;
+      _message = null;
+    });
+    final ok = await context.hrService.submitExpense(
+      expenseDate: _dateStr,
+      categoryId: _category!.id,
+      amountBeforeVat: before,
+      vatAmount: double.tryParse(_vat.text) ?? 0,
+      vendorName: _vendor.text.trim(),
+      description: _desc.text.trim(),
+      paymentMethod: _payment,
+      receiptBytes: _receipt?.bytes,
+      receiptFilename: _receipt?.filename,
+    );
+    if (!mounted) return;
+    setState(() {
+      _submitting = false;
+      _ok = ok;
+      _message = ok
+          ? tr(context, ar: 'تم تسجيل المصروف', en: 'Expense recorded')
+          : (context.hrService.error ??
+              tr(context, ar: 'تعذّر الحفظ', en: 'Could not save'));
+      if (ok) {
+        _vendor.clear();
+        _desc.clear();
+        _before.clear();
+        _vat.text = '0';
+        _receipt = null;
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    String t(String ar, String en) => tr(context, ar: ar, en: en);
+    final isAr = t('ar', 'en') == 'ar';
+
+    return Container(
+      color: ds.colors.background,
+      child: SafeArea(
+        child: Padding(
+          padding: EdgeInsetsDirectional.fromSTEB(ds.spacing.lg, ds.spacing.lg,
+              ds.spacing.lg, ds.spacing.lg + MediaQuery.viewInsetsOf(context).bottom),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: DSLineIcon(
+                        type: LineIconType.arrowBack,
+                        color: ds.colors.primary,
+                        size: ds.spacing.lg),
+                  ),
+                  SizedBox(width: ds.spacing.md),
+                  DSText(t('تسجيل مصروف', 'Record Expense'),
+                      role: DSTextRole.headline),
+                ],
+              ),
+              SizedBox(height: ds.spacing.md),
+              Expanded(
+                child: _loading
+                    ? const ShimmerLoading()
+                    : ListView(
+                        children: [
+                          // Receipt image (fast)
+                          AttachmentField(
+                            attachment: _receipt,
+                            onAttach: _pick,
+                            onRemove: () => setState(() => _receipt = null),
+                          ),
+                          SizedBox(height: ds.spacing.md),
+                          // Date
+                          _label(t('التاريخ', 'Date')),
+                          DSCard(
+                            padding: EdgeInsetsDirectional.all(ds.spacing.sm),
+                            child: Row(
+                              children: [
+                                GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: () => setState(() => _date =
+                                      _date.subtract(const Duration(days: 1))),
+                                  child: Padding(
+                                    padding:
+                                        EdgeInsetsDirectional.all(ds.spacing.xs),
+                                    child: DSLineIcon(
+                                        type: LineIconType.arrowBack,
+                                        color: ds.colors.primary,
+                                        size: ds.spacing.md),
+                                  ),
+                                ),
+                                Expanded(
+                                    child: Center(
+                                        child: DSText(_dateStr,
+                                            role: DSTextRole.title))),
+                                Transform.flip(
+                                  flipX: true,
+                                  child: GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: () => setState(() => _date =
+                                        _date.add(const Duration(days: 1))),
+                                    child: Padding(
+                                      padding: EdgeInsetsDirectional.all(
+                                          ds.spacing.xs),
+                                      child: DSLineIcon(
+                                          type: LineIconType.arrowBack,
+                                          color: ds.colors.primary,
+                                          size: ds.spacing.md),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: ds.spacing.md),
+                          // Category
+                          _label(t('الفئة', 'Category')),
+                          Wrap(
+                            spacing: ds.spacing.xs,
+                            runSpacing: ds.spacing.xs,
+                            children: [
+                              for (final c in _categories)
+                                GestureDetector(
+                                  onTap: () => setState(() => _category = c),
+                                  behavior: HitTestBehavior.opaque,
+                                  child: Container(
+                                    padding: EdgeInsetsDirectional.symmetric(
+                                        horizontal: ds.spacing.md,
+                                        vertical: ds.spacing.xs),
+                                    decoration: BoxDecoration(
+                                      color: _category?.id == c.id
+                                          ? ds.colors.primary
+                                          : ds.colors.surfaceAlt,
+                                      borderRadius:
+                                          BorderRadius.circular(ds.radii.pill),
+                                      border:
+                                          Border.all(color: ds.colors.border),
+                                    ),
+                                    child: DSText(c.name,
+                                        role: DSTextRole.caption,
+                                        color: _category?.id == c.id
+                                            ? const Color(0xFFFFFFFF)
+                                            : ds.colors.textPrimary),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          SizedBox(height: ds.spacing.md),
+                          _label(t('المورّد', 'Vendor')),
+                          _ExpInput(controller: _vendor),
+                          SizedBox(height: ds.spacing.md),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _label(t('المبلغ قبل الضريبة', 'Amount')),
+                                    _ExpInput(
+                                        controller: _before,
+                                        number: true,
+                                        onChanged: (_) => setState(() {})),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(width: ds.spacing.sm),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _label(t('الضريبة', 'VAT')),
+                                    _ExpInput(
+                                        controller: _vat,
+                                        number: true,
+                                        onChanged: (_) => setState(() {})),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: ds.spacing.sm),
+                          DSText(
+                            '${t('الإجمالي', 'Total')}: ${_total.toStringAsFixed(3)}',
+                            role: DSTextRole.title,
+                            color: ds.colors.primary,
+                          ),
+                          SizedBox(height: ds.spacing.md),
+                          _label(t('طريقة الدفع', 'Payment method')),
+                          Wrap(
+                            spacing: ds.spacing.xs,
+                            children: [
+                              for (final pm in const [
+                                ['cash', 'نقدي', 'Cash'],
+                                ['bank', 'تحويل', 'Bank'],
+                                ['card', 'بطاقة', 'Card'],
+                              ])
+                                GestureDetector(
+                                  onTap: () => setState(() => _payment = pm[0]),
+                                  behavior: HitTestBehavior.opaque,
+                                  child: Container(
+                                    padding: EdgeInsetsDirectional.symmetric(
+                                        horizontal: ds.spacing.md,
+                                        vertical: ds.spacing.xs),
+                                    decoration: BoxDecoration(
+                                      color: _payment == pm[0]
+                                          ? ds.colors.primary
+                                          : ds.colors.surfaceAlt,
+                                      borderRadius:
+                                          BorderRadius.circular(ds.radii.pill),
+                                      border:
+                                          Border.all(color: ds.colors.border),
+                                    ),
+                                    child: DSText(isAr ? pm[1] : pm[2],
+                                        role: DSTextRole.caption,
+                                        color: _payment == pm[0]
+                                            ? const Color(0xFFFFFFFF)
+                                            : ds.colors.textPrimary),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          SizedBox(height: ds.spacing.md),
+                          _label(t('ملاحظات', 'Description')),
+                          _ExpInput(controller: _desc, multiline: true),
+                          SizedBox(height: ds.spacing.md),
+                          if (_message != null) ...[
+                            DSText(_message!,
+                                role: DSTextRole.caption,
+                                color: _ok
+                                    ? const Color(0xFF10B981)
+                                    : const Color(0xFFEF4444)),
+                            SizedBox(height: ds.spacing.sm),
+                          ],
+                          DSButton(
+                            label: _submitting
+                                ? t('جارٍ الحفظ...', 'Saving...')
+                                : t('تسجيل المصروف', 'Record Expense'),
+                            onPressed: _submitting ? null : _submit,
+                            expanded: true,
+                            size: DSButtonSize.large,
+                          ),
+                          SizedBox(height: ds.spacing.xl),
+                        ],
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _label(String s) {
+    final ds = DSProvider.of(context);
+    return Padding(
+      padding: EdgeInsetsDirectional.only(bottom: ds.spacing.xs),
+      child: DSText(s, role: DSTextRole.caption, color: ds.colors.textSecondary),
+    );
+  }
+}
+
+class _ExpInput extends StatefulWidget {
+  final TextEditingController controller;
+  final bool number;
+  final bool multiline;
+  final ValueChanged<String>? onChanged;
+
+  const _ExpInput({
+    required this.controller,
+    this.number = false,
+    this.multiline = false,
+    this.onChanged,
+  });
+
+  @override
+  State<_ExpInput> createState() => _ExpInputState();
+}
+
+class _ExpInputState extends State<_ExpInput> {
+  final FocusNode _focus = FocusNode();
+
+  @override
+  void dispose() {
+    _focus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    return Container(
+      padding: EdgeInsetsDirectional.symmetric(
+          horizontal: ds.spacing.md, vertical: ds.spacing.sm),
+      decoration: BoxDecoration(
+        color: ds.colors.surfaceAlt,
+        borderRadius: BorderRadius.circular(ds.radii.medium),
+        border: Border.all(color: ds.colors.border, width: 1.2),
+      ),
+      child: EditableText(
+        controller: widget.controller,
+        focusNode: _focus,
+        style: ds.typography.body.copyWith(color: ds.colors.textPrimary),
+        cursorColor: ds.colors.primary,
+        backgroundCursorColor: ds.colors.textMuted,
+        keyboardType: widget.number
+            ? const TextInputType.numberWithOptions(decimal: true)
+            : (widget.multiline ? TextInputType.multiline : TextInputType.text),
+        maxLines: widget.multiline ? 3 : 1,
+        minLines: widget.multiline ? 2 : 1,
+        onChanged: widget.onChanged,
+        textAlign:
+            ds.textDirection == TextDirection.rtl ? TextAlign.right : TextAlign.left,
       ),
     );
   }

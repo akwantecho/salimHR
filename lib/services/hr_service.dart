@@ -506,6 +506,61 @@ class HRService extends ChangeNotifier {
     }
   }
 
+  /// Expense categories for the admin expense form.
+  /// Backed by `GET /api/admin/expense-categories`.
+  Future<List<NamedRef>> fetchExpenseCategories() async {
+    try {
+      final r = await _client.get<Map<String, dynamic>>(
+        '/admin/expense-categories',
+      );
+      final data = r.data?['data'] as List<dynamic>? ?? [];
+      return data
+          .map((e) => NamedRef.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      _handleError(e);
+      return [];
+    }
+  }
+
+  /// Record an expense (optionally with a receipt image). Posts to the same
+  /// accounting flow as the web panel. Backed by `POST /api/admin/expenses`.
+  Future<bool> submitExpense({
+    required String expenseDate,
+    required int categoryId,
+    required double amountBeforeVat,
+    required double vatAmount,
+    String? vendorName,
+    String? description,
+    String? paymentMethod,
+    Uint8List? receiptBytes,
+    String? receiptFilename,
+  }) async {
+    try {
+      final map = <String, dynamic>{
+        'expense_date': expenseDate,
+        'category_id': categoryId,
+        'amount_before_vat': amountBeforeVat,
+        'vat_amount': vatAmount,
+        'total_amount': amountBeforeVat + vatAmount,
+        if (vendorName != null && vendorName.isNotEmpty) 'vendor_name': vendorName,
+        if (description != null && description.isNotEmpty) 'description': description,
+        if (paymentMethod != null) 'payment_method': paymentMethod,
+      };
+      if (receiptBytes != null && receiptFilename != null) {
+        map['receipt'] =
+            MultipartFile.fromBytes(receiptBytes, filename: receiptFilename);
+        await _client.post('/admin/expenses', data: FormData.fromMap(map));
+      } else {
+        await _client.post('/admin/expenses', data: map);
+      }
+      return true;
+    } on DioException catch (e) {
+      _handleError(e);
+      return false;
+    }
+  }
+
   /// Fetch the physical examination for an appointment (creates a draft shape
   /// when none exists). Backed by `GET /api/appointments/{id}/physical-exam`.
   Future<PhysicalExam?> fetchPhysicalExam(int appointmentId) async {
