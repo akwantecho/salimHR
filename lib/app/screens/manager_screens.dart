@@ -158,6 +158,9 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                         icon: LineIconType.calendar,
                         color: const Color(0xFF6366F1),
                         trend: t('موعد', 'appts'),
+                        onTap: () => Navigator.of(context).push(PageRouteBuilder(
+                            pageBuilder: (c, _, _) =>
+                                const ManagerAppointmentsScreen())),
                       ),
                     ),
                     SizedBox(width: ds.spacing.sm),
@@ -168,6 +171,9 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                         icon: LineIconType.heart,
                         color: const Color(0xFF10B981),
                         trend: t('جلسة', 'sessions'),
+                        onTap: () => Navigator.of(context).push(PageRouteBuilder(
+                            pageBuilder: (c, _, _) =>
+                                const ManagerAppointmentsScreen())),
                       ),
                     ),
                   ],
@@ -182,6 +188,9 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                         icon: LineIconType.calendar,
                         color: const Color(0xFFF59E0B),
                         trend: t('كل المواعيد', 'all time'),
+                        onTap: () => Navigator.of(context).push(PageRouteBuilder(
+                            pageBuilder: (c, _, _) =>
+                                const ManagerAppointmentsScreen())),
                       ),
                     ),
                     SizedBox(width: ds.spacing.sm),
@@ -192,6 +201,9 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                         icon: LineIconType.bookmark,
                         color: const Color(0xFF8B5CF6),
                         trend: t('مسجّل', 'total'),
+                        onTap: () => Navigator.of(context).push(PageRouteBuilder(
+                            pageBuilder: (c, _, _) =>
+                                const ManagerAppointmentsScreen())),
                       ),
                     ),
                   ],
@@ -207,6 +219,9 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                         color: const Color(0xFF06B6D4),
                         trend: t('${_mstat('specialists_total')} أخصائي',
                             '${_mstat('specialists_total')} specialists'),
+                        onTap: () => Navigator.of(context).push(PageRouteBuilder(
+                            pageBuilder: (c, _, _) =>
+                                const ManagerStaffScreen())),
                       ),
                     ),
                     SizedBox(width: ds.spacing.sm),
@@ -217,6 +232,8 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                         icon: LineIconType.bell,
                         color: const Color(0xFFEC4899),
                         trend: t('تحتاج إجراء', 'need action'),
+                        onTap: () =>
+                            AppScope.of(context).setTab(UserRole.manager, 1),
                       ),
                     ),
                   ],
@@ -316,6 +333,19 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                     ),
                   ],
                 ),
+                SizedBox(height: ds.spacing.sm),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _MgrLink(
+                        label: t('التنبيهات', 'Notifications'),
+                        icon: LineIconType.bell,
+                        color: const Color(0xFFEC4899),
+                        onTap: () => AppScope.of(context).showNotifications(),
+                      ),
+                    ),
+                  ],
+                ),
                 SizedBox(height: ds.spacing.lg),
 
                 // Today's schedule acknowledgements
@@ -333,7 +363,8 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                 SectionHeader(
                   title: t('موافقات معلقة', 'Pending Approvals'),
                   actionLabel: t('عرض الكل', 'View all'),
-                  onAction: () {},
+                  onAction: () =>
+                      AppScope.of(context).setTab(UserRole.manager, 1),
                 ),
                 _ApprovalSummaryCard(
                   items: [
@@ -418,6 +449,7 @@ class _DashboardCard extends StatelessWidget {
   final LineIconType icon;
   final Color color;
   final String trend;
+  final VoidCallback? onTap;
 
   const _DashboardCard({
     required this.title,
@@ -425,12 +457,13 @@ class _DashboardCard extends StatelessWidget {
     required this.icon,
     required this.color,
     required this.trend,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final ds = DSProvider.of(context);
-    return Container(
+    final card = Container(
       padding: EdgeInsetsDirectional.all(ds.spacing.md),
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -486,6 +519,13 @@ class _DashboardCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+
+    if (onTap == null) return card;
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: card,
     );
   }
 }
@@ -2660,23 +2700,20 @@ class _ManagerNoteCard extends StatelessWidget {
               ),
               padding: EdgeInsetsDirectional.all(ds.spacing.sm),
               decoration: BoxDecoration(
-                color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                color: const Color(0xFF059669),
                 borderRadius: BorderRadius.circular(ds.radii.medium),
-                border: const BorderDirectional(
-                  start: BorderSide(color: Color(0xFF10B981), width: 3),
-                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   DSText(
-                    reply.creatorName ?? t('الإدارة', 'Admin'),
+                    reply.creatorName ?? t('رد الإدارة', 'Admin reply'),
                     role: DSTextRole.label,
-                    color: const Color(0xFF10B981),
+                    color: const Color(0xFFFFFFFF),
                   ),
                   SizedBox(height: 2),
                   DSText(reply.note,
-                      role: DSTextRole.title, color: const Color(0xFF059669)),
+                      role: DSTextRole.title, color: const Color(0xFFFFFFFF)),
                   if (reply.attachmentUrl != null)
                     NoteAttachmentChip(
                       url: reply.attachmentUrl!,
@@ -3076,6 +3113,9 @@ class _AdminExpenseScreenState extends State<AdminExpenseScreen> {
                             ],
                           ),
                           SizedBox(height: ds.spacing.md),
+                          _label(t('الوصف', 'Description')),
+                          _ExpInput(controller: _desc),
+                          SizedBox(height: ds.spacing.md),
                           _label(t('اسم المستفيد', 'Beneficiary')),
                           _ExpInput(controller: _vendor),
                           SizedBox(height: ds.spacing.md),
@@ -3149,9 +3189,6 @@ class _AdminExpenseScreenState extends State<AdminExpenseScreen> {
                                 ),
                             ],
                           ),
-                          SizedBox(height: ds.spacing.md),
-                          _label(t('الوصف', 'Description')),
-                          _ExpInput(controller: _desc, multiline: true),
                           SizedBox(height: ds.spacing.md),
                           if (_message != null) ...[
                             DSText(_message!,

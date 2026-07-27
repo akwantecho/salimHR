@@ -2205,16 +2205,15 @@ class _NoteReplyTile extends StatelessWidget {
     final ds = DSProvider.of(context);
     // Distinct green accent so the admin's reply clearly stands out from the
     // employee's own message.
-    const accent = Color(0xFF10B981);
+    const accent = Color(0xFF059669);
+    const white = Color(0xFFFFFFFF);
     return Container(
       margin: EdgeInsetsDirectional.only(top: ds.spacing.sm, start: ds.spacing.lg),
       padding: EdgeInsetsDirectional.all(ds.spacing.md),
       decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.12),
+        // Solid green bubble with white text — unmistakably the admin's reply.
+        color: accent,
         borderRadius: BorderRadius.circular(ds.radii.medium),
-        border: BorderDirectional(
-          start: BorderSide(color: accent, width: 3),
-        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2223,21 +2222,21 @@ class _NoteReplyTile extends StatelessWidget {
             children: [
               DSLineIcon(
                 type: LineIconType.chat,
-                color: accent,
+                color: white,
                 size: ds.spacing.md,
               ),
               SizedBox(width: ds.spacing.xs),
               Expanded(
                 child: DSText(
-                  reply.creatorName ?? tr(context, ar: 'الإدارة', en: 'Admin'),
-                  role: DSTextRole.title,
-                  color: accent,
+                  reply.creatorName ?? tr(context, ar: 'رد الإدارة', en: 'Admin reply'),
+                  role: DSTextRole.label,
+                  color: white,
                 ),
               ),
               DSText(
                 _formatDate(reply.createdAt),
                 role: DSTextRole.caption,
-                color: ds.colors.textMuted,
+                color: white.withValues(alpha: 0.8),
               ),
             ],
           ),
@@ -2245,7 +2244,7 @@ class _NoteReplyTile extends StatelessWidget {
           DSText(
             reply.note,
             role: DSTextRole.title,
-            color: const Color(0xFF059669),
+            color: white,
           ),
           if (reply.attachmentUrl != null)
             NoteAttachmentChip(
