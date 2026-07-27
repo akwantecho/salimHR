@@ -2245,7 +2245,7 @@ class _NoteReplyTile extends StatelessWidget {
           DSText(
             reply.note,
             role: DSTextRole.title,
-            color: ds.colors.textPrimary,
+            color: const Color(0xFF059669),
           ),
           if (reply.attachmentUrl != null)
             NoteAttachmentChip(

@@ -394,6 +394,11 @@ class _ReceptionAppointmentsScreenState
     if (ok) _load();
   }
 
+  Future<void> _attend(ReceptionAppointment a, String status) async {
+    final ok = await context.receptionService.setAttendance(a.id, status);
+    if (ok) _load();
+  }
+
   @override
   Widget build(BuildContext context) {
     final ds = DSProvider.of(context);
@@ -442,12 +447,18 @@ class _ReceptionAppointmentsScreenState
           )
         else
           SliverSeparatedList(
-            itemBuilder: (context, i) => ReceptionAppointmentCard(
-              appointment: _items[i],
-              onCancel: _items[i].status == 'cancelled'
-                  ? null
-                  : () => _cancel(_items[i]),
-            ),
+            itemBuilder: (context, i) {
+              final a = _items[i];
+              final terminal = a.status == 'cancelled' ||
+                  a.status == 'completed' ||
+                  a.status == 'no_show';
+              return ReceptionAppointmentCard(
+                appointment: a,
+                onAttend: terminal ? null : () => _attend(a, 'checked_in'),
+                onAbsent: terminal ? null : () => _attend(a, 'no_show'),
+                onCancel: terminal ? null : () => _cancel(a),
+              );
+            },
             itemCount: _items.length,
             spacing: ds.spacing.sm,
           ),
@@ -1329,11 +1340,15 @@ class _PickChip extends StatelessWidget {
 class ReceptionAppointmentCard extends StatelessWidget {
   final ReceptionAppointment appointment;
   final VoidCallback? onCancel;
+  final VoidCallback? onAttend;
+  final VoidCallback? onAbsent;
 
   const ReceptionAppointmentCard({
     super.key,
     required this.appointment,
     this.onCancel,
+    this.onAttend,
+    this.onAbsent,
   });
 
   @override
@@ -1398,18 +1413,55 @@ class ReceptionAppointmentCard extends StatelessWidget {
                   color: ds.colors.textSecondary,
                 ),
               ),
-              if (onCancel != null)
-                GestureDetector(
-                  onTap: onCancel,
-                  child: DSText(
-                    tr(context, ar: 'إلغاء', en: 'Cancel'),
-                    role: DSTextRole.caption,
+              if (onAttend != null)
+                _CardAction(
+                    label: tr(context, ar: 'حضر', en: 'Present'),
+                    color: const Color(0xFF10B981),
+                    onTap: onAttend!),
+              if (onAbsent != null) ...[
+                SizedBox(width: ds.spacing.sm),
+                _CardAction(
+                    label: tr(context, ar: 'غياب', en: 'Absent'),
+                    color: const Color(0xFFF59E0B),
+                    onTap: onAbsent!),
+              ],
+              if (onCancel != null) ...[
+                SizedBox(width: ds.spacing.sm),
+                _CardAction(
+                    label: tr(context, ar: 'إلغاء', en: 'Cancel'),
                     color: const Color(0xFFEF4444),
-                  ),
-                ),
+                    onTap: onCancel!),
+              ],
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _CardAction extends StatelessWidget {
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _CardAction(
+      {required this.label, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: EdgeInsetsDirectional.symmetric(
+            horizontal: ds.spacing.sm, vertical: 2),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(ds.radii.pill),
+        ),
+        child: DSText(label, role: DSTextRole.caption, color: color),
       ),
     );
   }

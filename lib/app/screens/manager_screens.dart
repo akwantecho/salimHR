@@ -2675,7 +2675,8 @@ class _ManagerNoteCard extends StatelessWidget {
                     color: const Color(0xFF10B981),
                   ),
                   SizedBox(height: 2),
-                  DSText(reply.note, role: DSTextRole.body),
+                  DSText(reply.note,
+                      role: DSTextRole.title, color: const Color(0xFF059669)),
                   if (reply.attachmentUrl != null)
                     NoteAttachmentChip(
                       url: reply.attachmentUrl!,

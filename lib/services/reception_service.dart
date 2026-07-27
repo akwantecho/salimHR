@@ -246,6 +246,21 @@ class ReceptionService extends ChangeNotifier {
     }
   }
 
+  /// Mark an appointment present (checked_in) or absent (no_show).
+  /// Backed by `POST /api/reception/appointments/{id}/status`.
+  Future<bool> setAttendance(int appointmentId, String status) async {
+    try {
+      await _client.post(
+        '/reception/appointments/$appointmentId/status',
+        data: {'status': status},
+      );
+      return true;
+    } on DioException catch (e) {
+      _error = e.message;
+      return false;
+    }
+  }
+
   void _setLoading(bool value) {
     _isLoading = value;
     notifyListeners();

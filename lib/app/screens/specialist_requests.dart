@@ -99,7 +99,7 @@ class _AddRequestPopupState extends State<AddRequestPopup>
       ),
       _PopupOption(
         kind: RequestKind.loan,
-        label: t('طلب دين', 'Loan Request'),
+        label: t('طلب سلفة', 'Loan Request'),
         sub: t('سلفة على الراتب', 'Salary advance'),
         icon: LineIconType.chart,
         color: const Color(0xFFF59E0B),
@@ -1622,7 +1622,7 @@ class _LoanRequestScreenState extends State<LoanRequestScreen> {
       if (ok) {
         _success = tr(
           context,
-          ar: 'تم إرسال طلب الدين بنجاح',
+          ar: 'تم إرسال طلب السلفة بنجاح',
           en: 'Loan request submitted',
         );
         _amountCtrl.clear();
@@ -1642,7 +1642,7 @@ class _LoanRequestScreenState extends State<LoanRequestScreen> {
     return ListenableBuilder(
       listenable: Listenable.merge([_amountCtrl, _reasonCtrl]),
       builder: (context, _) => RequestFormScaffold(
-        title: t('طلب دين', 'Loan Request'),
+        title: t('طلب سلفة', 'Loan Request'),
         subtitle: t('سلفة مالية على الراتب', 'Salary advance request'),
         onBack: widget.onBack,
         submitLabel: t('إرسال الطلب', 'Submit Request'),

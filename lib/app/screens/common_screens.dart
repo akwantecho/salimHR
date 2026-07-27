@@ -179,7 +179,12 @@ class _LoginScreenState extends State<LoginScreen> {
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
-                padding: EdgeInsetsDirectional.all(ds.spacing.lg),
+                padding: EdgeInsetsDirectional.fromSTEB(
+                  ds.spacing.lg,
+                  ds.spacing.lg,
+                  ds.spacing.lg,
+                  ds.spacing.lg + MediaQuery.viewInsetsOf(context).bottom,
+                ),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 420),
                   child: Column(
