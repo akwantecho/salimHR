@@ -6,6 +6,8 @@ enum ApprovalType {
   medicalExcuse,
   inventory,
   payroll,
+  transfer,
+  loan,
 }
 
 /// Status of an approval
@@ -79,16 +81,25 @@ class Approval extends Equatable {
   static String _generateTitle(Map<String, dynamic> json, ApprovalType type) {
     switch (type) {
       case ApprovalType.leave:
-        final leaveType = json['leave_type']?['name'] ?? 'Leave';
-        return '$leaveType Request';
+        final leaveType = json['leave_type_name'] ??
+            json['leave_type']?['name_ar'] ??
+            json['leave_type']?['name'] ??
+            'إجازة';
+        return 'طلب $leaveType';
       case ApprovalType.medicalExcuse:
-        return 'Medical Excuse';
+        return 'عذر طبي';
       case ApprovalType.inventory:
-        return 'Inventory Request #${json['id']}';
+        return 'طلب مخزون #${json['id']}';
       case ApprovalType.payroll:
         final month = json['month'] ?? '';
         final year = json['year'] ?? '';
-        return 'Payroll $month/$year';
+        return 'رواتب $month/$year';
+      case ApprovalType.transfer:
+        final patient = json['subject'] ?? json['patient']?['name'] ?? '';
+        return 'طلب نقل مريض${patient != '' ? ': $patient' : ''}';
+      case ApprovalType.loan:
+        final amount = json['amount'];
+        return 'طلب سلفة${amount != null ? ' ($amount)' : ''}';
     }
   }
 

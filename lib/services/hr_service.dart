@@ -101,6 +101,22 @@ class HRService extends ChangeNotifier {
         );
       }
 
+      // Parse patient-transfer requests
+      final transfers = data['transfers'] as List<dynamic>? ?? [];
+      for (final r in transfers) {
+        _pendingApprovals.add(
+          Approval.fromJson(r as Map<String, dynamic>, ApprovalType.transfer),
+        );
+      }
+
+      // Parse loan (salary advance) requests
+      final loans = data['loans'] as List<dynamic>? ?? [];
+      for (final r in loans) {
+        _pendingApprovals.add(
+          Approval.fromJson(r as Map<String, dynamic>, ApprovalType.loan),
+        );
+      }
+
       _setLoading(false);
     } on DioException catch (e) {
       _handleError(e);
@@ -134,6 +150,18 @@ class HRService extends ChangeNotifier {
       '/approvals/excuses/$excuseId/reject',
       reason: reason,
     );
+  }
+
+  /// Approve an employee request (patient transfer / loan).
+  Future<bool> approveRequest(int requestId, {String? notes}) async {
+    return _processApproval('/approvals/requests/$requestId/approve',
+        notes: notes);
+  }
+
+  /// Reject an employee request (patient transfer / loan).
+  Future<bool> rejectRequest(int requestId, {required String reason}) async {
+    return _processApproval('/approvals/requests/$requestId/reject',
+        reason: reason);
   }
 
   /// Approve an inventory request

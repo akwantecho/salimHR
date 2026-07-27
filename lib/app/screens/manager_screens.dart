@@ -708,6 +708,10 @@ class _ManagerApprovalsScreenState extends State<ManagerApprovalsScreen> {
       case ApprovalType.payroll:
         success = await hrService.approvePayroll(approval.id);
         break;
+      case ApprovalType.transfer:
+      case ApprovalType.loan:
+        success = await hrService.approveRequest(approval.id);
+        break;
     }
 
     if (success) {
@@ -746,6 +750,10 @@ class _ManagerApprovalsScreenState extends State<ManagerApprovalsScreen> {
         break;
       case ApprovalType.payroll:
         success = await hrService.rejectPayroll(approval.id, reason: reason);
+        break;
+      case ApprovalType.transfer:
+      case ApprovalType.loan:
+        success = await hrService.rejectRequest(approval.id, reason: reason);
         break;
     }
 
@@ -1037,6 +1045,10 @@ class _ApprovalCardFromApi extends StatelessWidget {
         return const Color(0xFFEF4444); // Red
       case ApprovalType.payroll:
         return const Color(0xFF14B8A6); // Teal
+      case ApprovalType.transfer:
+        return const Color(0xFFF97316); // Orange
+      case ApprovalType.loan:
+        return const Color(0xFFF59E0B); // Amber
     }
   }
 
@@ -1050,6 +1062,10 @@ class _ApprovalCardFromApi extends StatelessWidget {
         return LineIconType.chart;
       case ApprovalType.payroll:
         return LineIconType.bookmark;
+      case ApprovalType.transfer:
+        return LineIconType.heart;
+      case ApprovalType.loan:
+        return LineIconType.chart;
     }
   }
 
@@ -1064,6 +1080,10 @@ class _ApprovalCardFromApi extends StatelessWidget {
         return t('مخزون', 'Inventory');
       case ApprovalType.payroll:
         return t('رواتب', 'Payroll');
+      case ApprovalType.transfer:
+        return t('نقل مريض', 'Transfer');
+      case ApprovalType.loan:
+        return t('سلفة', 'Loan');
     }
   }
 
