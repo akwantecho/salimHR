@@ -709,8 +709,11 @@ class _ManagerApprovalsScreenState extends State<ManagerApprovalsScreen> {
         success = await hrService.approvePayroll(approval.id);
         break;
       case ApprovalType.transfer:
+        success =
+            await hrService.approveRequest(approval.id, type: 'transfer');
+        break;
       case ApprovalType.loan:
-        success = await hrService.approveRequest(approval.id);
+        success = await hrService.approveRequest(approval.id, type: 'loan');
         break;
     }
 
@@ -752,8 +755,12 @@ class _ManagerApprovalsScreenState extends State<ManagerApprovalsScreen> {
         success = await hrService.rejectPayroll(approval.id, reason: reason);
         break;
       case ApprovalType.transfer:
+        success = await hrService.rejectRequest(approval.id,
+            type: 'transfer', reason: reason);
+        break;
       case ApprovalType.loan:
-        success = await hrService.rejectRequest(approval.id, reason: reason);
+        success = await hrService.rejectRequest(approval.id,
+            type: 'loan', reason: reason);
         break;
     }
 

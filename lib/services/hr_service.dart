@@ -193,16 +193,19 @@ class HRService extends ChangeNotifier {
     }
   }
 
-  /// Approve an employee request (patient transfer / loan).
-  Future<bool> approveRequest(int requestId, {String? notes}) async {
+  /// Approve an employee request (patient transfer / loan). [type] is
+  /// 'transfer' | 'loan' to route correctly on the server.
+  Future<bool> approveRequest(int requestId,
+      {required String type, String? notes}) async {
     return _processApproval('/approvals/requests/$requestId/approve',
-        notes: notes);
+        notes: notes, type: type);
   }
 
   /// Reject an employee request (patient transfer / loan).
-  Future<bool> rejectRequest(int requestId, {required String reason}) async {
+  Future<bool> rejectRequest(int requestId,
+      {required String type, required String reason}) async {
     return _processApproval('/approvals/requests/$requestId/reject',
-        reason: reason);
+        reason: reason, type: type);
   }
 
   /// Approve an inventory request
@@ -245,12 +248,14 @@ class HRService extends ChangeNotifier {
     String endpoint, {
     String? notes,
     String? reason,
+    String? type,
   }) async {
     _setLoading(true);
     _error = null;
 
     try {
-      await _client.post(endpoint, data: {'notes': ?notes, 'reason': ?reason});
+      await _client.post(endpoint,
+          data: {'notes': ?notes, 'reason': ?reason, 'type': ?type});
 
       // Refresh approvals list
       await fetchPendingApprovals();
