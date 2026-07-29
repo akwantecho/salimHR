@@ -1,0 +1,211 @@
+<style>
+  :root {
+    --bg: #f4f6f5;
+    --surface: #ffffff;
+    --fg: #1a2420;
+    --muted: #5c6b64;
+    --faint: #8a9791;
+    --accent: #0f766e;
+    --accent-soft: #d7ede9;
+    --border: #dfe6e2;
+    --rule: #e8ede9;
+    --maxw: 720px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1512;
+      --surface: #131e19;
+      --fg: #e6ece8;
+      --muted: #9fb0a8;
+      --faint: #6f8078;
+      --accent: #4fd1c0;
+      --accent-soft: #14312b;
+      --border: #223029;
+      --rule: #1c2823;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f6f5; --surface: #ffffff; --fg: #1a2420; --muted: #5c6b64;
+    --faint: #8a9791; --accent: #0f766e; --accent-soft: #d7ede9;
+    --border: #dfe6e2; --rule: #e8ede9;
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1512; --surface: #131e19; --fg: #e6ece8; --muted: #9fb0a8;
+    --faint: #6f8078; --accent: #4fd1c0; --accent-soft: #14312b;
+    --border: #223029; --rule: #1c2823;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  .doc {
+    max-width: var(--maxw);
+    margin: 0 auto;
+    padding: clamp(28px, 5vw, 60px) clamp(20px, 5vw, 40px) 80px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: clamp(24px, 5vw, 48px);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 12px 32px -20px rgba(0,0,0,0.25);
+  }
+
+  .eyebrow {
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Tahoma, sans-serif;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 10px;
+  }
+  h1 {
+    font-size: clamp(1.6rem, 4.5vw, 2.15rem);
+    line-height: 1.15;
+    margin: 0 0 6px;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+  .updated {
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Tahoma, sans-serif;
+    font-size: 0.82rem;
+    color: var(--faint);
+    margin: 0 0 4px;
+  }
+  h2 {
+    font-size: 1.12rem;
+    margin: 34px 0 10px;
+    padding-top: 20px;
+    border-top: 1px solid var(--rule);
+    letter-spacing: -0.005em;
+  }
+  p { margin: 0 0 14px; color: var(--fg); }
+  ul { margin: 0 0 14px; padding-inline-start: 20px; }
+  li { margin-bottom: 8px; }
+  li::marker { color: var(--accent); }
+  strong { font-weight: 600; }
+  a { color: var(--accent); text-underline-offset: 2px; }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+
+  .lede {
+    font-size: 1.05rem;
+    color: var(--muted);
+  }
+  .contact {
+    margin-top: 20px;
+    background: var(--accent-soft);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Tahoma, sans-serif;
+    font-size: 0.92rem;
+  }
+  .switch {
+    margin-top: 52px;
+    padding-top: 4px;
+    border-top: 2px dashed var(--rule);
+  }
+  section[dir="rtl"] { text-align: right; }
+  section[dir="ltr"] { text-align: left; }
+  section[dir="ltr"] .eyebrow,
+  section[dir="ltr"] .updated { font-family: ui-sans-serif, -apple-system, "Segoe UI", sans-serif; }
+</style>
+
+<article class="doc">
+  <div class="card">
+
+    <!-- Arabic -->
+    <section dir="rtl" lang="ar">
+      <p class="eyebrow">سياسة الخصوصية</p>
+      <h1>تطبيق Salim HR</h1>
+      <p class="updated">آخر تحديث: 29 يوليو 2026 · المشغّل: Akwan</p>
+
+      <p class="lede">Salim HR أداة إدارية داخلية للعيادات يستخدمها الموظفون (الإدارة، الاستقبال،
+      الأخصائيون) لإدارة المواعيد والطلبات والإشعارات. توضّح هذه الصفحة البيانات التي نجمعها وكيف نستخدمها.</p>
+
+      <h2>البيانات التي نجمعها</h2>
+      <ul>
+        <li><strong>بيانات الحساب:</strong> البريد الإلكتروني، الاسم، رقم الموظف، والدور — لتسجيل الدخول وتحديد الصلاحيات.</li>
+        <li><strong>بيانات التشغيل:</strong> المواعيد، الطلبات (إجازات، سُلف، مخزون، نقل مرضى)، الملاحظات، والمصاريف.</li>
+        <li><strong>رمز الإشعارات (FCM):</strong> رمز جهاز لإرسال الإشعارات الفورية عبر Firebase من Google.</li>
+        <li><strong>المرفقات:</strong> الصور والملفات التي ترفعها اختيارياً، بإذنك للوصول للكاميرا أو المعرض.</li>
+      </ul>
+
+      <h2>كيف نستخدم البيانات</h2>
+      <ul>
+        <li>تشغيل خدمات التطبيق: تسجيل الدخول، المواعيد، الطلبات، الموافقات.</li>
+        <li>إرسال إشعارات متعلقة بعملك: موافقة أو رفض طلب، رد إداري، موعد جديد.</li>
+        <li>لا نستخدم بياناتك للإعلانات، ولا نبيعها أو نؤجّرها لأي طرف ثالث.</li>
+      </ul>
+
+      <h2>التخزين والمشاركة</h2>
+      <ul>
+        <li>تُخزَّن البيانات على خوادم العيادة الآمنة الخاصة بالمشغّل.</li>
+        <li>نستخدم <strong>Firebase Cloud Messaging من Google</strong> فقط لإيصال الإشعارات
+          (<a href="https://firebase.google.com/support/privacy" target="_blank" rel="noopener">سياسة Firebase</a>).</li>
+        <li>لا نشارك بياناتك مع أي جهة أخرى إلا إذا تطلّب القانون ذلك.</li>
+      </ul>
+
+      <h2>الحماية وحقوقك</h2>
+      <p>نستخدم اتصالاً مشفّراً (HTTPS) ومصادقة برمز آمن وتقييد الوصول حسب الدور. وبما أن الحسابات
+      تديرها عيادتك، يمكنك طلب الوصول إلى بياناتك أو تصحيحها أو حذفها عبر إدارة العيادة أو بالتواصل معنا.
+      التطبيق مخصّص للموظفين البالغين وليس موجّهاً للأطفال دون 18 عاماً.</p>
+
+      <div class="contact">
+        للاستفسار عن الخصوصية: <a href="mailto:aljfrysd29@gmail.com">aljfrysd29@gmail.com</a>
+      </div>
+    </section>
+
+    <!-- English -->
+    <section dir="ltr" lang="en" class="switch">
+      <p class="eyebrow">Privacy Policy</p>
+      <h1>Salim HR</h1>
+      <p class="updated">Last updated: July 29, 2026 · Operated by Akwan</p>
+
+      <p class="lede">Salim HR is an internal clinic administration tool used by staff (management,
+      reception, specialists) to manage appointments, requests, and notifications. This page explains
+      what we collect and how we use it.</p>
+
+      <h2>Data we collect</h2>
+      <ul>
+        <li><strong>Account data:</strong> email, name, employee number, and role — for login and permissions.</li>
+        <li><strong>Operational data:</strong> appointments, requests (leave, advances, inventory, patient transfers), notes, and expenses.</li>
+        <li><strong>Notification token (FCM):</strong> a device token to deliver push notifications via Google Firebase.</li>
+        <li><strong>Attachments:</strong> images/files you optionally upload, with your camera/gallery permission.</li>
+      </ul>
+
+      <h2>How we use data</h2>
+      <ul>
+        <li>To run the app's services: login, appointments, requests, approvals.</li>
+        <li>To send work-related notifications: request approved/rejected, admin reply, new appointment.</li>
+        <li>We do not use your data for advertising, and we do not sell or rent it to third parties.</li>
+      </ul>
+
+      <h2>Storage &amp; sharing</h2>
+      <ul>
+        <li>Data is stored on the operator's secure clinic servers.</li>
+        <li>We use <strong>Google Firebase Cloud Messaging</strong> only to deliver notifications
+          (<a href="https://firebase.google.com/support/privacy" target="_blank" rel="noopener">Firebase policy</a>).</li>
+        <li>We do not share your data with anyone else unless required by law.</li>
+      </ul>
+
+      <h2>Security &amp; your rights</h2>
+      <p>We use encrypted transport (HTTPS), secure token authentication, and role-based access. Since
+      accounts are managed by your clinic, you may request access, correction, or deletion of your data
+      through your clinic's administration or by contacting us. The app is intended for adult staff and
+      is not directed at children under 18.</p>
+
+      <div class="contact">
+        Privacy questions: <a href="mailto:aljfrysd29@gmail.com">aljfrysd29@gmail.com</a>
+      </div>
+    </section>
+
+  </div>
+</article>
