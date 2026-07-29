@@ -406,30 +406,15 @@ class PromoBannerSlide extends StatelessWidget {
     // Accent color is used ONLY when there is no image.
     final base = Color(banner.colorValue ?? 0xFF6366F1);
 
-    // With an image: show it clean (no colored gradient/frame) — just a light
-    // neutral darken so overlaid text stays legible. Without an image: use color.
+    // With an image: show it EXACTLY as uploaded — no darken filter, no shadow.
+    // Without an image: use the chosen background colour.
     final decoration = hasImage
         ? BoxDecoration(
             borderRadius: BorderRadius.circular(ds.radii.large),
             image: DecorationImage(
               image: NetworkImage(banner.imageUrl!),
               fit: BoxFit.cover,
-              colorFilter: const ColorFilter.mode(
-                Color(0x33000000),
-                BlendMode.darken,
-              ),
             ),
-            // Shadow only when the admin also chose a background colour; a plain
-            // image banner renders flat with no elevation.
-            boxShadow: hasColor
-                ? const [
-                    BoxShadow(
-                      color: Color(0x1A000000),
-                      blurRadius: 12,
-                      offset: Offset(0, 6),
-                    ),
-                  ]
-                : null,
           )
         : BoxDecoration(
             borderRadius: BorderRadius.circular(ds.radii.large),
@@ -455,32 +440,17 @@ class PromoBannerSlide extends StatelessWidget {
       margin: EdgeInsetsDirectional.symmetric(horizontal: ds.spacing.xs),
       padding: EdgeInsets.all(ds.spacing.lg),
       decoration: decoration,
-      // Force LTR so title, subtitle and the action button all align to the
-      // same (left) edge, regardless of the app language direction.
+      // Force LTR so the action button stays on the left and the text block on
+      // the right, on the same row, regardless of the app language direction.
       child: Directionality(
         textDirection: TextDirection.ltr,
-        child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          DSText(
-            banner.title,
-            role: DSTextRole.headline,
-            color: white,
-          ),
-          SizedBox(height: ds.spacing.xs),
-          DSText(
-            banner.subtitle,
-            role: DSTextRole.body,
-            color: white.withValues(alpha: 0.92),
-          ),
-          if (banner.actionLabel != null &&
-              banner.actionLabel!.isNotEmpty) ...[
-            SizedBox(height: ds.spacing.md),
-            // Action label on the same (left) edge as the texts.
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Container(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Action button — left, same row (vertically centered)
+            if (banner.actionLabel != null &&
+                banner.actionLabel!.isNotEmpty) ...[
+              Container(
                 padding: EdgeInsets.symmetric(
                   horizontal: ds.spacing.md,
                   vertical: ds.spacing.xs,
@@ -496,9 +466,30 @@ class PromoBannerSlide extends StatelessWidget {
                   color: white,
                 ),
               ),
+              SizedBox(width: ds.spacing.md),
+            ],
+            // Text block — right (right-aligned)
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DSText(
+                    banner.title,
+                    role: DSTextRole.headline,
+                    color: white,
+                  ),
+                  SizedBox(height: ds.spacing.xs),
+                  DSText(
+                    banner.subtitle,
+                    role: DSTextRole.body,
+                    color: white.withValues(alpha: 0.92),
+                  ),
+                ],
+              ),
             ),
           ],
-        ],
         ),
       ),
     );
