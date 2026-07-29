@@ -8,6 +8,7 @@ import '../../design_system/primitives/ds_card.dart';
 import '../../design_system/primitives/ds_text.dart';
 import '../../models/models.dart';
 import '../../services/api_provider.dart';
+import '../../utils/numeric.dart';
 import '../i18n.dart';
 import '../ui/blocks.dart';
 
@@ -80,9 +81,13 @@ class _InventoryStocktakeScreenState extends State<InventoryStocktakeScreen> {
       if (id == null) {
         setState(() {
           _isLoading = false;
-          _error = svc.error ??
-              tr(context,
-                  ar: 'تعذّر بدء جلسة الجرد', en: 'Could not open stocktake');
+          _error =
+              svc.error ??
+              tr(
+                context,
+                ar: 'تعذّر بدء جلسة الجرد',
+                en: 'Could not open stocktake',
+              );
         });
         return;
       }
@@ -166,10 +171,8 @@ class _InventoryStocktakeScreenState extends State<InventoryStocktakeScreen> {
       title: tr(context, ar: 'تأكيد الإنهاء', en: 'Finalize stocktake?'),
       body: tr(
         context,
-        ar:
-            'سيتم تعديل المخزون لتطابق الأعداد المُسجّلة. هذا الإجراء غير قابل للتراجع.',
-        en:
-            'Stock will be adjusted to match counted values. This cannot be undone.',
+        ar: 'سيتم تعديل المخزون لتطابق الأعداد المُسجّلة. هذا الإجراء غير قابل للتراجع.',
+        en: 'Stock will be adjusted to match counted values. This cannot be undone.',
       ),
     );
     if (!confirm) return;
@@ -223,7 +226,7 @@ class _InventoryStocktakeScreenState extends State<InventoryStocktakeScreen> {
     final result = await Navigator.of(context).push<bool>(
       PageRouteBuilder(
         opaque: false,
-        barrierColor: const Color(0xFF000000).withOpacity(0.45),
+        barrierColor: const Color(0xFF000000).withValues(alpha: 0.45),
         pageBuilder: (ctx, _, _) => _ConfirmDialog(title: title, body: body),
       ),
     );
@@ -266,9 +269,11 @@ class _InventoryStocktakeScreenState extends State<InventoryStocktakeScreen> {
                   child: Container(
                     padding: EdgeInsetsDirectional.all(ds.spacing.md),
                     decoration: BoxDecoration(
-                      color: _flashColor.withOpacity(0.1),
+                      color: _flashColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(ds.radii.medium),
-                      border: Border.all(color: _flashColor.withOpacity(0.4)),
+                      border: Border.all(
+                        color: _flashColor.withValues(alpha: 0.4),
+                      ),
                     ),
                     child: DSText(
                       _flash!,
@@ -384,8 +389,11 @@ class _Header extends StatelessWidget {
             children: [
               DSText(title, role: DSTextRole.headline),
               SizedBox(height: 2),
-              DSText(subtitle,
-                  role: DSTextRole.caption, color: ds.colors.textSecondary),
+              DSText(
+                subtitle,
+                role: DSTextRole.caption,
+                color: ds.colors.textSecondary,
+              ),
             ],
           ),
         ),
@@ -410,9 +418,9 @@ class _ProgressBanner extends StatelessWidget {
     return Container(
       padding: EdgeInsetsDirectional.all(ds.spacing.md),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(ds.radii.large),
-        border: Border.all(color: color.withOpacity(0.25)),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -426,11 +434,7 @@ class _ProgressBanner extends StatelessWidget {
                   color: ds.colors.textSecondary,
                 ),
               ),
-              DSText(
-                '$counted / $total',
-                role: DSTextRole.title,
-                color: color,
-              ),
+              DSText('$counted / $total', role: DSTextRole.title, color: color),
             ],
           ),
           SizedBox(height: ds.spacing.xs),
@@ -439,7 +443,7 @@ class _ProgressBanner extends StatelessWidget {
               Container(
                 height: 6,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
+                  color: color.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(3),
                 ),
               ),
@@ -515,8 +519,9 @@ class _SearchFieldState extends State<_SearchField> {
                   EditableText(
                     controller: widget.controller,
                     focusNode: _focus,
-                    style: ds.typography.body
-                        .copyWith(color: ds.colors.textPrimary),
+                    style: ds.typography.body.copyWith(
+                      color: ds.colors.textPrimary,
+                    ),
                     cursorColor: ds.colors.primary,
                     backgroundCursorColor: ds.colors.textMuted,
                     maxLines: 1,
@@ -580,7 +585,7 @@ class _CountRowState extends State<_CountRow> {
     }
   }
 
-  double? get _physical => double.tryParse(_ctrl.text.trim());
+  double? get _physical => double.tryParse(normalizeNumeric(_ctrl.text));
   double get _system => widget.item.quantity.toDouble();
   double? get _variance => _physical == null ? null : _physical! - _system;
 
@@ -596,7 +601,8 @@ class _CountRowState extends State<_CountRow> {
     if (widget.isInFlight) return tr(context, ar: 'حفظ...', en: 'Saving...');
     if (!widget.isSaved) return tr(context, ar: 'بانتظار', en: 'Pending');
     final v = _variance;
-    if (v == null || v.abs() < 0.001) return tr(context, ar: 'مطابق', en: 'Match');
+    if (v == null || v.abs() < 0.001)
+      return tr(context, ar: 'مطابق', en: 'Match');
     return v > 0 ? '+${v.toStringAsFixed(0)}' : v.toStringAsFixed(0);
   }
 
@@ -617,8 +623,11 @@ class _CountRowState extends State<_CountRow> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    DSText(widget.item.name,
-                        role: DSTextRole.title, maxLines: 1),
+                    DSText(
+                      widget.item.name,
+                      role: DSTextRole.title,
+                      maxLines: 1,
+                    ),
                     SizedBox(height: 2),
                     DSText(
                       '${widget.item.sku ?? '—'} · ${widget.item.unit ?? t('وحدة', 'unit')}',
@@ -634,7 +643,7 @@ class _CountRowState extends State<_CountRow> {
                   vertical: ds.spacing.xs / 2,
                 ),
                 decoration: BoxDecoration(
-                  color: badgeColor.withOpacity(0.12),
+                  color: badgeColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(ds.radii.pill),
                 ),
                 child: DSText(
@@ -734,13 +743,15 @@ class _CountInput extends StatelessWidget {
                 EditableText(
                   controller: controller,
                   focusNode: focus,
-                  style: ds.typography.title
-                      .copyWith(color: ds.colors.textPrimary),
+                  style: ds.typography.title.copyWith(
+                    color: ds.colors.textPrimary,
+                  ),
                   cursorColor: ds.colors.primary,
                   backgroundCursorColor: ds.colors.textMuted,
                   maxLines: 1,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   textInputAction: TextInputAction.done,
                 ),
               ],
@@ -772,7 +783,7 @@ class _ConfirmDialog extends StatelessWidget {
             borderRadius: BorderRadius.circular(ds.radii.xLarge),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF000000).withOpacity(0.2),
+                color: const Color(0xFF000000).withValues(alpha: 0.2),
                 blurRadius: 20,
                 offset: const Offset(0, 8),
               ),
@@ -784,10 +795,12 @@ class _ConfirmDialog extends StatelessWidget {
             children: [
               DSText(title, role: DSTextRole.headline),
               SizedBox(height: ds.spacing.sm),
-              DSText(body,
-                  role: DSTextRole.body,
-                  color: ds.colors.textSecondary,
-                  maxLines: 4),
+              DSText(
+                body,
+                role: DSTextRole.body,
+                color: ds.colors.textSecondary,
+                maxLines: 4,
+              ),
               SizedBox(height: ds.spacing.lg),
               Row(
                 children: [
@@ -830,10 +843,17 @@ class _Empty extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          DSLineIcon(type: icon, color: ds.colors.textMuted, size: ds.spacing.xl),
+          DSLineIcon(
+            type: icon,
+            color: ds.colors.textMuted,
+            size: ds.spacing.xl,
+          ),
           SizedBox(height: ds.spacing.sm),
-          DSText(message,
-              role: DSTextRole.caption, color: ds.colors.textSecondary),
+          DSText(
+            message,
+            role: DSTextRole.caption,
+            color: ds.colors.textSecondary,
+          ),
         ],
       ),
     );

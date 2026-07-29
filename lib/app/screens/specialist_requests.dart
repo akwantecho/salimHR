@@ -9,6 +9,7 @@ import '../../design_system/primitives/ds_text.dart';
 import '../../models/models.dart';
 import '../../models/reception.dart';
 import '../../services/api_provider.dart';
+import '../../utils/numeric.dart';
 import '../i18n.dart';
 import '../widgets/attachment_picker.dart';
 import 'specialist_leave_calendar.dart';
@@ -1774,7 +1775,9 @@ class _LoanRequestScreenState extends State<LoanRequestScreen> {
   }
 
   double? get _amount {
-    final raw = _amountCtrl.text.trim().replaceAll(',', '');
+    // Normalise Arabic-Indic / Persian digits and separators to ASCII so an
+    // amount typed on an Arabic keyboard (e.g. ٣٠٠) still parses.
+    final raw = normalizeNumeric(_amountCtrl.text);
     return double.tryParse(raw);
   }
 

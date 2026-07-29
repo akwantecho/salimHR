@@ -8,6 +8,7 @@ import '../../design_system/primitives/ds_text.dart';
 import '../../models/models.dart';
 import '../../models/reception.dart';
 import '../../services/api_provider.dart';
+import '../../utils/numeric.dart';
 import '../../utils/time_format.dart';
 import '../app_state.dart';
 import '../i18n.dart';
@@ -2968,7 +2969,8 @@ class _AdminExpenseScreenState extends State<AdminExpenseScreen> {
       '${_date.year}-${_date.month.toString().padLeft(2, '0')}-${_date.day.toString().padLeft(2, '0')}';
 
   double get _total =>
-      (double.tryParse(_before.text) ?? 0) + (double.tryParse(_vat.text) ?? 0);
+      (double.tryParse(normalizeNumeric(_before.text)) ?? 0) +
+      (double.tryParse(normalizeNumeric(_vat.text)) ?? 0);
 
   Future<void> _pick() async {
     final p = await pickAttachment(context);
@@ -2976,7 +2978,7 @@ class _AdminExpenseScreenState extends State<AdminExpenseScreen> {
   }
 
   Future<void> _submit() async {
-    final before = double.tryParse(_before.text) ?? 0;
+    final before = double.tryParse(normalizeNumeric(_before.text)) ?? 0;
     if (_category == null || before <= 0) {
       setState(() => _message = tr(context,
           ar: 'اختر الفئة وأدخل مبلغاً صحيحاً', en: 'Choose category and a valid amount'));
@@ -2990,7 +2992,7 @@ class _AdminExpenseScreenState extends State<AdminExpenseScreen> {
       expenseDate: _dateStr,
       categoryId: _category!.id,
       amountBeforeVat: before,
-      vatAmount: double.tryParse(_vat.text) ?? 0,
+      vatAmount: double.tryParse(normalizeNumeric(_vat.text)) ?? 0,
       vendorName: _vendor.text.trim(),
       description: _desc.text.trim(),
       paymentMethod: _payment,
