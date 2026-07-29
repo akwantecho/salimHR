@@ -123,32 +123,36 @@ class HRService extends ChangeNotifier {
     }
   }
 
-  /// Approve a leave request
+  /// Approve a leave request (route expects PUT)
   Future<bool> approveLeave(int leaveId, {String? notes}) async {
-    return _processApproval('/approvals/leaves/$leaveId/approve', notes: notes);
+    return _processApproval('/approvals/leaves/$leaveId/approve',
+        notes: notes, put: true);
   }
 
-  /// Reject a leave request
+  /// Reject a leave request (route expects PUT)
   Future<bool> rejectLeave(int leaveId, {required String reason}) async {
     return _processApproval(
       '/approvals/leaves/$leaveId/reject',
       reason: reason,
+      put: true,
     );
   }
 
-  /// Approve a medical excuse
+  /// Approve a medical excuse (route expects PUT)
   Future<bool> approveExcuse(int excuseId, {String? notes}) async {
     return _processApproval(
       '/approvals/excuses/$excuseId/approve',
       notes: notes,
+      put: true,
     );
   }
 
-  /// Reject a medical excuse
+  /// Reject a medical excuse (route expects PUT)
   Future<bool> rejectExcuse(int excuseId, {required String reason}) async {
     return _processApproval(
       '/approvals/excuses/$excuseId/reject',
       reason: reason,
+      put: true,
     );
   }
 
@@ -208,15 +212,16 @@ class HRService extends ChangeNotifier {
         reason: reason, type: type);
   }
 
-  /// Approve an inventory request
+  /// Approve an inventory request (route expects PUT)
   Future<bool> approveInventoryRequest(int requestId, {String? notes}) async {
     return _processApproval(
       '/approvals/inventory/$requestId/approve',
       notes: notes,
+      put: true,
     );
   }
 
-  /// Reject an inventory request
+  /// Reject an inventory request (route expects PUT)
   Future<bool> rejectInventoryRequest(
     int requestId, {
     required String reason,
@@ -224,6 +229,7 @@ class HRService extends ChangeNotifier {
     return _processApproval(
       '/approvals/inventory/$requestId/reject',
       reason: reason,
+      put: true,
     );
   }
 
@@ -232,30 +238,42 @@ class HRService extends ChangeNotifier {
     return _processApproval(
       '/approvals/payroll/$payrollId/approve',
       notes: notes,
+      put: true,
     );
   }
 
-  /// Reject payroll
+  /// Reject payroll (route expects PUT)
   Future<bool> rejectPayroll(int payrollId, {required String reason}) async {
     return _processApproval(
       '/approvals/payroll/$payrollId/reject',
       reason: reason,
+      put: true,
     );
   }
 
-  /// Generic approval processing
+  /// Generic approval processing.
+  ///
+  /// The backend is inconsistent about verbs: leaves / excuses / inventory
+  /// approvals expect **PUT**, while employee-request (transfer/loan) approvals
+  /// expect **POST**. Pass [put] to match the route or the call 405s and the
+  /// button silently does nothing.
   Future<bool> _processApproval(
     String endpoint, {
     String? notes,
     String? reason,
     String? type,
+    bool put = false,
   }) async {
     _setLoading(true);
     _error = null;
 
+    final data = {'notes': ?notes, 'reason': ?reason, 'type': ?type};
     try {
-      await _client.post(endpoint,
-          data: {'notes': ?notes, 'reason': ?reason, 'type': ?type});
+      if (put) {
+        await _client.put(endpoint, data: data);
+      } else {
+        await _client.post(endpoint, data: data);
+      }
 
       // Refresh approvals list
       await fetchPendingApprovals();
