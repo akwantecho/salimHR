@@ -10,6 +10,7 @@ import '../../design_system/primitives/ds_card.dart';
 import '../../design_system/primitives/ds_text.dart';
 import '../../models/models.dart';
 import '../widgets/attachment_picker.dart';
+import '../widgets/reason_prompt.dart';
 import '../../services/api_provider.dart';
 import '../../utils/time_format.dart';
 import '../app_state.dart';
@@ -264,6 +265,18 @@ class _SpecialistHomeScreenState extends State<SpecialistHomeScreen> {
                     ),
                   ),
                 ],
+              ),
+              SizedBox(height: ds.spacing.sm),
+              _QuickLinkCard(
+                label: t('طلبات النقل الواردة', 'Incoming Transfers'),
+                icon: LineIconType.heart,
+                color: const Color(0xFFF97316),
+                onTap: () => Navigator.of(context).push(
+                  PageRouteBuilder(
+                    pageBuilder: (context, _, _) =>
+                        const IncomingTransfersScreen(),
+                  ),
+                ),
               ),
               SizedBox(height: ds.spacing.xl * 2),
             ],
@@ -3243,6 +3256,179 @@ class _ErrorView extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ==================== INCOMING TRANSFERS (specialist accepts) ====================
+
+/// Transfers directed to this specialist — they accept (→ goes to admin) or
+/// reject with a reason (sent back to the requesting specialist).
+class IncomingTransfersScreen extends StatefulWidget {
+  const IncomingTransfersScreen({super.key});
+
+  @override
+  State<IncomingTransfersScreen> createState() =>
+      _IncomingTransfersScreenState();
+}
+
+class _IncomingTransfersScreenState extends State<IncomingTransfersScreen> {
+  bool _loading = true;
+  List<IncomingTransfer> _items = [];
+  final Set<int> _busy = {};
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  Future<void> _load() async {
+    final items = await context.hrService.fetchIncomingTransfers();
+    if (!mounted) return;
+    setState(() {
+      _items = items;
+      _loading = false;
+    });
+  }
+
+  Future<void> _accept(IncomingTransfer t) async {
+    setState(() => _busy.add(t.id));
+    final ok = await context.hrService.acceptIncomingTransfer(t.id);
+    if (!mounted) return;
+    setState(() => _busy.remove(t.id));
+    if (ok) _load();
+  }
+
+  Future<void> _reject(IncomingTransfer t) async {
+    final reason = await promptForReason(
+      context,
+      title: tr(context, ar: 'سبب الرفض', en: 'Rejection Reason'),
+      hint: tr(context,
+          ar: 'اكتب سبب الرفض — يُرسل للأخصائي الطالب.',
+          en: 'Write the reason — it is sent to the requester.'),
+      confirmLabel: tr(context, ar: 'رفض', en: 'Reject'),
+    );
+    if (reason == null || !mounted) return;
+    setState(() => _busy.add(t.id));
+    final ok = await context.hrService.rejectIncomingTransfer(t.id, reason);
+    if (!mounted) return;
+    setState(() => _busy.remove(t.id));
+    if (ok) _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    String t(String ar, String en) => tr(context, ar: ar, en: en);
+
+    return Container(
+      color: ds.colors.background,
+      child: SafeArea(
+        child: Padding(
+          padding: EdgeInsetsDirectional.all(ds.spacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: DSLineIcon(
+                        type: LineIconType.arrowBack,
+                        color: ds.colors.primary,
+                        size: ds.spacing.lg),
+                  ),
+                  SizedBox(width: ds.spacing.md),
+                  DSText(t('طلبات النقل الواردة', 'Incoming Transfers'),
+                      role: DSTextRole.headline),
+                ],
+              ),
+              SizedBox(height: ds.spacing.md),
+              Expanded(
+                child: _loading
+                    ? const ShimmerLoading()
+                    : _items.isEmpty
+                        ? Center(
+                            child: DSText(
+                                t('لا توجد طلبات واردة', 'No incoming requests'),
+                                role: DSTextRole.body,
+                                color: ds.colors.textSecondary),
+                          )
+                        : ListView.separated(
+                            itemCount: _items.length,
+                            separatorBuilder: (_, _) =>
+                                SizedBox(height: ds.spacing.sm),
+                            itemBuilder: (context, i) {
+                              final item = _items[i];
+                              final busy = _busy.contains(item.id);
+                              return DSCard(
+                                padding: EdgeInsetsDirectional.all(ds.spacing.md),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        DSLineIcon(
+                                            type: LineIconType.heart,
+                                            color: const Color(0xFFF97316),
+                                            size: ds.spacing.md),
+                                        SizedBox(width: ds.spacing.sm),
+                                        Expanded(
+                                          child: DSText(item.patientName,
+                                              role: DSTextRole.title,
+                                              maxLines: 1),
+                                        ),
+                                      ],
+                                    ),
+                                    SizedBox(height: ds.spacing.xs),
+                                    DSText(
+                                      '${t('من', 'From')}: ${item.requesterName ?? '-'}',
+                                      role: DSTextRole.caption,
+                                      color: ds.colors.textSecondary,
+                                    ),
+                                    if (item.details != null &&
+                                        item.details!.isNotEmpty) ...[
+                                      SizedBox(height: ds.spacing.xs),
+                                      DSText(item.details!,
+                                          role: DSTextRole.body,
+                                          color: ds.colors.textSecondary),
+                                    ],
+                                    SizedBox(height: ds.spacing.md),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: DSButton(
+                                            label: busy
+                                                ? t('...', '...')
+                                                : t('قبول', 'Accept'),
+                                            onPressed: busy
+                                                ? null
+                                                : () => _accept(item),
+                                          ),
+                                        ),
+                                        SizedBox(width: ds.spacing.sm),
+                                        Expanded(
+                                          child: DSButton(
+                                            label: t('رفض', 'Reject'),
+                                            variant: DSButtonVariant.ghost,
+                                            onPressed: busy
+                                                ? null
+                                                : () => _reject(item),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

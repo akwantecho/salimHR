@@ -152,6 +152,47 @@ class HRService extends ChangeNotifier {
     );
   }
 
+  /// Transfer requests directed to the current specialist, awaiting their
+  /// accept/reject. Backed by `GET /api/employee/incoming-transfers`.
+  Future<List<IncomingTransfer>> fetchIncomingTransfers() async {
+    try {
+      final r = await _client.get<Map<String, dynamic>>(
+        '/employee/incoming-transfers',
+      );
+      final data = r.data?['data'] as List<dynamic>? ?? [];
+      return data
+          .map((e) => IncomingTransfer.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      _handleError(e);
+      return [];
+    }
+  }
+
+  /// Specialist accepts an incoming transfer → it moves to admin approval.
+  Future<bool> acceptIncomingTransfer(int id) async {
+    try {
+      await _client.post('/employee/incoming-transfers/$id/accept');
+      return true;
+    } on DioException catch (e) {
+      _handleError(e);
+      return false;
+    }
+  }
+
+  /// Specialist rejects an incoming transfer with a reason (sent to the
+  /// requesting specialist).
+  Future<bool> rejectIncomingTransfer(int id, String reason) async {
+    try {
+      await _client.post('/employee/incoming-transfers/$id/reject',
+          data: {'reason': reason});
+      return true;
+    } on DioException catch (e) {
+      _handleError(e);
+      return false;
+    }
+  }
+
   /// Approve an employee request (patient transfer / loan).
   Future<bool> approveRequest(int requestId, {String? notes}) async {
     return _processApproval('/approvals/requests/$requestId/approve',
