@@ -3310,13 +3310,11 @@ class _AdminExpenseScreenState extends State<AdminExpenseScreen> {
 class _ExpInput extends StatefulWidget {
   final TextEditingController controller;
   final bool number;
-  final bool multiline;
   final ValueChanged<String>? onChanged;
 
   const _ExpInput({
     required this.controller,
     this.number = false,
-    this.multiline = false,
     this.onChanged,
   });
 
@@ -3352,9 +3350,9 @@ class _ExpInputState extends State<_ExpInput> {
         backgroundCursorColor: ds.colors.textMuted,
         keyboardType: widget.number
             ? const TextInputType.numberWithOptions(decimal: true)
-            : (widget.multiline ? TextInputType.multiline : TextInputType.text),
-        maxLines: widget.multiline ? 3 : 1,
-        minLines: widget.multiline ? 2 : 1,
+            : TextInputType.text,
+        maxLines: 1,
+        minLines: 1,
         onChanged: widget.onChanged,
         textAlign:
             ds.textDirection == TextDirection.rtl ? TextAlign.right : TextAlign.left,

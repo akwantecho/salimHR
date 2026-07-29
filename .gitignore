@@ -46,3 +46,8 @@ app.*.map.json
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Android release signing (NEVER commit)
+android/key.properties
+**/*.jks
+**/*.keystore
