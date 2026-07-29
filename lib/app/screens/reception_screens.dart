@@ -1431,6 +1431,28 @@ class ReceptionAppointmentCard extends StatelessWidget {
                   color: ds.colors.textSecondary,
                 ),
               ),
+              // Room chosen by the specialist — read-only info here.
+              if (appointment.roomNumber != null) ...[
+                SizedBox(width: ds.spacing.xs),
+                Container(
+                  padding: EdgeInsetsDirectional.symmetric(
+                    horizontal: ds.spacing.sm,
+                    vertical: ds.spacing.xs / 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: ds.colors.surfaceAlt,
+                    borderRadius: BorderRadius.circular(ds.radii.pill),
+                    border: Border.all(color: ds.colors.border),
+                  ),
+                  child: DSText(
+                    tr(context,
+                        ar: 'غرفة ${appointment.roomNumber}',
+                        en: 'Room ${appointment.roomNumber}'),
+                    role: DSTextRole.caption,
+                    color: ds.colors.textSecondary,
+                  ),
+                ),
+              ],
               if (onAttend != null)
                 _CardAction(
                     label: tr(context, ar: 'حضر', en: 'Present'),

@@ -166,6 +166,9 @@ class ReceptionAppointment {
   final String? serviceName;
   final String? departmentName;
 
+  /// Treatment room chosen by the specialist (read-only info elsewhere).
+  final int? roomNumber;
+
   const ReceptionAppointment({
     required this.id,
     this.date,
@@ -177,6 +180,7 @@ class ReceptionAppointment {
     this.specialistName,
     this.serviceName,
     this.departmentName,
+    this.roomNumber,
   });
 
   factory ReceptionAppointment.fromJson(Map<String, dynamic> json) {
@@ -195,6 +199,7 @@ class ReceptionAppointment {
       specialistName: json['specialist']?['name'] as String?,
       serviceName: json['service']?['name'] as String?,
       departmentName: json['department']?['name'] as String?,
+      roomNumber: (json['room_number'] as num?)?.toInt(),
     );
   }
 }
