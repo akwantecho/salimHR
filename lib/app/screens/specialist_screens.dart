@@ -419,13 +419,17 @@ class PromoBannerSlide extends StatelessWidget {
                 BlendMode.darken,
               ),
             ),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x1A000000),
-                blurRadius: 12,
-                offset: Offset(0, 6),
-              ),
-            ],
+            // Shadow only when the admin also chose a background colour; a plain
+            // image banner renders flat with no elevation.
+            boxShadow: hasColor
+                ? const [
+                    BoxShadow(
+                      color: Color(0x1A000000),
+                      blurRadius: 12,
+                      offset: Offset(0, 6),
+                    ),
+                  ]
+                : null,
           )
         : BoxDecoration(
             borderRadius: BorderRadius.circular(ds.radii.large),
