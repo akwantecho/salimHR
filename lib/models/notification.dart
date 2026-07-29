@@ -8,6 +8,8 @@ enum NotificationType {
   inventoryLow,
   bonus,
   noteReply,
+  approved, // request approved/accepted (leave, loan, transfer, excuse)
+  rejected, // request rejected (carries the reason)
   general,
 }
 
@@ -69,6 +71,21 @@ class AppNotification extends Equatable {
         return NotificationType.bonus;
       case 'employee_note_reply':
         return NotificationType.noteReply;
+      case 'leave_approved':
+      case 'loan_approved':
+      case 'transfer_approved':
+      case 'transfer_accepted':
+      case 'excuse_approved':
+      case 'inventory_approved':
+      case 'request_approved':
+        return NotificationType.approved;
+      case 'leave_rejected':
+      case 'loan_rejected':
+      case 'transfer_rejected':
+      case 'excuse_rejected':
+      case 'inventory_rejected':
+      case 'request_rejected':
+        return NotificationType.rejected;
       default:
         return NotificationType.general;
     }
@@ -89,9 +106,37 @@ class AppNotification extends Equatable {
         return 'heart';
       case NotificationType.noteReply:
         return 'chat';
+      case NotificationType.approved:
+        return 'heart';
+      case NotificationType.rejected:
+        return 'bell';
       case NotificationType.general:
         return 'bell';
     }
+  }
+
+  /// True when this notification is a reply/decision that carries content the
+  /// user should clearly read (a reply, or an approve/reject with a reason).
+  bool get isReplyOrDecision =>
+      type == NotificationType.noteReply ||
+      type == NotificationType.approved ||
+      type == NotificationType.rejected;
+
+  /// Splits a reply/decision [message] into the quoted original (what the
+  /// user wrote / requested) and the actual reply or reason. Backend sends
+  /// e.g. «رد على ملاحظتك: «النص» — الرد». Returns (original, reply); either
+  /// may be null if the message doesn't follow the pattern.
+  (String?, String?) get splitReply {
+    final m = message?.trim();
+    if (m == null || m.isEmpty) return (null, null);
+    final open = m.indexOf('«');
+    final close = open >= 0 ? m.indexOf('»', open + 1) : -1;
+    if (open < 0 || close < 0) return (null, m); // no quote → all is the reply
+    final original = m.substring(open + 1, close).trim();
+    var rest = m.substring(close + 1).trim();
+    // Strip a leading separator (— , - , :) before the reply text.
+    rest = rest.replaceFirst(RegExp(r'^[—\-:\s]+'), '').trim();
+    return (original.isEmpty ? null : original, rest.isEmpty ? null : rest);
   }
 
   /// Copy with read status updated

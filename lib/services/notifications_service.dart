@@ -183,6 +183,10 @@ class NotificationsService extends ChangeNotifier {
         return 'bonus';
       case NotificationType.noteReply:
         return 'employee_note_reply';
+      case NotificationType.approved:
+        return 'request_approved';
+      case NotificationType.rejected:
+        return 'request_rejected';
       case NotificationType.general:
         return 'general';
     }

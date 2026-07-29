@@ -961,11 +961,14 @@ class _ApiNotificationCard extends StatelessWidget {
                 ),
                 if (notification.message != null) ...[
                   SizedBox(height: ds.spacing.xs / 2),
-                  DSText(
-                    notification.message!,
-                    role: DSTextRole.body,
-                    color: ds.colors.textSecondary,
-                  ),
+                  if (notification.isReplyOrDecision)
+                    _buildReplyContent(context, color)
+                  else
+                    DSText(
+                      notification.message!,
+                      role: DSTextRole.body,
+                      color: ds.colors.textSecondary,
+                    ),
                 ],
                 if (notification.imageUrl != null &&
                     notification.imageUrl!.isNotEmpty) ...[
@@ -1015,6 +1018,78 @@ class _ApiNotificationCard extends StatelessWidget {
     );
   }
 
+  /// Renders a reply / decision notification with a clear visual split: the
+  /// user's original note/request quoted in a muted box, then the actual reply
+  /// (or rejection reason) in a prominent coloured bubble — so the reply is
+  /// unmistakably distinct from the original.
+  Widget _buildReplyContent(BuildContext context, Color color) {
+    final ds = DSProvider.of(context);
+    String t(String ar, String en) => tr(context, ar: ar, en: en);
+    final (original, reply) = notification.splitReply;
+    final replyText = reply ?? notification.message ?? '';
+
+    final origLabel = notification.type == NotificationType.noteReply
+        ? t('ملاحظتك', 'Your note')
+        : t('طلبك', 'Your request');
+    final replyLabel = notification.type == NotificationType.rejected
+        ? t('السبب', 'Reason')
+        : (notification.type == NotificationType.noteReply
+            ? t('الرد', 'Reply')
+            : t('التفاصيل', 'Details'));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Quoted original (muted, with a leading accent bar)
+        if (original != null) ...[
+          Container(
+            width: double.infinity,
+            padding: EdgeInsetsDirectional.all(ds.spacing.sm),
+            decoration: BoxDecoration(
+              color: ds.colors.background,
+              borderRadius: BorderRadius.circular(ds.radii.medium),
+              border: BorderDirectional(
+                start: BorderSide(color: ds.colors.border, width: 3),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                DSText('$origLabel:',
+                    role: DSTextRole.caption, color: ds.colors.textMuted),
+                SizedBox(height: ds.spacing.xs / 2),
+                DSText(original,
+                    role: DSTextRole.body,
+                    color: ds.colors.textSecondary,
+                    maxLines: 3),
+              ],
+            ),
+          ),
+          SizedBox(height: ds.spacing.sm),
+        ],
+        // The reply / reason — prominent solid bubble in the type colour
+        Container(
+          width: double.infinity,
+          padding: EdgeInsetsDirectional.all(ds.spacing.sm),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(ds.radii.medium),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              DSText('$replyLabel:',
+                  role: DSTextRole.caption, color: const Color(0xE6FFFFFF)),
+              SizedBox(height: ds.spacing.xs / 2),
+              DSText(replyText,
+                  role: DSTextRole.body, color: const Color(0xFFFFFFFF)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Color _getColorForType(NotificationType type) {
     switch (type) {
       case NotificationType.leaveRequest:
@@ -1029,6 +1104,10 @@ class _ApiNotificationCard extends StatelessWidget {
         return const Color(0xFF10B981); // Emerald
       case NotificationType.noteReply:
         return const Color(0xFF10B981); // Green — admin reply
+      case NotificationType.approved:
+        return const Color(0xFF059669); // Green — approved/accepted
+      case NotificationType.rejected:
+        return const Color(0xFFEF4444); // Red — rejected
       case NotificationType.general:
         return const Color(0xFF10B981); // Emerald
     }
@@ -1048,6 +1127,10 @@ class _ApiNotificationCard extends StatelessWidget {
         return LineIconType.heart;
       case NotificationType.noteReply:
         return LineIconType.chat;
+      case NotificationType.approved:
+        return LineIconType.heart;
+      case NotificationType.rejected:
+        return LineIconType.bell;
       case NotificationType.general:
         return LineIconType.bell;
     }
@@ -1070,6 +1153,10 @@ class _ApiNotificationCard extends StatelessWidget {
         return t('مكافآت', 'Bonuses');
       case NotificationType.noteReply:
         return t('رد الإدارة', 'Admin Reply');
+      case NotificationType.approved:
+        return t('تمت الموافقة', 'Approved');
+      case NotificationType.rejected:
+        return t('مرفوض', 'Rejected');
       case NotificationType.general:
         return t('عام', 'General');
     }
