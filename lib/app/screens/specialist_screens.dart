@@ -455,7 +455,11 @@ class PromoBannerSlide extends StatelessWidget {
       margin: EdgeInsetsDirectional.symmetric(horizontal: ds.spacing.xs),
       padding: EdgeInsets.all(ds.spacing.lg),
       decoration: decoration,
-      child: Column(
+      // Force LTR so title, subtitle and the action button all align to the
+      // same (left) edge, regardless of the app language direction.
+      child: Directionality(
+        textDirection: TextDirection.ltr,
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -473,8 +477,7 @@ class PromoBannerSlide extends StatelessWidget {
           if (banner.actionLabel != null &&
               banner.actionLabel!.isNotEmpty) ...[
             SizedBox(height: ds.spacing.md),
-            // Always pin the action label to the visual LEFT — Alignment.centerLeft
-            // is non-directional so it doesn't flip to the right under RTL.
+            // Action label on the same (left) edge as the texts.
             Align(
               alignment: Alignment.centerLeft,
               child: Container(
@@ -496,6 +499,7 @@ class PromoBannerSlide extends StatelessWidget {
             ),
           ],
         ],
+        ),
       ),
     );
 
