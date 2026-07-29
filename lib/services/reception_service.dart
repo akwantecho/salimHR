@@ -261,6 +261,36 @@ class ReceptionService extends ChangeNotifier {
     }
   }
 
+  /// Pause (تعليق) a patient's treatment package: freezes the remaining
+  /// session balance and cancels upcoming appointments without counting them
+  /// as no-shows. No return date needed. Backend: POST
+  /// /reception/patients/{id}/package/hold.
+  Future<bool> holdPackage(int patientId, {String? reason}) async {
+    try {
+      await _client.post(
+        '/reception/patients/$patientId/package/hold',
+        data: {'reason': ?reason},
+      );
+      return true;
+    } on DioException catch (e) {
+      _error = e.message;
+      return false;
+    }
+  }
+
+  /// Resume (استئناف) a paused package: reactivates it, continuing from the
+  /// same remaining balance. Backend: POST
+  /// /reception/patients/{id}/package/resume.
+  Future<bool> resumePackage(int patientId) async {
+    try {
+      await _client.post('/reception/patients/$patientId/package/resume');
+      return true;
+    } on DioException catch (e) {
+      _error = e.message;
+      return false;
+    }
+  }
+
   void _setLoading(bool value) {
     _isLoading = value;
     notifyListeners();

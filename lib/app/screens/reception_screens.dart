@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../design_system/components/line_icons.dart';
 import '../../design_system/ds_provider.dart';
+import '../../design_system/primitives/ds_button.dart';
 import '../../design_system/primitives/ds_card.dart';
 import '../../design_system/primitives/ds_text.dart';
 import '../../models/models.dart';
@@ -12,6 +13,7 @@ import '../../services/api_provider.dart';
 import '../app_state.dart';
 import '../i18n.dart';
 import '../ui/blocks.dart';
+import '../widgets/reason_prompt.dart';
 import 'specialist_screens.dart' show PromoBannerCarousel;
 
 // ==================== RECEPTION HOME (dashboard) ====================
@@ -1818,6 +1820,50 @@ class _ReceptionPatientDetailScreenState
     return (s?[key] as num?)?.toInt() ?? 0;
   }
 
+  Map<String, dynamic>? get _package {
+    final p = _data?['package'];
+    return p is Map<String, dynamic> ? p : null;
+  }
+
+  bool _packageBusy = false;
+
+  /// Pause the treatment package (تعليق). Asks for an optional reason, then
+  /// freezes the session balance — no return date needed.
+  Future<void> _hold() async {
+    final reason = await promptForReason(
+      context,
+      title: tr(context, ar: 'تعليق العلاج', en: 'Pause treatment'),
+      hint: tr(context,
+          ar: 'السبب (اختياري) — مثلاً سفر',
+          en: 'Reason (optional) — e.g. travel'),
+      confirmLabel: tr(context, ar: 'تعليق', en: 'Pause'),
+      minLength: 0,
+    );
+    // Dismissed → null. Empty string means confirmed with no reason.
+    if (reason == null || !mounted) return;
+    setState(() => _packageBusy = true);
+    final ok = await context.receptionService.holdPackage(
+      widget.patient.id,
+      reason: reason.isEmpty ? null : reason,
+    );
+    if (!mounted) return;
+    setState(() => _packageBusy = false);
+    if (ok) {
+      await _load();
+    }
+  }
+
+  /// Resume a paused package (استئناف) — continues from the same balance.
+  Future<void> _resume() async {
+    setState(() => _packageBusy = true);
+    final ok = await context.receptionService.resumePackage(widget.patient.id);
+    if (!mounted) return;
+    setState(() => _packageBusy = false);
+    if (ok) {
+      await _load();
+    }
+  }
+
   String _field(String key) {
     final v = _data?[key];
     return (v == null || v.toString().isEmpty) ? '—' : v.toString();
@@ -1881,6 +1927,11 @@ class _ReceptionPatientDetailScreenState
                             ),
                           ),
                           SizedBox(height: ds.spacing.md),
+                          // Treatment package + hold/resume
+                          if (_package != null) ...[
+                            _packageCard(_package!),
+                            SizedBox(height: ds.spacing.md),
+                          ],
                           // Sessions summary
                           SectionHeader(title: t('الجلسات', 'Sessions')),
                           Row(
@@ -1961,6 +2012,95 @@ class _ReceptionPatientDetailScreenState
           SizedBox(height: ds.spacing.xs),
           DSText(label,
               role: DSTextRole.caption, color: ds.colors.textSecondary),
+        ],
+      ),
+    );
+  }
+
+  /// Treatment-package card: name, session balance, status badge, and a
+  /// pause/resume button. Paused packages freeze the balance so gaps aren't
+  /// counted as absence.
+  Widget _packageCard(Map<String, dynamic> pkg) {
+    final ds = DSProvider.of(context);
+    String t(String ar, String en) => tr(context, ar: ar, en: en);
+    final status = (pkg['status'] ?? 'active').toString();
+    final onHold = status == 'on_hold';
+    final completed = status == 'completed';
+    final name =
+        (pkg['name']?.toString().isNotEmpty ?? false) ? pkg['name'].toString() : t('باقة العلاج', 'Package');
+    final total = (pkg['total_sessions'] as num?)?.toInt() ?? 0;
+    final used = (pkg['used_sessions'] as num?)?.toInt() ?? 0;
+    final remaining =
+        (pkg['remaining_sessions'] as num?)?.toInt() ?? (total - used);
+    final accent = onHold
+        ? const Color(0xFFF59E0B)
+        : (completed ? ds.colors.textSecondary : const Color(0xFF059669));
+
+    return DSCard(
+      padding: EdgeInsetsDirectional.all(ds.spacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              DSLineIcon(
+                  type: LineIconType.calendar, color: accent, size: ds.spacing.lg),
+              SizedBox(width: ds.spacing.sm),
+              Expanded(child: DSText(name, role: DSTextRole.title, maxLines: 1)),
+              // Status badge
+              Container(
+                padding: EdgeInsetsDirectional.symmetric(
+                    horizontal: ds.spacing.sm, vertical: ds.spacing.xs),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(ds.radii.pill),
+                ),
+                child: DSText(
+                  onHold
+                      ? t('معلّق', 'Paused')
+                      : (completed
+                          ? t('مكتملة', 'Completed')
+                          : t('نشط', 'Active')),
+                  role: DSTextRole.caption,
+                  color: accent,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: ds.spacing.sm),
+          // Balance line: used / total, remaining highlighted.
+          Row(
+            children: [
+              DSText(t('الرصيد', 'Balance'),
+                  role: DSTextRole.caption, color: ds.colors.textSecondary),
+              SizedBox(width: ds.spacing.sm),
+              DSText('$remaining', role: DSTextRole.title, color: accent),
+              SizedBox(width: ds.spacing.xs),
+              DSText(t('متبقّية من $total', 'left of $total'),
+                  role: DSTextRole.caption, color: ds.colors.textSecondary),
+            ],
+          ),
+          if (onHold &&
+              (pkg['hold_reason']?.toString().isNotEmpty ?? false)) ...[
+            SizedBox(height: ds.spacing.xs),
+            DSText(
+                '${t('سبب التعليق', 'Pause reason')}: ${pkg['hold_reason']}',
+                role: DSTextRole.caption,
+                color: ds.colors.textSecondary,
+                maxLines: 2),
+          ],
+          if (!completed) ...[
+            SizedBox(height: ds.spacing.md),
+            DSButton(
+              label: _packageBusy
+                  ? t('...', '...')
+                  : (onHold
+                      ? t('استئناف العلاج', 'Resume treatment')
+                      : t('تعليق العلاج', 'Pause treatment')),
+              variant: onHold ? DSButtonVariant.primary : DSButtonVariant.ghost,
+              onPressed: _packageBusy ? null : (onHold ? _resume : _hold),
+            ),
+          ],
         ],
       ),
     );
