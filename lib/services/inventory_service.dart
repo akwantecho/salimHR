@@ -24,9 +24,11 @@ class InventoryService extends ChangeNotifier {
 
   // Computed getters
   int get totalItems => _items.length;
-  int get lowStockCount => _items.where((i) => i.isLowStock && !i.isOutOfStock).length;
+  int get lowStockCount =>
+      _items.where((i) => i.isLowStock && !i.isOutOfStock).length;
   int get outOfStockCount => _items.where((i) => i.isOutOfStock).length;
-  List<InventoryItem> get lowStockItems => _items.where((i) => i.isLowStock).toList();
+  List<InventoryItem> get lowStockItems =>
+      _items.where((i) => i.isLowStock).toList();
 
   /// Fetch all inventory items
   Future<void> fetchItems({String? category, String? search}) async {
@@ -36,10 +38,7 @@ class InventoryService extends ChangeNotifier {
     try {
       final response = await _client.get<Map<String, dynamic>>(
         '/inventory/items',
-        queryParameters: {
-          if (category != null) 'category': category,
-          if (search != null) 'search': search,
-        },
+        queryParameters: {'category': ?category, 'search': ?search},
       );
 
       final data = response.data!['data'] as List<dynamic>? ?? [];
@@ -85,10 +84,9 @@ class InventoryService extends ChangeNotifier {
     try {
       final response = await _client.post<Map<String, dynamic>>(
         '/inventory/requests',
-        data: {
-          'items': items,
-          if (notes != null) 'notes': notes,
-        },
+        // submit:true so it's an actual submission (notifies reviewers), not a
+        // draft.
+        data: {'submit': true, 'items': items, 'notes': ?notes},
       );
 
       final request = InventoryRequest.fromJson(response.data!);
@@ -130,9 +128,7 @@ class InventoryService extends ChangeNotifier {
     try {
       final response = await _client.post<Map<String, dynamic>>(
         '/inventory/stocktakes',
-        data: {
-          if (notes != null && notes.isNotEmpty) 'notes': notes,
-        },
+        data: {if (notes != null && notes.isNotEmpty) 'notes': notes},
       );
       _setLoading(false);
       final data = response.data?['data'] as Map<String, dynamic>?;
@@ -198,16 +194,13 @@ class InventoryService extends ChangeNotifier {
     try {
       final response = await _client.get<Map<String, dynamic>>(
         '/inventory/stocktakes',
-        queryParameters: {
-          if (status != null) 'status': status,
-        },
+        queryParameters: {'status': ?status},
       );
       // Paginated payload — items live under `data.data`.
       final outer = response.data?['data'];
-      final list = (outer is Map ? outer['data'] : outer) as List<dynamic>? ?? [];
-      return list
-          .map((e) => Map<String, dynamic>.from(e as Map))
-          .toList();
+      final list =
+          (outer is Map ? outer['data'] : outer) as List<dynamic>? ?? [];
+      return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
     } on DioException catch (e) {
       _handleError(e);
       return [];
