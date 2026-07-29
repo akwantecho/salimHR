@@ -723,6 +723,18 @@ class HRService extends ChangeNotifier {
     }
   }
 
+  /// Manager: delete an employee note to keep the inbox tidy.
+  /// Backend: DELETE /manager/notes/{id}.
+  Future<bool> deleteNote(int noteId) async {
+    try {
+      await _client.delete('/manager/notes/$noteId');
+      return true;
+    } on DioException catch (e) {
+      _handleError(e);
+      return false;
+    }
+  }
+
   /// Summary of the authenticated employee's own leaves.
   /// Returns a map: `{pending: int, approved: int, rejected: int,
   /// approved_this_month: int}`. Empty map on failure (error set on service).

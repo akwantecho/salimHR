@@ -10,6 +10,7 @@ import '../../design_system/primitives/ds_text.dart';
 import '../../models/models.dart';
 import '../../models/reception.dart';
 import '../../services/api_provider.dart';
+import '../../utils/time_format.dart';
 import '../app_state.dart';
 import '../i18n.dart';
 import '../ui/blocks.dart';
@@ -459,6 +460,15 @@ class _ReceptionAppointmentsScreenState
                 onAttend: terminal ? null : () => _attend(a, 'checked_in'),
                 onAbsent: terminal ? null : () => _attend(a, 'no_show'),
                 onCancel: terminal ? null : () => _cancel(a),
+                onTap: a.patient != null
+                    ? () => Navigator.of(context).push(
+                          PageRouteBuilder(
+                            pageBuilder: (_, _, _) =>
+                                ReceptionPatientDetailScreen(
+                                    patient: a.patient!),
+                          ),
+                        )
+                    : null,
               );
             },
             itemCount: _items.length,
@@ -1345,19 +1355,23 @@ class ReceptionAppointmentCard extends StatelessWidget {
   final VoidCallback? onAttend;
   final VoidCallback? onAbsent;
 
+  /// Tapping the card (e.g. to open the patient file). No-op if null.
+  final VoidCallback? onTap;
+
   const ReceptionAppointmentCard({
     super.key,
     required this.appointment,
     this.onCancel,
     this.onAttend,
     this.onAbsent,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final ds = DSProvider.of(context);
     final color = _statusColor(appointment.status);
-    return DSCard(
+    final card = DSCard(
       padding: EdgeInsetsDirectional.all(ds.spacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1374,7 +1388,9 @@ class ReceptionAppointmentCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(ds.radii.medium),
                 ),
                 child: DSText(
-                  appointment.startTime ?? '--',
+                  appointment.startTime != null
+                      ? formatTime12h(context, appointment.startTime)
+                      : '--',
                   role: DSTextRole.label,
                   color: ds.colors.primary,
                 ),
@@ -1438,6 +1454,12 @@ class ReceptionAppointmentCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+    if (onTap == null) return card;
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: card,
     );
   }
 }
@@ -2286,7 +2308,10 @@ class _SpecialistScheduleCard extends StatelessWidget {
                       color: ds.colors.surfaceAlt,
                       borderRadius: BorderRadius.circular(ds.radii.small),
                     ),
-                    child: DSText(a.startTime ?? '—',
+                    child: DSText(
+                        a.startTime != null
+                            ? formatTime12h(context, a.startTime)
+                            : '—',
                         role: DSTextRole.caption, color: ds.colors.textPrimary),
                   ),
                   SizedBox(width: ds.spacing.sm),

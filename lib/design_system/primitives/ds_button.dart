@@ -4,6 +4,7 @@ import '../ds_provider.dart';
 import 'ds_text.dart';
 
 enum DSButtonVariant { primary, ghost, pill }
+
 enum DSButtonSize { regular, large }
 
 class DSButton extends StatefulWidget {
@@ -56,7 +57,7 @@ class _DSButtonState extends State<DSButton> {
       case DSButtonVariant.primary:
         background = ds.colors.primary;
         textColor = ds.colors.surface;
-        borderColor = ds.colors.primary.withOpacity(0.6);
+        borderColor = ds.colors.primary.withValues(alpha: 0.6);
         break;
       case DSButtonVariant.ghost:
         background = ds.colors.surface;
@@ -71,29 +72,28 @@ class _DSButtonState extends State<DSButton> {
     }
 
     if (!enabled) {
-      background = background.withOpacity(ds.opacity.disabled);
-      textColor = textColor.withOpacity(ds.opacity.muted);
+      background = background.withValues(alpha: ds.opacity.disabled);
+      textColor = textColor.withValues(alpha: ds.opacity.muted);
     } else if (_pressed) {
       background = Color.lerp(background, ds.colors.textPrimary, 0.05)!;
     }
 
-    final EdgeInsetsGeometry padding =
-        widget.size == DSButtonSize.large
-            ? EdgeInsetsDirectional.symmetric(
-                horizontal: ds.spacing.xl,
-                vertical: ds.spacing.md,
-              )
-            : EdgeInsetsDirectional.symmetric(
-                horizontal: ds.spacing.lg,
-                vertical: ds.spacing.sm,
-              );
+    final EdgeInsetsGeometry padding = widget.size == DSButtonSize.large
+        ? EdgeInsetsDirectional.symmetric(
+            horizontal: ds.spacing.xl,
+            vertical: ds.spacing.md,
+          )
+        : EdgeInsetsDirectional.symmetric(
+            horizontal: ds.spacing.lg,
+            vertical: ds.spacing.sm,
+          );
 
-    final radius =
-        widget.variant == DSButtonVariant.pill ? ds.radii.pill : ds.radii.large;
+    final radius = widget.variant == DSButtonVariant.pill
+        ? ds.radii.pill
+        : ds.radii.large;
 
     final buttonChild = Row(
-      mainAxisSize:
-          widget.expanded ? MainAxisSize.max : MainAxisSize.min,
+      mainAxisSize: widget.expanded ? MainAxisSize.max : MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       textDirection: ds.textDirection,
       children: [
@@ -129,10 +129,7 @@ class _DSButtonState extends State<DSButton> {
           onTapCancel: _handleTapCancel,
           onTap: widget.onPressed,
           behavior: HitTestBehavior.opaque,
-          child: Padding(
-            padding: padding,
-            child: buttonChild,
-          ),
+          child: Padding(padding: padding, child: buttonChild),
         ),
       ),
     );
@@ -167,10 +164,7 @@ class DSIconButton extends StatelessWidget {
         onTap: onPressed,
         behavior: HitTestBehavior.opaque,
         child: Padding(
-          padding: padding ??
-              EdgeInsetsDirectional.all(
-                ds.spacing.sm,
-              ),
+          padding: padding ?? EdgeInsetsDirectional.all(ds.spacing.sm),
           child: icon,
         ),
       ),
@@ -220,9 +214,6 @@ class DSDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ds = DSProvider.of(context);
-    return Container(
-      height: thickness,
-      color: color ?? ds.colors.border,
-    );
+    return Container(height: thickness, color: color ?? ds.colors.border);
   }
 }

@@ -14,9 +14,13 @@ import '../app_state.dart';
 import '../i18n.dart';
 import '../ui/blocks.dart';
 import '../widgets/attachment_picker.dart';
+import '../widgets/confirm_dialog.dart';
 import '../widgets/reason_prompt.dart';
 import 'reception_screens.dart'
-    show ReceptionNotifyScreen, ReceptionAppointmentCard;
+    show
+        ReceptionNotifyScreen,
+        ReceptionAppointmentCard,
+        ReceptionPatientDetailScreen;
 import 'specialist_screens.dart' show PromoBannerCarousel;
 
 class ManagerHomeScreen extends StatefulWidget {
@@ -2105,7 +2109,18 @@ class _ManagerAppointmentsScreenState extends State<ManagerAppointmentsScreen> {
                             for (final a in entry.value)
                               Padding(
                                 padding: EdgeInsetsDirectional.only(bottom: ds.spacing.xs),
-                                child: ReceptionAppointmentCard(appointment: a),
+                                child: ReceptionAppointmentCard(
+                                  appointment: a,
+                                  onTap: a.patient != null
+                                      ? () => Navigator.of(context).push(
+                                            PageRouteBuilder(
+                                              pageBuilder: (_, _, _) =>
+                                                  ReceptionPatientDetailScreen(
+                                                      patient: a.patient!),
+                                            ),
+                                          )
+                                      : null,
+                                ),
                               ),
                             SizedBox(height: ds.spacing.sm),
                           ],
@@ -2614,6 +2629,27 @@ class _ManagerNotesScreenState extends State<ManagerNotesScreen> {
     if (ok) await _load();
   }
 
+  Future<void> _delete(EmployeeNote note) async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: tr(context, ar: 'حذف الملاحظة', en: 'Delete note'),
+      message: tr(context,
+          ar: 'هل تريد حذف هذه الملاحظة نهائياً؟',
+          en: 'Delete this note permanently?'),
+      confirmLabel: tr(context, ar: 'حذف', en: 'Delete'),
+    );
+    if (confirmed != true || !mounted) return;
+    // Optimistically remove, restore on failure.
+    final removed = note;
+    setState(() => _notes.removeWhere((n) => n.id == note.id));
+    final ok = await context.hrService.deleteNote(note.id);
+    if (!mounted) return;
+    if (!ok) {
+      setState(() => _notes = [..._notes, removed]
+        ..sort((a, b) => b.id.compareTo(a.id)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final ds = DSProvider.of(context);
@@ -2664,6 +2700,7 @@ class _ManagerNotesScreenState extends State<ManagerNotesScreen> {
                               note: _notes[i],
                               replying: _replying.contains(_notes[i].id),
                               onReply: () => _reply(_notes[i]),
+                              onDelete: () => _delete(_notes[i]),
                             ),
                           ),
               ),
@@ -2679,11 +2716,13 @@ class _ManagerNoteCard extends StatelessWidget {
   final EmployeeNote note;
   final bool replying;
   final VoidCallback onReply;
+  final VoidCallback onDelete;
 
   const _ManagerNoteCard({
     required this.note,
     required this.replying,
     required this.onReply,
+    required this.onDelete,
   });
 
   @override
@@ -2707,6 +2746,19 @@ class _ManagerNoteCard extends StatelessWidget {
                 '${note.createdAt.year}-${note.createdAt.month.toString().padLeft(2, '0')}-${note.createdAt.day.toString().padLeft(2, '0')}',
                 role: DSTextRole.caption,
                 color: ds.colors.textMuted,
+              ),
+              SizedBox(width: ds.spacing.sm),
+              GestureDetector(
+                onTap: onDelete,
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: EdgeInsetsDirectional.all(ds.spacing.xs / 2),
+                  child: DSLineIcon(
+                    type: LineIconType.trash,
+                    color: const Color(0xFFEF4444),
+                    size: ds.spacing.md,
+                  ),
+                ),
               ),
             ],
           ),
