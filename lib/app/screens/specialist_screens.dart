@@ -401,6 +401,8 @@ class PromoBannerSlide extends StatelessWidget {
     const white = Color(0xFFFFFFFF);
     final hasLink = banner.linkUrl != null && banner.linkUrl!.isNotEmpty;
     final hasImage = banner.imageUrl != null && banner.imageUrl!.isNotEmpty;
+    // Admin explicitly chose a background colour (null = not chosen).
+    final hasColor = banner.colorValue != null;
     // Accent color is used ONLY when there is no image.
     final base = Color(banner.colorValue ?? 0xFF6366F1);
 
@@ -432,13 +434,17 @@ class PromoBannerSlide extends StatelessWidget {
               end: AlignmentDirectional.bottomEnd,
               colors: [base, base.withValues(alpha: 0.72)],
             ),
-            boxShadow: [
-              BoxShadow(
-                color: base.withValues(alpha: 0.35),
-                blurRadius: 12,
-                offset: const Offset(0, 6),
-              ),
-            ],
+            // Only cast a shadow when the admin actually chose a background
+            // colour; a default (unstyled) slide stays flat with no elevation.
+            boxShadow: hasColor
+                ? [
+                    BoxShadow(
+                      color: base.withValues(alpha: 0.35),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                    ),
+                  ]
+                : null,
           );
 
     final slide = Container(
@@ -463,20 +469,25 @@ class PromoBannerSlide extends StatelessWidget {
           if (banner.actionLabel != null &&
               banner.actionLabel!.isNotEmpty) ...[
             SizedBox(height: ds.spacing.md),
-            Container(
-              padding: EdgeInsetsDirectional.symmetric(
-                horizontal: ds.spacing.md,
-                vertical: ds.spacing.xs,
-              ),
-              decoration: BoxDecoration(
-                color: white.withValues(alpha: 0.22),
-                borderRadius: BorderRadius.circular(ds.radii.pill),
-                border: Border.all(color: white.withValues(alpha: 0.5)),
-              ),
-              child: DSText(
-                banner.actionLabel!,
-                role: DSTextRole.label,
-                color: white,
+            // Always pin the action label to the visual LEFT — Alignment.centerLeft
+            // is non-directional so it doesn't flip to the right under RTL.
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: ds.spacing.md,
+                  vertical: ds.spacing.xs,
+                ),
+                decoration: BoxDecoration(
+                  color: white.withValues(alpha: 0.22),
+                  borderRadius: BorderRadius.circular(ds.radii.pill),
+                  border: Border.all(color: white.withValues(alpha: 0.5)),
+                ),
+                child: DSText(
+                  banner.actionLabel!,
+                  role: DSTextRole.label,
+                  color: white,
+                ),
               ),
             ),
           ],
