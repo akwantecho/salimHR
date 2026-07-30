@@ -19,9 +19,16 @@ class DSTypography {
   });
 
   factory DSTypography.arabicDefault(Color primaryText, Color secondaryText) {
+    // The last two are the OS emoji fonts. Because we set fontFamilyFallback
+    // explicitly, Flutter won't auto-fall-back to the system emoji font, so
+    // emoji render as empty boxes unless we name them here. 'Noto Color Emoji'
+    // is Android's system emoji font; 'Apple Color Emoji' is iOS's. Neither is
+    // bundled — the OS provides them, so this adds no app size.
     const fontFallback = <String>[
       'NotoSansArabic',
       'NotoSans',
+      'Noto Color Emoji',
+      'Apple Color Emoji',
     ];
 
     const baseFont = 'Cairo';
