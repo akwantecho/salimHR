@@ -19,6 +19,23 @@ class PromoBanner extends Equatable {
   final int sortOrder;
   final bool active;
 
+  // ===== Display fields (admin-controlled, from /app/config) =====
+  /// Horizontal alignment of the text + button: 'left' | 'center' | 'right'.
+  /// Applied explicitly (not tied to app language direction).
+  final String textAlign;
+
+  /// Whether to draw a shadow under the slide.
+  final bool shadow;
+
+  /// Text colour (title/subtitle). Null → default (white).
+  final int? textColorValue;
+
+  /// Action button colour. Null → default.
+  final int? buttonColorValue;
+
+  /// Action button style: 'filled' | 'outline' | 'text'.
+  final String buttonStyle;
+
   const PromoBanner({
     required this.id,
     required this.title,
@@ -29,6 +46,11 @@ class PromoBanner extends Equatable {
     this.colorValue,
     this.sortOrder = 0,
     this.active = true,
+    this.textAlign = 'right',
+    this.shadow = true,
+    this.textColorValue,
+    this.buttonColorValue,
+    this.buttonStyle = 'filled',
   });
 
   factory PromoBanner.fromJson(Map<String, dynamic> json) {
@@ -42,6 +64,11 @@ class PromoBanner extends Equatable {
       colorValue: _parseColor(json['color']),
       sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
       active: json['active'] as bool? ?? true,
+      textAlign: (json['text_align'] as String?) ?? 'right',
+      shadow: json['shadow'] as bool? ?? true,
+      textColorValue: _parseColor(json['text_color']),
+      buttonColorValue: _parseColor(json['button_color']),
+      buttonStyle: (json['button_style'] as String?) ?? 'filled',
     );
   }
 

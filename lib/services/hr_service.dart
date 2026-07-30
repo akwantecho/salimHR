@@ -362,16 +362,22 @@ class HRService extends ChangeNotifier {
   }
 
   /// Fetch the active promotional banners for the home carousel.
-  /// Backed by `GET /api/banners` so the slides can be managed from the
-  /// server control panel. Returns an empty list on failure.
+  /// Backed by `GET /api/app/config` which returns `banners[]` including the
+  /// admin display fields (text_align, shadow, text/button colours, style).
+  /// The server already returns only the currently-scheduled banners.
   Future<List<PromoBanner>> fetchPromoBanners({String lang = 'ar'}) async {
     try {
       final response = await _client.get<Map<String, dynamic>>(
-        '/banners',
+        '/app/config',
         queryParameters: {'lang': lang},
       );
-      final data = response.data?['data'] as List<dynamic>? ?? [];
-      return data
+      // banners may live under data.banners or top-level banners.
+      final root = response.data ?? const {};
+      final inner = root['data'];
+      final list = (inner is Map ? inner['banners'] : root['banners'])
+              as List<dynamic>? ??
+          const [];
+      return list
           .map((e) => PromoBanner.fromJson(e as Map<String, dynamic>))
           .where((b) => b.active)
           .toList()

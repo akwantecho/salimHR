@@ -401,21 +401,50 @@ class PromoBannerSlide extends StatelessWidget {
     const white = Color(0xFFFFFFFF);
     final hasLink = banner.linkUrl != null && banner.linkUrl!.isNotEmpty;
     final hasImage = banner.imageUrl != null && banner.imageUrl!.isNotEmpty;
-    // Admin explicitly chose a background colour (null = not chosen).
-    final hasColor = banner.colorValue != null;
     // Accent color is used ONLY when there is no image.
     final base = Color(banner.colorValue ?? 0xFF6366F1);
+    // Admin-controlled text colour (default white over image/gradient).
+    final textColor =
+        banner.textColorValue != null ? Color(banner.textColorValue!) : white;
 
-    // With an image: show it EXACTLY as uploaded — no darken filter, no shadow.
-    // Without an image: use the chosen background colour.
+    // text_align → explicit alignment (NOT tied to app language direction).
+    final CrossAxisAlignment crossAlign;
+    switch (banner.textAlign) {
+      case 'left':
+        crossAlign = CrossAxisAlignment.start;
+        break;
+      case 'center':
+        crossAlign = CrossAxisAlignment.center;
+        break;
+      case 'right':
+      default:
+        crossAlign = CrossAxisAlignment.end;
+        break;
+    }
+
     // Same hairline border as DSCard, so a white/light banner image doesn't
     // blend into the app background — the slider edges stay visible.
     final slideBorder = Border.all(color: ds.colors.border, width: 1);
+
+    // Shadow is fully admin-controlled via the `shadow` flag.
+    final List<BoxShadow>? shadow = banner.shadow
+        ? [
+            BoxShadow(
+              color: hasImage
+                  ? const Color(0x1A000000)
+                  : base.withValues(alpha: 0.35),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ]
+        : null;
 
     final decoration = hasImage
         ? BoxDecoration(
             borderRadius: BorderRadius.circular(ds.radii.large),
             border: slideBorder,
+            boxShadow: shadow,
+            // Image shown EXACTLY as uploaded — no darken filter.
             image: DecorationImage(
               image: NetworkImage(banner.imageUrl!),
               fit: BoxFit.cover,
@@ -424,77 +453,42 @@ class PromoBannerSlide extends StatelessWidget {
         : BoxDecoration(
             borderRadius: BorderRadius.circular(ds.radii.large),
             border: slideBorder,
+            boxShadow: shadow,
             gradient: LinearGradient(
               begin: AlignmentDirectional.topStart,
               end: AlignmentDirectional.bottomEnd,
               colors: [base, base.withValues(alpha: 0.72)],
             ),
-            // Only cast a shadow when the admin actually chose a background
-            // colour; a default (unstyled) slide stays flat with no elevation.
-            boxShadow: hasColor
-                ? [
-                    BoxShadow(
-                      color: base.withValues(alpha: 0.35),
-                      blurRadius: 12,
-                      offset: const Offset(0, 6),
-                    ),
-                  ]
-                : null,
           );
 
     final slide = Container(
       margin: EdgeInsetsDirectional.symmetric(horizontal: ds.spacing.xs),
       padding: EdgeInsets.all(ds.spacing.lg),
       decoration: decoration,
-      // Force LTR so the action button stays on the left and the text block on
-      // the right, on the same row, regardless of the app language direction.
+      // Force LTR so text_align maps to a fixed physical side regardless of the
+      // app language direction.
       child: Directionality(
         textDirection: TextDirection.ltr,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+        child: Column(
+          crossAxisAlignment: crossAlign,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Action button — left, same row (vertically centered)
+            DSText(
+              banner.title,
+              role: DSTextRole.headline,
+              color: textColor,
+            ),
+            SizedBox(height: ds.spacing.xs),
+            DSText(
+              banner.subtitle,
+              role: DSTextRole.body,
+              color: textColor.withValues(alpha: 0.92),
+            ),
             if (banner.actionLabel != null &&
                 banner.actionLabel!.isNotEmpty) ...[
-              Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: ds.spacing.md,
-                  vertical: ds.spacing.xs,
-                ),
-                decoration: BoxDecoration(
-                  color: white.withValues(alpha: 0.22),
-                  borderRadius: BorderRadius.circular(ds.radii.pill),
-                  border: Border.all(color: white.withValues(alpha: 0.5)),
-                ),
-                child: DSText(
-                  banner.actionLabel!,
-                  role: DSTextRole.label,
-                  color: white,
-                ),
-              ),
-              SizedBox(width: ds.spacing.md),
+              SizedBox(height: ds.spacing.md),
+              _actionButton(ds, white),
             ],
-            // Text block — right (right-aligned)
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  DSText(
-                    banner.title,
-                    role: DSTextRole.headline,
-                    color: white,
-                  ),
-                  SizedBox(height: ds.spacing.xs),
-                  DSText(
-                    banner.subtitle,
-                    role: DSTextRole.body,
-                    color: white.withValues(alpha: 0.92),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
       ),
@@ -505,6 +499,57 @@ class PromoBannerSlide extends StatelessWidget {
       onTap: _openLink,
       behavior: HitTestBehavior.opaque,
       child: slide,
+    );
+  }
+
+  /// The action pill, honouring [PromoBanner.buttonStyle] (filled/outline/text)
+  /// and [PromoBanner.buttonColorValue] (null → white-based default).
+  Widget _actionButton(dynamic ds, Color white) {
+    final accent =
+        banner.buttonColorValue != null ? Color(banner.buttonColorValue!) : null;
+
+    Color? bg;
+    Color fg;
+    Border? border;
+    switch (banner.buttonStyle) {
+      case 'outline':
+        bg = null;
+        border = Border.all(color: accent ?? white.withValues(alpha: 0.6));
+        fg = accent ?? white;
+        break;
+      case 'text':
+        bg = null;
+        border = null;
+        fg = accent ?? white;
+        break;
+      case 'filled':
+      default:
+        bg = accent ?? white.withValues(alpha: 0.22);
+        // Contrast text on a solid fill; keep white on the translucent default.
+        fg = accent != null
+            ? (accent.computeLuminance() > 0.5
+                ? const Color(0xFF1A1A1A)
+                : white)
+            : white;
+        border = accent != null ? null : Border.all(color: white.withValues(alpha: 0.5));
+        break;
+    }
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: banner.buttonStyle == 'text' ? 0 : ds.spacing.md,
+        vertical: ds.spacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(ds.radii.pill),
+        border: border,
+      ),
+      child: DSText(
+        banner.actionLabel!,
+        role: DSTextRole.label,
+        color: fg,
+      ),
     );
   }
 }
