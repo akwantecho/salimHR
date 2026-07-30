@@ -36,6 +36,10 @@ class PromoBanner extends Equatable {
   /// Action button style: 'filled' | 'outline' | 'text'.
   final String buttonStyle;
 
+  /// Button alignment: 'inherit' follows [textAlign]; otherwise 'left' |
+  /// 'center' | 'right' positions the button independently of the text.
+  final String buttonAlign;
+
   const PromoBanner({
     required this.id,
     required this.title,
@@ -51,6 +55,7 @@ class PromoBanner extends Equatable {
     this.textColorValue,
     this.buttonColorValue,
     this.buttonStyle = 'filled',
+    this.buttonAlign = 'inherit',
   });
 
   factory PromoBanner.fromJson(Map<String, dynamic> json) {
@@ -69,6 +74,7 @@ class PromoBanner extends Equatable {
       textColorValue: _parseColor(json['text_color']),
       buttonColorValue: _parseColor(json['button_color']),
       buttonStyle: (json['button_style'] as String?) ?? 'filled',
+      buttonAlign: (json['button_align'] as String?) ?? 'inherit',
     );
   }
 

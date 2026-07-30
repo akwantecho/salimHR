@@ -487,7 +487,15 @@ class PromoBannerSlide extends StatelessWidget {
             if (banner.actionLabel != null &&
                 banner.actionLabel!.isNotEmpty) ...[
               SizedBox(height: ds.spacing.md),
-              _actionButton(ds, white),
+              // 'inherit' → follow the text alignment (button sits with the
+              // Column's crossAlign). Otherwise align the button independently.
+              if (banner.buttonAlign == 'inherit')
+                _actionButton(ds, white)
+              else
+                Align(
+                  alignment: _buttonAlignment(banner.buttonAlign),
+                  child: _actionButton(ds, white),
+                ),
             ],
           ],
         ),
@@ -500,6 +508,20 @@ class PromoBannerSlide extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: slide,
     );
+  }
+
+  /// Maps a non-inherit button_align ('left'|'center'|'right') to an explicit,
+  /// non-directional Alignment (the slide runs under forced LTR).
+  Alignment _buttonAlignment(String value) {
+    switch (value) {
+      case 'left':
+        return Alignment.centerLeft;
+      case 'center':
+        return Alignment.center;
+      case 'right':
+      default:
+        return Alignment.centerRight;
+    }
   }
 
   /// The action pill, honouring [PromoBanner.buttonStyle] (filled/outline/text)
