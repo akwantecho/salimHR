@@ -40,6 +40,10 @@ class PromoBanner extends Equatable {
   /// 'center' | 'right' positions the button independently of the text.
   final String buttonAlign;
 
+  /// When true the button stretches to the full slide width; when false
+  /// (default) it hugs its content and sits on the aligned edge.
+  final bool buttonFullWidth;
+
   const PromoBanner({
     required this.id,
     required this.title,
@@ -56,6 +60,7 @@ class PromoBanner extends Equatable {
     this.buttonColorValue,
     this.buttonStyle = 'filled',
     this.buttonAlign = 'inherit',
+    this.buttonFullWidth = false,
   });
 
   factory PromoBanner.fromJson(Map<String, dynamic> json) {
@@ -75,6 +80,7 @@ class PromoBanner extends Equatable {
       buttonColorValue: _parseColor(json['button_color']),
       buttonStyle: (json['button_style'] as String?) ?? 'filled',
       buttonAlign: (json['button_align'] as String?) ?? 'inherit',
+      buttonFullWidth: json['button_full_width'] as bool? ?? false,
     );
   }
 

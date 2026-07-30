@@ -487,9 +487,12 @@ class PromoBannerSlide extends StatelessWidget {
             if (banner.actionLabel != null &&
                 banner.actionLabel!.isNotEmpty) ...[
               SizedBox(height: ds.spacing.md),
-              // 'inherit' → follow the text alignment (button sits with the
-              // Column's crossAlign). Otherwise align the button independently.
-              if (banner.buttonAlign == 'inherit')
+              // Full width overrides alignment. Otherwise: 'inherit' follows the
+              // text alignment (Column crossAlign); a specific value aligns the
+              // compact button independently.
+              if (banner.buttonFullWidth)
+                _actionButton(ds, white, fullWidth: true)
+              else if (banner.buttonAlign == 'inherit')
                 _actionButton(ds, white)
               else
                 Align(
@@ -525,8 +528,9 @@ class PromoBannerSlide extends StatelessWidget {
   }
 
   /// The action pill, honouring [PromoBanner.buttonStyle] (filled/outline/text)
-  /// and [PromoBanner.buttonColorValue] (null → white-based default).
-  Widget _actionButton(dynamic ds, Color white) {
+  /// and [PromoBanner.buttonColorValue] (null → white-based default). When
+  /// [fullWidth] the pill stretches edge-to-edge with a centred label.
+  Widget _actionButton(dynamic ds, Color white, {bool fullWidth = false}) {
     final accent =
         banner.buttonColorValue != null ? Color(banner.buttonColorValue!) : null;
 
@@ -558,6 +562,8 @@ class PromoBannerSlide extends StatelessWidget {
     }
 
     return Container(
+      width: fullWidth ? double.infinity : null,
+      alignment: fullWidth ? Alignment.center : null,
       padding: EdgeInsets.symmetric(
         horizontal: banner.buttonStyle == 'text' ? 0 : ds.spacing.md,
         vertical: ds.spacing.xs,
