@@ -408,9 +408,14 @@ class PromoBannerSlide extends StatelessWidget {
 
     // With an image: show it EXACTLY as uploaded — no darken filter, no shadow.
     // Without an image: use the chosen background colour.
+    // Same hairline border as DSCard, so a white/light banner image doesn't
+    // blend into the app background — the slider edges stay visible.
+    final slideBorder = Border.all(color: ds.colors.border, width: 1);
+
     final decoration = hasImage
         ? BoxDecoration(
             borderRadius: BorderRadius.circular(ds.radii.large),
+            border: slideBorder,
             image: DecorationImage(
               image: NetworkImage(banner.imageUrl!),
               fit: BoxFit.cover,
@@ -418,6 +423,7 @@ class PromoBannerSlide extends StatelessWidget {
           )
         : BoxDecoration(
             borderRadius: BorderRadius.circular(ds.radii.large),
+            border: slideBorder,
             gradient: LinearGradient(
               begin: AlignmentDirectional.topStart,
               end: AlignmentDirectional.bottomEnd,
