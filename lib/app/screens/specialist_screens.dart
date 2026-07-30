@@ -407,21 +407,6 @@ class PromoBannerSlide extends StatelessWidget {
     final textColor =
         banner.textColorValue != null ? Color(banner.textColorValue!) : white;
 
-    // text_align → explicit alignment (NOT tied to app language direction).
-    final CrossAxisAlignment crossAlign;
-    switch (banner.textAlign) {
-      case 'left':
-        crossAlign = CrossAxisAlignment.start;
-        break;
-      case 'center':
-        crossAlign = CrossAxisAlignment.center;
-        break;
-      case 'right':
-      default:
-        crossAlign = CrossAxisAlignment.end;
-        break;
-    }
-
     // Same hairline border as DSCard, so a white/light banner image doesn't
     // blend into the app background — the slider edges stay visible.
     final slideBorder = Border.all(color: ds.colors.border, width: 1);
@@ -465,41 +450,38 @@ class PromoBannerSlide extends StatelessWidget {
       margin: EdgeInsetsDirectional.symmetric(horizontal: ds.spacing.xs),
       padding: EdgeInsets.all(ds.spacing.lg),
       decoration: decoration,
-      // Force LTR so text_align maps to a fixed physical side regardless of the
-      // app language direction.
+      // Force LTR so the button stays on the left and the text on the right,
+      // on the SAME row (vertically centered), regardless of app language.
       child: Directionality(
         textDirection: TextDirection.ltr,
-        child: Column(
-          crossAxisAlignment: crossAlign,
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            DSText(
-              banner.title,
-              role: DSTextRole.headline,
-              color: textColor,
-            ),
-            SizedBox(height: ds.spacing.xs),
-            DSText(
-              banner.subtitle,
-              role: DSTextRole.body,
-              color: textColor.withValues(alpha: 0.92),
-            ),
             if (banner.actionLabel != null &&
                 banner.actionLabel!.isNotEmpty) ...[
-              SizedBox(height: ds.spacing.md),
-              // Full width overrides alignment. Otherwise: 'inherit' follows the
-              // text alignment (Column crossAlign); a specific value aligns the
-              // compact button independently.
-              if (banner.buttonFullWidth)
-                _actionButton(ds, white, fullWidth: true)
-              else if (banner.buttonAlign == 'inherit')
-                _actionButton(ds, white)
-              else
-                Align(
-                  alignment: _buttonAlignment(banner.buttonAlign),
-                  child: _actionButton(ds, white),
-                ),
+              _actionButton(ds, white),
+              SizedBox(width: ds.spacing.md),
             ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DSText(
+                    banner.title,
+                    role: DSTextRole.headline,
+                    color: textColor,
+                  ),
+                  SizedBox(height: ds.spacing.xs),
+                  DSText(
+                    banner.subtitle,
+                    role: DSTextRole.body,
+                    color: textColor.withValues(alpha: 0.92),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -511,20 +493,6 @@ class PromoBannerSlide extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: slide,
     );
-  }
-
-  /// Maps a non-inherit button_align ('left'|'center'|'right') to an explicit,
-  /// non-directional Alignment (the slide runs under forced LTR).
-  Alignment _buttonAlignment(String value) {
-    switch (value) {
-      case 'left':
-        return Alignment.centerLeft;
-      case 'center':
-        return Alignment.center;
-      case 'right':
-      default:
-        return Alignment.centerRight;
-    }
   }
 
   /// The action pill, honouring [PromoBanner.buttonStyle] (filled/outline/text)
