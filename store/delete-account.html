@@ -1,0 +1,132 @@
+<style>
+  :root {
+    --bg: #f4f6f5; --surface: #ffffff; --fg: #1a2420; --muted: #5c6b64;
+    --faint: #8a9791; --accent: #0f766e; --accent-soft: #d7ede9;
+    --border: #dfe6e2; --rule: #e8ede9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1512; --surface: #131e19; --fg: #e6ece8; --muted: #9fb0a8;
+      --faint: #6f8078; --accent: #4fd1c0; --accent-soft: #14312b;
+      --border: #223029; --rule: #1c2823;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f6f5; --surface: #ffffff; --fg: #1a2420; --muted: #5c6b64;
+    --faint: #8a9791; --accent: #0f766e; --accent-soft: #d7ede9;
+    --border: #dfe6e2; --rule: #e8ede9;
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1512; --surface: #131e19; --fg: #e6ece8; --muted: #9fb0a8;
+    --faint: #6f8078; --accent: #4fd1c0; --accent-soft: #14312b;
+    --border: #223029; --rule: #1c2823;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    line-height: 1.7; -webkit-font-smoothing: antialiased;
+  }
+  .doc { max-width: 720px; margin: 0 auto; padding: clamp(28px,5vw,60px) clamp(20px,5vw,40px) 80px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: clamp(24px,5vw,48px);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 12px 32px -20px rgba(0,0,0,0.25);
+  }
+  .eyebrow {
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Tahoma, sans-serif;
+    font-size: .72rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--accent); margin: 0 0 10px;
+  }
+  h1 { font-size: clamp(1.6rem,4.5vw,2.15rem); line-height: 1.15; margin: 0 0 6px; text-wrap: balance; letter-spacing: -.01em; }
+  h2 { font-size: 1.12rem; margin: 34px 0 10px; padding-top: 20px; border-top: 1px solid var(--rule); }
+  p { margin: 0 0 14px; }
+  ul, ol { margin: 0 0 14px; padding-inline-start: 22px; }
+  li { margin-bottom: 8px; }
+  li::marker { color: var(--accent); }
+  strong { font-weight: 600; }
+  a { color: var(--accent); text-underline-offset: 2px; }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+  .lede { font-size: 1.05rem; color: var(--muted); }
+  .steps { background: var(--accent-soft); border: 1px solid var(--border); border-radius: 12px; padding: 18px 22px; }
+  .contact {
+    margin-top: 22px; background: var(--surface); border: 1px dashed var(--border);
+    border-radius: 12px; padding: 16px 20px;
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Tahoma, sans-serif; font-size: .95rem;
+  }
+  .switch { margin-top: 52px; padding-top: 4px; border-top: 2px dashed var(--rule); }
+  section[dir="ltr"] { text-align: left; }
+</style>
+
+<article class="doc">
+  <div class="card">
+
+    <!-- Arabic -->
+    <section dir="rtl" lang="ar">
+      <p class="eyebrow">حذف الحساب والبيانات</p>
+      <h1>طلب حذف حساب — Salim HR</h1>
+      <p class="lede">حسابات تطبيق <strong>Salim HR</strong> تُدار من قِبل عيادتك (جهة العمل).
+      يمكنك طلب حذف حسابك وبياناتك المرتبطة به باتباع الخطوات التالية.</p>
+
+      <h2>كيف تطلب الحذف</h2>
+      <div class="steps">
+        <ol>
+          <li>أرسل بريداً إلكترونياً إلى <a href="mailto:aljfrysd29@gmail.com">aljfrysd29@gmail.com</a>
+            من عنوان بريدك، بعنوان: <strong>«طلب حذف حساب»</strong>.</li>
+          <li>اذكر <strong>اسمك</strong> و<strong>البريد المستخدم للدخول</strong> واسم العيادة.</li>
+          <li>أو تواصل مع <strong>إدارة عيادتك</strong> لتقديم الطلب نيابةً عنك.</li>
+        </ol>
+      </div>
+
+      <h2>ما الذي يُحذف</h2>
+      <ul>
+        <li>حساب الدخول (البريد وكلمة المرور).</li>
+        <li>بياناتك الشخصية: الاسم، رقم الموظف، رمز الإشعارات.</li>
+        <li>المحتوى المرتبط بحسابك (الطلبات والملاحظات والمرفقات) ما لم يُطلب الاحتفاظ به نظاماً.</li>
+      </ul>
+
+      <h2>المدة والاستثناءات</h2>
+      <p>تُعالَج الطلبات ويُحذف الحساب خلال <strong>٣٠ يوماً</strong> كحدٍّ أقصى. قد نحتفظ ببعض
+      السجلات لمدة محدودة إذا تطلّب ذلك القانون أو المتطلبات المحاسبية للعيادة، ثم تُحذف.</p>
+
+      <div class="contact">
+        للاستفسار أو الطلب: <a href="mailto:aljfrysd29@gmail.com">aljfrysd29@gmail.com</a>
+      </div>
+    </section>
+
+    <!-- English -->
+    <section dir="ltr" lang="en" class="switch">
+      <p class="eyebrow">Account &amp; Data Deletion</p>
+      <h1>Request Account Deletion — Salim HR</h1>
+      <p class="lede"><strong>Salim HR</strong> accounts are managed by your clinic (your employer).
+      You can request deletion of your account and associated data as follows.</p>
+
+      <h2>How to request deletion</h2>
+      <div class="steps">
+        <ol>
+          <li>Email <a href="mailto:aljfrysd29@gmail.com">aljfrysd29@gmail.com</a> from your address
+            with the subject <strong>"Account deletion request"</strong>.</li>
+          <li>Include your <strong>name</strong>, the <strong>login email</strong>, and your clinic name.</li>
+          <li>Alternatively, ask your <strong>clinic administration</strong> to submit the request for you.</li>
+        </ol>
+      </div>
+
+      <h2>What is deleted</h2>
+      <ul>
+        <li>Your login account (email and password).</li>
+        <li>Your personal data: name, employee number, notification token.</li>
+        <li>Content tied to your account (requests, notes, attachments) unless retention is legally required.</li>
+      </ul>
+
+      <h2>Timeframe &amp; exceptions</h2>
+      <p>Requests are processed and the account deleted within <strong>30 days</strong>. Some records
+      may be retained for a limited period where required by law or the clinic's accounting
+      obligations, then deleted.</p>
+
+      <div class="contact">
+        Questions or requests: <a href="mailto:aljfrysd29@gmail.com">aljfrysd29@gmail.com</a>
+      </div>
+    </section>
+
+  </div>
+</article>
