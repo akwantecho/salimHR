@@ -94,6 +94,6 @@ Salim HR is an internal work tool used with an account provided by your workplac
 
 ## بيانات إضافية يطلبها المتجر
 - **الفئة (Category):** Business (أعمال) — أو Medical
-- **بريد التواصل:** aljfrysd29@gmail.com
+- **بريد التواصل:** salim.medical.llc@gmail.com
 - **رابط سياسة الخصوصية:** (بعد استضافة `store/privacy-policy.html`)
 - **App access:** التطبيق يتطلب تسجيل دخول → زوّد جوجل بحساب اختبار (مثلاً حساب أدمن) في قسم App access.
