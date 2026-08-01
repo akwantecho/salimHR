@@ -1,9 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-    <!-- image_picker pulls in media permissions transitively. The app only
-         picks images, never video/audio — remove those so Play doesn't require
-         a declaration for permissions we don't use. -->
+    <!-- image_picker pulls in media permissions transitively. Per Google's
+         Photo & Video Permissions policy, apps targeting Android 13+ must use
+         the system photo picker instead of broad media permissions. image_picker
+         (1.2.x) uses the Android Photo Picker automatically when these
+         permissions are absent, so we remove all of them. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" tools:node="remove"/>
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" tools:node="remove"/>
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" tools:node="remove"/>
     <application
