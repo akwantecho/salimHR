@@ -16,6 +16,7 @@ import '../ui/blocks.dart';
 import '../widgets/attachment_picker.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/reason_prompt.dart';
+import 'ai_assistant_screen.dart';
 import 'reception_screens.dart'
     show
         ReceptionNotifyScreen,
@@ -347,6 +348,20 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                         icon: LineIconType.bell,
                         color: const Color(0xFFEC4899),
                         onTap: () => AppScope.of(context).showNotifications(),
+                      ),
+                    ),
+                    SizedBox(width: ds.spacing.sm),
+                    Expanded(
+                      child: _MgrLink(
+                        label: t('د. يوسف', 'Dr. Yousef'),
+                        icon: LineIconType.chat,
+                        color: const Color(0xFF059669),
+                        onTap: () => Navigator.of(context).push(
+                          PageRouteBuilder(
+                            pageBuilder: (context, _, _) =>
+                                const AiAssistantScreen(),
+                          ),
+                        ),
                       ),
                     ),
                   ],

@@ -173,7 +173,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
               children: [
                 DSText(t('د. يوسف', 'Dr. Yousef'), role: DSTextRole.title),
                 DSText(
-                  t('مساعدك في العلاج الطبيعي', 'Your physiotherapy assistant'),
+                  t('مساعدك الذكي في العمل', 'Your smart work assistant'),
                   role: DSTextRole.caption,
                   color: ds.colors.textSecondary,
                 ),
@@ -255,8 +255,8 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
             SizedBox(height: ds.spacing.xs),
             DSText(
               t(
-                'مرجع علاج طبيعي، صياغة تقارير، وتلخيص حالة المريض.',
-                'PT reference, report drafting, and patient case summaries.',
+                'اسأله عن رصيد مريض، جلساته، المواعيد، المخزون — أو مرجع مهني وصياغة تقارير.',
+                'Ask about a patient balance, sessions, appointments, inventory — or professional reference & reports.',
               ),
               role: DSTextRole.caption,
               color: ds.colors.textSecondary,

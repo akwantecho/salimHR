@@ -15,6 +15,7 @@ import '../app_state.dart';
 import '../i18n.dart';
 import '../ui/blocks.dart';
 import '../widgets/reason_prompt.dart';
+import 'ai_assistant_screen.dart';
 import 'specialist_screens.dart' show PromoBannerCarousel;
 
 // ==================== RECEPTION HOME (dashboard) ====================
@@ -291,6 +292,17 @@ class _ReceptionHomeScreenState extends State<ReceptionHomeScreen> {
                     ),
                   ),
                 ],
+              ),
+              SizedBox(height: ds.spacing.sm),
+              _RecQuickLink(
+                label: t('د. يوسف — المساعد الذكي', 'Dr. Yousef — AI Assistant'),
+                icon: LineIconType.chat,
+                color: const Color(0xFF059669),
+                onTap: () => Navigator.of(context).push(
+                  PageRouteBuilder(
+                    pageBuilder: (context, _, _) => const AiAssistantScreen(),
+                  ),
+                ),
               ),
               SizedBox(height: ds.spacing.lg),
 
