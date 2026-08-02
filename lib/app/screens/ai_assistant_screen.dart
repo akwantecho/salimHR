@@ -193,8 +193,8 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
       color: ds.colors.surfaceAlt,
       child: DSText(
         t(
-          'أداة مساعدة — القرار النهائي للأخصائي. قد تطّلع الإدارة على المحادثات.',
-          'An aid — the specialist decides. Conversations may be reviewed by management.',
+          'أداة مساعدة — القرار النهائي للأخصائي.',
+          'An aid — the specialist makes the final decision.',
         ),
         role: DSTextRole.caption,
         color: ds.colors.textMuted,
