@@ -57,18 +57,18 @@ class BottomNavWithFab extends StatelessWidget {
                 borderRadius: BorderRadius.circular(ds.radii.xLarge),
                 boxShadow: [
                   BoxShadow(
-                    color: ds.colors.primary.withOpacity(0.08),
+                    color: ds.colors.primary.withValues(alpha: 0.08),
                     blurRadius: 20,
                     offset: const Offset(0, -4),
                   ),
                   BoxShadow(
-                    color: const Color(0xFF000000).withOpacity(0.05),
+                    color: const Color(0xFF000000).withValues(alpha: 0.05),
                     blurRadius: 10,
                     offset: const Offset(0, 2),
                   ),
                 ],
                 border: Border.all(
-                  color: ds.colors.border.withOpacity(0.5),
+                  color: ds.colors.border.withValues(alpha: 0.5),
                   width: 1,
                 ),
               ),
@@ -179,7 +179,7 @@ class _SideNavItem extends StatelessWidget {
               curve: ds.animation.curve,
               padding: EdgeInsetsDirectional.all(ds.spacing.xs),
               decoration: BoxDecoration(
-                color: isSelected ? accentColor.withOpacity(0.15) : null,
+                color: isSelected ? accentColor.withValues(alpha: 0.15) : null,
                 borderRadius: BorderRadius.circular(ds.radii.medium),
               ),
               child: DSLineIcon(
@@ -260,18 +260,18 @@ class _CenterFabState extends State<_CenterFab> {
             ),
             boxShadow: [
               BoxShadow(
-                color: widget.color.withOpacity(0.45),
+                color: widget.color.withValues(alpha: 0.45),
                 blurRadius: 16,
                 offset: const Offset(0, 6),
               ),
               BoxShadow(
-                color: const Color(0xFF000000).withOpacity(0.1),
+                color: const Color(0xFF000000).withValues(alpha: 0.1),
                 blurRadius: 4,
                 offset: const Offset(0, 1),
               ),
             ],
             border: Border.all(
-              color: const Color(0xFFFFFFFF).withOpacity(0.4),
+              color: const Color(0xFFFFFFFF).withValues(alpha: 0.4),
               width: 2,
             ),
           ),

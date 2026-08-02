@@ -163,7 +163,7 @@ class StatusPill extends StatelessWidget {
         vertical: ds.spacing.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.16),
+        color: color.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(ds.radii.pill),
       ),
       child: DSText(

@@ -609,7 +609,7 @@ class _SalaryScreenState extends State<SalaryScreen> {
                   borderRadius: BorderRadius.circular(ds.radii.xLarge),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF10B981).withOpacity(0.3),
+                      color: const Color(0xFF10B981).withValues(alpha: 0.3),
                       blurRadius: 12,
                       offset: const Offset(0, 6),
                     ),
@@ -624,7 +624,7 @@ class _SalaryScreenState extends State<SalaryScreen> {
                         DSText(
                           t('صافي الراتب', 'Net Salary'),
                           role: DSTextRole.caption,
-                          color: const Color(0xFFFFFFFF).withOpacity(0.9),
+                          color: const Color(0xFFFFFFFF).withValues(alpha: 0.9),
                         ),
                         Container(
                           padding: EdgeInsetsDirectional.symmetric(
@@ -632,7 +632,7 @@ class _SalaryScreenState extends State<SalaryScreen> {
                             vertical: ds.spacing.xs / 2,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFFFFFF).withOpacity(0.2),
+                            color: const Color(0xFFFFFFFF).withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(ds.radii.pill),
                           ),
                           child: DSText(
@@ -851,7 +851,7 @@ class _WorkerSalaryCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(ds.radii.xLarge),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF6366F1).withOpacity(0.3),
+            color: const Color(0xFF6366F1).withValues(alpha: 0.3),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -866,7 +866,7 @@ class _WorkerSalaryCard extends StatelessWidget {
               DSText(
                 t('راتبي الشهري', 'My Monthly Salary'),
                 role: DSTextRole.caption,
-                color: const Color(0xFFFFFFFF).withOpacity(0.9),
+                color: const Color(0xFFFFFFFF).withValues(alpha: 0.9),
               ),
               Container(
                 padding: EdgeInsetsDirectional.symmetric(
@@ -874,7 +874,7 @@ class _WorkerSalaryCard extends StatelessWidget {
                   vertical: 2,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFFFFF).withOpacity(0.2),
+                  color: const Color(0xFFFFFFFF).withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(ds.radii.small),
                 ),
                 child: DSText(
@@ -933,7 +933,7 @@ class _SalaryMiniStat extends StatelessWidget {
         DSText(
           label,
           role: DSTextRole.caption,
-          color: const Color(0xFFFFFFFF).withOpacity(0.7),
+          color: const Color(0xFFFFFFFF).withValues(alpha: 0.7),
         ),
         DSText(
           value,
@@ -968,10 +968,10 @@ class _QuickActionCard extends StatelessWidget {
     return Container(
       padding: EdgeInsetsDirectional.all(ds.spacing.sm),
       decoration: BoxDecoration(
-        color: action.color.withOpacity(0.1),
+        color: action.color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(ds.radii.large),
         border: Border.all(
-          color: action.color.withOpacity(0.2),
+          color: action.color.withValues(alpha: 0.2),
         ),
       ),
       child: Column(
@@ -985,13 +985,13 @@ class _QuickActionCard extends StatelessWidget {
                 end: AlignmentDirectional.bottomEnd,
                 colors: [
                   action.color,
-                  action.color.withOpacity(0.7),
+                  action.color.withValues(alpha: 0.7),
                 ],
               ),
               borderRadius: BorderRadius.circular(ds.radii.medium),
               boxShadow: [
                 BoxShadow(
-                  color: action.color.withOpacity(0.3),
+                  color: action.color.withValues(alpha: 0.3),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
@@ -1052,7 +1052,7 @@ class _InventoryActionCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(ds.radii.large),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.3),
+              color: color.withValues(alpha: 0.3),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -1064,7 +1064,7 @@ class _InventoryActionCard extends StatelessWidget {
               width: ds.spacing.xl,
               height: ds.spacing.xl,
               decoration: BoxDecoration(
-                color: const Color(0xFFFFFFFF).withOpacity(0.2),
+                color: const Color(0xFFFFFFFF).withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
               child: Center(
@@ -1088,7 +1088,7 @@ class _InventoryActionCard extends StatelessWidget {
                   DSText(
                     sub,
                     role: DSTextRole.caption,
-                    color: const Color(0xFFFFFFFF).withOpacity(0.85),
+                    color: const Color(0xFFFFFFFF).withValues(alpha: 0.85),
                     maxLines: 1,
                   ),
                 ],
@@ -1118,9 +1118,9 @@ class _InventoryStatCard extends StatelessWidget {
     return Container(
       padding: EdgeInsetsDirectional.all(ds.spacing.md),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(ds.radii.large),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
@@ -1162,7 +1162,7 @@ class _InventoryFilterChip extends StatelessWidget {
         vertical: ds.spacing.xs,
       ),
       decoration: BoxDecoration(
-        color: isSelected ? chipColor.withOpacity(0.15) : ds.colors.surface,
+        color: isSelected ? chipColor.withValues(alpha: 0.15) : ds.colors.surface,
         borderRadius: BorderRadius.circular(ds.radii.pill),
         border: Border.all(
           color: isSelected ? chipColor : ds.colors.border,
@@ -1215,7 +1215,7 @@ class _InventoryCard extends StatelessWidget {
         border: Border.all(color: ds.colors.border),
         boxShadow: [
           BoxShadow(
-            color: itemColor.withOpacity(0.08),
+            color: itemColor.withValues(alpha: 0.08),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -1230,7 +1230,7 @@ class _InventoryCard extends StatelessWidget {
                 width: ds.spacing.xl,
                 height: ds.spacing.xl,
                 decoration: BoxDecoration(
-                  color: itemColor.withOpacity(0.12),
+                  color: itemColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(ds.radii.medium),
                 ),
                 child: Center(
@@ -1275,7 +1275,7 @@ class _InventoryCard extends StatelessWidget {
                   vertical: 2,
                 ),
                 decoration: BoxDecoration(
-                  color: itemColor.withOpacity(0.1),
+                  color: itemColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(ds.radii.small),
                 ),
                 child: DSText(
@@ -1292,7 +1292,7 @@ class _InventoryCard extends StatelessWidget {
           Container(
             height: 6,
             decoration: BoxDecoration(
-              color: itemColor.withOpacity(0.15),
+              color: itemColor.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(3),
             ),
             child: FractionallySizedBox(
@@ -1303,7 +1303,7 @@ class _InventoryCard extends StatelessWidget {
                   gradient: LinearGradient(
                     colors: [
                       itemColor,
-                      itemColor.withOpacity(0.7),
+                      itemColor.withValues(alpha: 0.7),
                     ],
                   ),
                   borderRadius: BorderRadius.circular(3),
@@ -1352,7 +1352,7 @@ class _SalaryLineCard extends StatelessWidget {
             width: ds.spacing.xl,
             height: ds.spacing.xl,
             decoration: BoxDecoration(
-              color: data.color.withOpacity(0.12),
+              color: data.color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(ds.radii.medium),
             ),
             child: Center(
@@ -1410,7 +1410,7 @@ class _PaymentHistoryCard extends StatelessWidget {
             width: ds.spacing.xl,
             height: ds.spacing.xl,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(ds.radii.medium),
             ),
             child: Center(
@@ -1437,7 +1437,7 @@ class _PaymentHistoryCard extends StatelessWidget {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
+                    color: color.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(ds.radii.small),
                   ),
                   child: DSText(

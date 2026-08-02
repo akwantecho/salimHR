@@ -65,9 +65,9 @@ class _MoodChip extends StatelessWidget {
     final ds = DSProvider.of(context);
     final circleSize = ds.spacing.xl + ds.spacing.md;
     final Color bg = isSelected
-        ? option.color.withOpacity(0.28)
+        ? option.color.withValues(alpha: 0.28)
         : ds.colors.surface;
-    final Color border = option.color.withOpacity(0.55);
+    final Color border = option.color.withValues(alpha: 0.55);
 
     return GestureDetector(
       onTap: onTap,

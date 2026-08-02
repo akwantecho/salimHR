@@ -40,8 +40,8 @@ class BannerCard extends StatelessWidget {
             end: AlignmentDirectional.bottomEnd,
             colors: [
               ds.colors.surface,
-              ds.colors.primary.withOpacity(0.10),
-              ds.colors.secondary.withOpacity(0.08),
+              ds.colors.primary.withValues(alpha: 0.10),
+              ds.colors.secondary.withValues(alpha: 0.08),
             ],
           ),
           borderRadius: BorderRadius.circular(ds.radii.large),

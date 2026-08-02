@@ -5,6 +5,7 @@
 /// 1. Copy this file to your Flutter project's lib/theme/ directory
 /// 2. Import and use: `import 'package:your_app/theme/flutter_design_system.dart';`
 /// 3. Apply theme: `MaterialApp(theme: SalimTheme.lightTheme, ...)`
+library;
 
 import 'package:flutter/material.dart';
 
@@ -513,7 +514,7 @@ class SalimShadows {
   // Primary button shadow
   static List<BoxShadow> primaryButton = [
     BoxShadow(
-      color: SalimColors.primary.withOpacity(0.3),
+      color: SalimColors.primary.withValues(alpha: 0.3),
       blurRadius: 15.0,
       offset: const Offset(0, 10),
       spreadRadius: -3.0,
@@ -523,7 +524,7 @@ class SalimShadows {
   // Danger button shadow
   static List<BoxShadow> dangerButton = [
     BoxShadow(
-      color: SalimColors.danger.withOpacity(0.3),
+      color: SalimColors.danger.withValues(alpha: 0.3),
       blurRadius: 15.0,
       offset: const Offset(0, 10),
       spreadRadius: -3.0,
@@ -735,7 +736,7 @@ class SalimTheme {
             borderRadius: SalimRadius.borderRadiusButton,
           ),
           side: BorderSide(
-            color: SalimColors.border.withOpacity(0.6),
+            color: SalimColors.border.withValues(alpha: 0.6),
             width: SalimSizes.borderWidth,
           ),
           textStyle: SalimTypography.buttonMedium,
@@ -768,14 +769,14 @@ class SalimTheme {
         border: OutlineInputBorder(
           borderRadius: SalimRadius.borderRadiusInput,
           borderSide: BorderSide(
-            color: SalimColors.border.withOpacity(0.6),
+            color: SalimColors.border.withValues(alpha: 0.6),
             width: SalimSizes.borderWidth,
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: SalimRadius.borderRadiusInput,
           borderSide: BorderSide(
-            color: SalimColors.border.withOpacity(0.6),
+            color: SalimColors.border.withValues(alpha: 0.6),
             width: SalimSizes.borderWidth,
           ),
         ),
@@ -802,7 +803,7 @@ class SalimTheme {
         ),
         labelStyle: SalimTypography.labelLarge,
         hintStyle: TextStyle(
-          color: SalimColors.textDeep.withOpacity(0.4),
+          color: SalimColors.textDeep.withValues(alpha: 0.4),
           fontWeight: FontWeight.normal,
         ),
         errorStyle: SalimTypography.errorText,
@@ -872,7 +873,7 @@ class SalimTheme {
         shape: RoundedRectangleBorder(
           borderRadius: SalimRadius.borderRadiusModal,
           side: BorderSide(
-            color: SalimColors.border.withOpacity(0.6),
+            color: SalimColors.border.withValues(alpha: 0.6),
             width: SalimSizes.borderWidth,
           ),
         ),
@@ -903,7 +904,7 @@ class SalimTheme {
 
       // Divider
       dividerTheme: DividerThemeData(
-        color: SalimColors.border.withOpacity(0.6),
+        color: SalimColors.border.withValues(alpha: 0.6),
         thickness: 2,
         space: 0,
       ),
@@ -985,7 +986,7 @@ class SalimDecorations {
         color: SalimColors.surface,
         borderRadius: SalimRadius.borderRadiusCard,
         border: Border.all(
-          color: SalimColors.border.withOpacity(0.6),
+          color: SalimColors.border.withValues(alpha: 0.6),
           width: SalimSizes.borderWidth,
         ),
       );
@@ -995,7 +996,7 @@ class SalimDecorations {
         color: SalimColors.surface,
         borderRadius: SalimRadius.borderRadiusCard,
         border: Border.all(
-          color: SalimColors.border.withOpacity(0.6),
+          color: SalimColors.border.withValues(alpha: 0.6),
           width: SalimSizes.borderWidth,
         ),
         boxShadow: SalimShadows.card,
@@ -1006,7 +1007,7 @@ class SalimDecorations {
         gradient: SalimColors.headerGradient,
         border: Border(
           bottom: BorderSide(
-            color: SalimColors.border.withOpacity(0.6),
+            color: SalimColors.border.withValues(alpha: 0.6),
             width: SalimSizes.borderWidth,
           ),
         ),
@@ -1016,7 +1017,7 @@ class SalimDecorations {
         gradient: SalimColors.headerGradient,
         border: Border(
           top: BorderSide(
-            color: SalimColors.border.withOpacity(0.6),
+            color: SalimColors.border.withValues(alpha: 0.6),
             width: SalimSizes.borderWidth,
           ),
         ),
@@ -1027,7 +1028,7 @@ class SalimDecorations {
         color: SalimColors.surface,
         borderRadius: SalimRadius.borderRadiusInput,
         border: Border.all(
-          color: SalimColors.border.withOpacity(0.6),
+          color: SalimColors.border.withValues(alpha: 0.6),
           width: SalimSizes.borderWidth,
         ),
         boxShadow: SalimShadows.input,
@@ -1058,7 +1059,7 @@ class SalimDecorations {
         color: SalimColors.surface,
         borderRadius: SalimRadius.borderRadiusModal,
         border: Border.all(
-          color: SalimColors.border.withOpacity(0.6),
+          color: SalimColors.border.withValues(alpha: 0.6),
           width: SalimSizes.borderWidth,
         ),
         boxShadow: SalimShadows.modal,
@@ -1114,10 +1115,10 @@ class SalimDecorations {
   );
 
   static BoxDecoration badgeAccent = BoxDecoration(
-    color: SalimColors.primary.withOpacity(0.1),
+    color: SalimColors.primary.withValues(alpha: 0.1),
     borderRadius: SalimRadius.borderRadiusPill,
     border: Border.all(
-      color: SalimColors.primary.withOpacity(0.2),
+      color: SalimColors.primary.withValues(alpha: 0.2),
       width: SalimSizes.borderWidth,
     ),
   );
@@ -1164,7 +1165,7 @@ class SalimButtonStyles {
           borderRadius: SalimRadius.borderRadiusButton,
         ),
         side: BorderSide(
-          color: SalimColors.border.withOpacity(0.6),
+          color: SalimColors.border.withValues(alpha: 0.6),
           width: SalimSizes.borderWidth,
         ),
         textStyle: SalimTypography.buttonMedium,
@@ -1185,7 +1186,7 @@ class SalimButtonStyles {
 
   // Ghost button style
   static ButtonStyle get ghost => TextButton.styleFrom(
-        foregroundColor: SalimColors.textDeep.withOpacity(0.7),
+        foregroundColor: SalimColors.textDeep.withValues(alpha: 0.7),
         minimumSize: const Size(0, SalimSizes.buttonHeightMd),
         padding: const EdgeInsets.symmetric(horizontal: SalimSpacing.base),
         shape: RoundedRectangleBorder(

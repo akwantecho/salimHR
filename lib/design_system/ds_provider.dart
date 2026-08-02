@@ -79,8 +79,8 @@ class DSProvider extends InheritedWidget {
   const DSProvider({
     super.key,
     required this.theme,
-    required Widget child,
-  }) : super(child: child);
+    required super.child,
+  });
 
   static DSTheme of(BuildContext context) {
     final provider = context.dependOnInheritedWidgetOfExactType<DSProvider>();

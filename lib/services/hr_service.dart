@@ -741,6 +741,33 @@ class HRService extends ChangeNotifier {
     }
   }
 
+  /// Ask the "د. يوسف" AI assistant (specialist-only). [messages] is the full
+  /// conversation so far ([{'role':'user'|'assistant','content':...}]).
+  /// [patientId] attaches a patient's context (backend enforces access).
+  /// [action] hints the purpose: chat | summarize_patient | draft_note.
+  /// Returns the assistant reply text, or null on failure (with [error] set).
+  /// Backend: POST /ai/assistant → { data: { reply } }.
+  Future<String?> askAssistant({
+    required List<Map<String, String>> messages,
+    int? patientId,
+    String action = 'chat',
+  }) async {
+    try {
+      final res = await _client.post<Map<String, dynamic>>(
+        '/ai/assistant',
+        data: {
+          'messages': messages,
+          if (patientId != null) 'patient_id': patientId,
+          'action': action,
+        },
+      );
+      return res.data?['data']?['reply'] as String?;
+    } on DioException catch (e) {
+      _handleError(e);
+      return null;
+    }
+  }
+
   /// Summary of the authenticated employee's own leaves.
   /// Returns a map: `{pending: int, approved: int, rejected: int,
   /// approved_this_month: int}`. Empty map on failure (error set on service).

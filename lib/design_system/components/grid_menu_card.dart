@@ -38,7 +38,7 @@ class GridMenuCard extends StatelessWidget {
               width: iconHolderSize,
               height: iconHolderSize,
               decoration: BoxDecoration(
-                color: tint.withOpacity(0.2),
+                color: tint.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
               child: Center(

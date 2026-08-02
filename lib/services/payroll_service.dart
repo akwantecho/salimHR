@@ -33,7 +33,7 @@ class PayrollService extends ChangeNotifier {
       final response = await _client.get<Map<String, dynamic>>(
         '/payroll',
         queryParameters: {
-          if (year != null) 'year': year,
+          'year': ?year,
         },
       );
 
@@ -161,8 +161,8 @@ class PayrollService extends ChangeNotifier {
       final response = await _client.get<Map<String, dynamic>>(
         '/payroll/employee/$employeeId',
         queryParameters: {
-          if (month != null) 'month': month,
-          if (year != null) 'year': year,
+          'month': ?month,
+          'year': ?year,
         },
       );
 
@@ -186,8 +186,8 @@ class PayrollService extends ChangeNotifier {
         '/hr/bonuses',
         queryParameters: {
           'employee_id': employeeId,
-          if (month != null) 'month': month,
-          if (year != null) 'year': year,
+          'month': ?month,
+          'year': ?year,
         },
       );
 

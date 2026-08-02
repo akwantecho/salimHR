@@ -369,11 +369,11 @@ class _DaysGrid extends StatelessWidget {
       bg = accentColor;
       fg = const Color(0xFFFFFFFF);
     } else if (inRange) {
-      bg = accentColor.withOpacity(0.18);
+      bg = accentColor.withValues(alpha: 0.18);
       fg = accentColor;
       shape = BoxShape.rectangle;
     } else if (isToday) {
-      bg = accentColor.withOpacity(0.08);
+      bg = accentColor.withValues(alpha: 0.08);
       fg = accentColor;
     } else {
       bg = ds.colors.surface;
@@ -441,9 +441,9 @@ class _RangeSummary extends StatelessWidget {
         vertical: ds.spacing.sm,
       ),
       decoration: BoxDecoration(
-        color: accentColor.withOpacity(0.08),
+        color: accentColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(ds.radii.medium),
-        border: Border.all(color: accentColor.withOpacity(0.25)),
+        border: Border.all(color: accentColor.withValues(alpha: 0.25)),
       ),
       child: Row(
         children: [
@@ -464,7 +464,7 @@ class _RangeSummary extends StatelessWidget {
           Container(
             width: 1,
             height: ds.spacing.xl,
-            color: accentColor.withOpacity(0.25),
+            color: accentColor.withValues(alpha: 0.25),
           ),
           Expanded(
             child: Padding(

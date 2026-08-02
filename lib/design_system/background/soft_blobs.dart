@@ -41,15 +41,15 @@ class _BlobPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint1 = Paint()
-      ..color = base.primary.withOpacity(0.12 * opacity)
+      ..color = base.primary.withValues(alpha: 0.12 * opacity)
       ..style = PaintingStyle.fill;
 
     final paint2 = Paint()
-      ..color = base.secondary.withOpacity(0.14 * opacity)
+      ..color = base.secondary.withValues(alpha: 0.14 * opacity)
       ..style = PaintingStyle.fill;
 
     final paint3 = Paint()
-      ..color = base.accent.withOpacity(0.1 * opacity)
+      ..color = base.accent.withValues(alpha: 0.1 * opacity)
       ..style = PaintingStyle.fill;
 
     final path1 = Path()
