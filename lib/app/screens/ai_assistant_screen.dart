@@ -115,6 +115,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
         child: Column(
           children: [
             _header(ds, t),
+            _disclaimer(ds, t),
             if (_patient != null) _patientBar(ds, t),
             Expanded(
               child: _messages.isEmpty
@@ -180,6 +181,23 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _disclaimer(DSTheme ds, String Function(String, String) t) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsetsDirectional.symmetric(
+          horizontal: ds.spacing.md, vertical: ds.spacing.xs),
+      color: ds.colors.surfaceAlt,
+      child: DSText(
+        t(
+          'أداة مساعدة — القرار النهائي للأخصائي. قد تطّلع الإدارة على المحادثات.',
+          'An aid — the specialist decides. Conversations may be reviewed by management.',
+        ),
+        role: DSTextRole.caption,
+        color: ds.colors.textMuted,
       ),
     );
   }
