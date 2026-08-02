@@ -741,27 +741,32 @@ class HRService extends ChangeNotifier {
     }
   }
 
-  /// Ask the "د. يوسف" AI assistant (specialist-only). [messages] is the full
-  /// conversation so far ([{'role':'user'|'assistant','content':...}]).
-  /// [patientId] attaches a patient's context (backend enforces access).
-  /// [action] hints the purpose: chat | summarize_patient | draft_note.
-  /// Returns the assistant reply text, or null on failure (with [error] set).
-  /// Backend: POST /ai/assistant → { data: { reply } }.
-  Future<String?> askAssistant({
-    required List<Map<String, String>> messages,
-    int? patientId,
-    String action = 'chat',
+  /// Ask the "د. يوسف" AI assistant. The backend keeps conversation state, so
+  /// we send a single [message] plus the [conversationId] returned from the
+  /// first turn (null on the first message). Backend maintains history, tools
+  /// and per-role permissions. Returns {'answer', 'conversation_id'}, or null
+  /// on failure (with [error] set). Backend: POST /ai/assistant.
+  Future<Map<String, String?>?> askAssistant({
+    required String message,
+    String? conversationId,
   }) async {
     try {
       final res = await _client.post<Map<String, dynamic>>(
         '/ai/assistant',
         data: {
-          'messages': messages,
-          if (patientId != null) 'patient_id': patientId,
-          'action': action,
+          'message': message,
+          if (conversationId != null) 'conversation_id': conversationId,
         },
       );
-      return res.data?['data']?['reply'] as String?;
+      // Response may be top-level or wrapped in `data`.
+      final body = res.data ?? const {};
+      final d = (body['data'] is Map)
+          ? (body['data'] as Map).cast<String, dynamic>()
+          : body;
+      return {
+        'answer': d['answer'] as String?,
+        'conversation_id': (d['conversation_id'] ?? d['conversationId'])?.toString(),
+      };
     } on DioException catch (e) {
       _handleError(e);
       return null;

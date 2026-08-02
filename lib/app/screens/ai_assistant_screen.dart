@@ -34,6 +34,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   final List<_Msg> _messages = [];
   Patient? _patient;
   bool _sending = false;
+  String? _conversationId;
 
   static const _green = Color(0xFF059669);
 
@@ -63,7 +64,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     });
   }
 
-  Future<void> _send(String text, {String action = 'chat'}) async {
+  Future<void> _send(String text) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty || _sending) return;
     setState(() {
@@ -73,16 +74,23 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     });
     _scrollToEnd();
 
-    final reply = await context.hrService.askAssistant(
-      messages: _messages.map((m) => {'role': m.role, 'content': m.content}).toList(),
-      patientId: _patient?.id,
-      action: action,
+    // The backend keeps history; we only send this turn's message. When a
+    // patient is attached, name them so the assistant can look them up.
+    final outgoing = _patient != null
+        ? '${tr(context, ar: 'بخصوص المريض', en: 'Regarding patient')} '
+            '"${_patient!.name}": $trimmed'
+        : trimmed;
+
+    final res = await context.hrService.askAssistant(
+      message: outgoing,
+      conversationId: _conversationId,
     );
     if (!mounted) return;
     setState(() {
+      _conversationId = res?['conversation_id'] ?? _conversationId;
       _messages.add(_Msg(
         'assistant',
-        reply ??
+        res?['answer'] ??
             tr(context,
                 ar: 'تعذّر الرد الآن، حاول مرة أخرى.',
                 en: 'Could not reply now, please try again.'),
@@ -326,10 +334,8 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
             _chip(
                 ds,
                 t('لخّص هذا المريض', 'Summarize patient'),
-                () => _send(
-                    t('لخّص حالة وتقدّم هذا المريض.',
-                        'Summarize this patient\'s case and progress.'),
-                    action: 'summarize_patient')),
+                () => _send(t('لخّص حالة وتقدّم هذا المريض.',
+                    'Summarize this patient\'s case and progress.'))),
           _chip(
               ds,
               t('اكتب تقرير جلسة', 'Draft session note'),
