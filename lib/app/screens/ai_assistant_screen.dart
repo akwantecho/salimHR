@@ -7,14 +7,14 @@ import '../../models/reception.dart';
 import '../../services/api_provider.dart';
 import '../i18n.dart';
 
-/// A single chat turn with «د. إليكس».
+/// A single chat turn with «د. أليكس».
 class _Msg {
   final String role; // 'user' | 'assistant'
   final String content;
   const _Msg(this.role, this.content);
 }
 
-/// Chat screen for the internal AI assistant «د. إليكس» — a physiotherapy aide
+/// Chat screen for the internal AI assistant «د. أليكس» — a physiotherapy aide
 /// for specialists. Backed by HRService.askAssistant → POST /ai/assistant.
 class AiAssistantScreen extends StatefulWidget {
   /// Optional patient to attach as context from the start (e.g. opened from a
@@ -179,7 +179,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                DSText(t('د. إليكس', 'Dr. Alex'), role: DSTextRole.title),
+                DSText(t('د. أليكس', 'Dr. Alex'), role: DSTextRole.title),
                 DSText(
                   t('مساعدك الذكي في العمل', 'Your smart work assistant'),
                   role: DSTextRole.caption,
@@ -258,7 +258,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
               ),
             ),
             SizedBox(height: ds.spacing.md),
-            DSText(t('اسأل د. إليكس', 'Ask Dr. Alex'),
+            DSText(t('اسأل د. أليكس', 'Ask Dr. Alex'),
                 role: DSTextRole.title),
             SizedBox(height: ds.spacing.xs),
             DSText(
@@ -314,7 +314,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
               color: _green.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(ds.radii.large),
             ),
-            child: DSText(t('د. إليكس يكتب…', 'Dr. Alex is typing…'),
+            child: DSText(t('د. أليكس يكتب…', 'Dr. Alex is typing…'),
                 role: DSTextRole.caption, color: _green),
           ),
         ],
