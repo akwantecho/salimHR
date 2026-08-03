@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Voice dictation in the AI assistant (speech_to_text). -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <!-- image_picker pulls in media permissions transitively. Per Google's
          Photo & Video Permissions policy, apps targeting Android 13+ must use
          the system photo picker instead of broad media permissions. image_picker

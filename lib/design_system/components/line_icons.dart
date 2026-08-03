@@ -17,6 +17,8 @@ enum LineIconType {
   plus,
   copy,
   refresh,
+  send,
+  mic,
 }
 
 class DSLineIcon extends StatelessWidget {
@@ -63,6 +65,10 @@ class DSLineIcon extends StatelessWidget {
         return 'assets/icons/heroicons/copy.svg';
       case LineIconType.refresh:
         return 'assets/icons/heroicons/refresh.svg';
+      case LineIconType.send:
+        return 'assets/icons/heroicons/send.svg';
+      case LineIconType.mic:
+        return 'assets/icons/heroicons/mic.svg';
     }
   }
 

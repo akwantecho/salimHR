@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 
 import '../../design_system/components/line_icons.dart';
 import '../../design_system/ds_provider.dart';
@@ -48,6 +49,15 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   int? _copiedIndex;
   Timer? _copiedTimer;
 
+  // Voice dictation.
+  final SpeechToText _speech = SpeechToText();
+  bool _speechReady = false;
+  bool _listening = false;
+  String _preVoiceText = '';
+
+  // Follow-up suggestions returned by the backend for the latest reply.
+  List<String> _suggestions = [];
+
   static const _green = Color(0xFF059669);
 
   @override
@@ -59,10 +69,54 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   @override
   void dispose() {
     _copiedTimer?.cancel();
+    _speech.cancel();
     _input.dispose();
     _focus.dispose();
     _scroll.dispose();
     super.dispose();
+  }
+
+  // ---- Voice dictation ----
+
+  Future<void> _toggleVoice() async {
+    if (_listening) {
+      await _speech.stop();
+      if (mounted) setState(() => _listening = false);
+      return;
+    }
+    if (!_speechReady) {
+      _speechReady = await _speech.initialize(
+        onStatus: (s) {
+          if ((s == 'done' || s == 'notListening') && mounted) {
+            setState(() => _listening = false);
+          }
+        },
+        onError: (_) {
+          if (mounted) setState(() => _listening = false);
+        },
+      );
+    }
+    if (!_speechReady) return;
+    _preVoiceText = _input.text;
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() => _listening = true);
+    await _speech.listen(
+      listenOptions: SpeechListenOptions(
+        localeId: 'ar',
+        listenMode: ListenMode.dictation,
+        cancelOnError: true,
+      ),
+      onResult: (r) {
+        final joined = _preVoiceText.isEmpty
+            ? r.recognizedWords
+            : '$_preVoiceText ${r.recognizedWords}';
+        _input.value = TextEditingValue(
+          text: joined,
+          selection: TextSelection.collapsed(offset: joined.length),
+        );
+        setState(() {});
+      },
+    );
   }
 
   void _scrollToEnd() {
@@ -108,6 +162,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
       _messages.add(_Msg('assistant', ''));
       _streamingIndex = idx;
       _sending = true;
+      _suggestions = [];
     });
     _scrollToEnd();
 
@@ -120,6 +175,9 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
         conversationId: _conversationId,
       )) {
         if (!mounted) return;
+        if (ev.suggestions != null && ev.suggestions!.isNotEmpty) {
+          _suggestions = ev.suggestions!.take(4).toList();
+        }
         switch (ev.type) {
           case 'meta':
           case 'done':
@@ -193,7 +251,24 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
       _conversationId = null;
       _streamingIndex = null;
       _sending = false;
+      _suggestions = [];
     });
+  }
+
+  /// Ask the assistant for a short briefing of the user's day (appointments,
+  /// overdue balances, pending items) — powered by its data tools.
+  Future<void> _briefing() async {
+    if (_sending) return;
+    final prompt = tr(context,
+        ar: 'أعطني إيجازاً سريعاً ليومي: مواعيدي اليوم، أي حالات تحتاج انتباه '
+            '(تأخّر دفع أو عدم حضور)، وأي طلبات معلّقة. باختصار ونقاط.',
+        en: 'Give me a quick briefing of my day: today\'s appointments, cases '
+            'needing attention (overdue or no-shows), and any pending requests. '
+            'Keep it short and bulleted.');
+    setState(() => _messages.add(_Msg('user',
+        tr(context, ar: 'إيجاز اليوم', en: "Today's briefing"))));
+    _scrollToEnd();
+    await _requestAssistant(prompt);
   }
 
   Future<void> _openHistory() async {
@@ -261,7 +336,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                           _bubble(ds, _messages[i], i, t),
                     ),
             ),
-            _quickActions(ds, t),
+            _suggestionsBar(ds),
             _inputBar(ds, t, viewInsets),
           ],
         ),
@@ -270,31 +345,31 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   }
 
   Widget _header(DSTheme ds, String Function(String, String) t) {
-    return Padding(
-      padding: EdgeInsetsDirectional.all(ds.spacing.md),
+    return Container(
+      padding: EdgeInsetsDirectional.symmetric(
+          horizontal: ds.spacing.md, vertical: ds.spacing.sm),
+      decoration: BoxDecoration(
+        color: ds.colors.surface,
+        border: BorderDirectional(
+            bottom: BorderSide(color: ds.colors.border)),
+      ),
       child: Row(
         children: [
-          GestureDetector(
-            onTap: () => Navigator.of(context).pop(),
-            behavior: HitTestBehavior.opaque,
-            child: DSLineIcon(
-                type: LineIconType.arrowBack,
-                color: ds.colors.primary,
-                size: ds.spacing.lg),
-          ),
+          _headerIcon(ds, LineIconType.arrowBack,
+              () => Navigator.of(context).pop()),
           SizedBox(width: ds.spacing.sm),
           Container(
-            width: ds.spacing.xl,
-            height: ds.spacing.xl,
+            width: 44,
+            height: 44,
             decoration: const BoxDecoration(
               color: _green,
               shape: BoxShape.circle,
             ),
-            child: Center(
+            child: const Center(
               child: DSLineIcon(
                   type: LineIconType.heart,
-                  color: const Color(0xFFFFFFFF),
-                  size: ds.spacing.md),
+                  color: Color(0xFFFFFFFF),
+                  size: 24),
             ),
           ),
           SizedBox(width: ds.spacing.sm),
@@ -302,7 +377,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                DSText(t('د. أليكس', 'Dr. Alex'), role: DSTextRole.title),
+                DSText(t('د. أليكس', 'Dr. Alex'), role: DSTextRole.headline),
                 DSText(
                   t('مساعدك الذكي في العمل', 'Your smart work assistant'),
                   role: DSTextRole.caption,
@@ -326,8 +401,8 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
       onTap: enabled ? onTap : null,
       behavior: HitTestBehavior.opaque,
       child: Container(
-        width: ds.spacing.xl,
-        height: ds.spacing.xl,
+        width: 44,
+        height: 44,
         decoration: BoxDecoration(
           color: ds.colors.surfaceAlt,
           shape: BoxShape.circle,
@@ -336,7 +411,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
           child: DSLineIcon(
             type: type,
             color: enabled ? ds.colors.primary : ds.colors.textMuted,
-            size: ds.spacing.md,
+            size: 22,
           ),
         ),
       ),
@@ -379,6 +454,24 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                 role: DSTextRole.caption, color: _green, maxLines: 1),
           ),
           GestureDetector(
+            onTap: _sending
+                ? null
+                : () => _send(t('لخّص حالة وتقدّم هذا المريض.',
+                    "Summarize this patient's case and progress.")),
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              padding: EdgeInsetsDirectional.symmetric(
+                  horizontal: ds.spacing.sm, vertical: ds.spacing.xs / 2),
+              decoration: BoxDecoration(
+                color: _green.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(ds.radii.pill),
+              ),
+              child: DSText(t('لخّص', 'Summarize'),
+                  role: DSTextRole.caption, color: _green),
+            ),
+          ),
+          SizedBox(width: ds.spacing.sm),
+          GestureDetector(
             onTap: () => setState(() => _patient = null),
             behavior: HitTestBehavior.opaque,
             child: DSText('✕', role: DSTextRole.caption, color: _green),
@@ -389,46 +482,117 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   }
 
   Widget _empty(DSTheme ds, String Function(String, String) t) {
-    return Center(
-      child: Padding(
-        padding: EdgeInsetsDirectional.all(ds.spacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: ds.spacing.xl * 2,
-              height: ds.spacing.xl * 2,
-              decoration: BoxDecoration(
-                color: _green.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: DSLineIcon(
-                    type: LineIconType.chat, color: _green, size: ds.spacing.xl),
-              ),
+    return SingleChildScrollView(
+      padding: EdgeInsetsDirectional.all(ds.spacing.lg),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(height: ds.spacing.lg),
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: _green.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
             ),
-            SizedBox(height: ds.spacing.md),
-            DSText(t('اسأل د. أليكس', 'Ask Dr. Alex'),
-                role: DSTextRole.title),
-            SizedBox(height: ds.spacing.xs),
-            DSText(
+            child: const Center(
+              child: DSLineIcon(type: LineIconType.chat, color: _green, size: 34),
+            ),
+          ),
+          SizedBox(height: ds.spacing.md),
+          DSText(t('كيف أقدر أساعدك؟', 'How can I help?'),
+              role: DSTextRole.headline),
+          SizedBox(height: ds.spacing.xs),
+          Padding(
+            padding: EdgeInsetsDirectional.symmetric(horizontal: ds.spacing.md),
+            child: DSText(
               t(
-                'اسأله عن رصيد مريض، جلساته، المواعيد، المخزون — أو مرجع مهني وصياغة تقارير.',
-                'Ask about a patient balance, sessions, appointments, inventory — or professional reference & reports.',
+                'اسألني عن مواعيدك ورصيد المرضى والمخزون، أو استشرني في التقنيات والتمارين وصياغة التقارير.',
+                'Ask about your schedule, patient balances and inventory, or consult me on techniques, exercises and reports.',
               ),
-              role: DSTextRole.caption,
+              role: DSTextRole.body,
               color: ds.colors.textSecondary,
+              align: TextAlign.center,
             ),
-            SizedBox(height: ds.spacing.lg),
-            Wrap(
-              alignment: WrapAlignment.center,
-              spacing: ds.spacing.sm,
-              runSpacing: ds.spacing.sm,
-              children: [
-                for (final s in _starters(t))
-                  _chip(ds, s, () => _send(s)),
-              ],
+          ),
+          SizedBox(height: ds.spacing.lg),
+          // Prominent daily-briefing action.
+          GestureDetector(
+            onTap: _sending ? null : _briefing,
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              width: double.infinity,
+              padding: EdgeInsetsDirectional.symmetric(
+                  horizontal: ds.spacing.lg, vertical: ds.spacing.md),
+              decoration: BoxDecoration(
+                color: _green.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(ds.radii.large),
+                border: Border.all(color: _green.withValues(alpha: 0.30)),
+              ),
+              child: Row(
+                children: [
+                  const DSLineIcon(
+                      type: LineIconType.chart, color: _green, size: 24),
+                  SizedBox(width: ds.spacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        DSText(t('إيجاز اليوم', "Today's briefing"),
+                            role: DSTextRole.title, color: _green),
+                        DSText(
+                          t('مواعيدك وما يحتاج انتباهك',
+                              'Your schedule & what needs attention'),
+                          role: DSTextRole.caption,
+                          color: ds.colors.textSecondary,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
+          ),
+          SizedBox(height: ds.spacing.lg),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: DSText(t('جرّب أن تسأل', 'Try asking'),
+                role: DSTextRole.label, color: ds.colors.textMuted),
+          ),
+          SizedBox(height: ds.spacing.sm),
+          for (final s in _starters(t)) ...[
+            _starterRow(ds, s),
+            SizedBox(height: ds.spacing.sm),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// A full-width tappable starter suggestion (roomier than a chip).
+  Widget _starterRow(DSTheme ds, String label) {
+    return GestureDetector(
+      onTap: _sending ? null : () => _send(label),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsetsDirectional.symmetric(
+            horizontal: ds.spacing.md, vertical: ds.spacing.md),
+        decoration: BoxDecoration(
+          color: ds.colors.surface,
+          borderRadius: BorderRadius.circular(ds.radii.large),
+          border: Border.all(color: ds.colors.border),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: DSText(label,
+                  role: DSTextRole.body, color: ds.colors.textPrimary),
+            ),
+            DSLineIcon(
+                type: LineIconType.send,
+                color: ds.colors.textMuted,
+                size: 18),
           ],
         ),
       ),
@@ -555,56 +719,62 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     );
   }
 
-  Widget _quickActions(DSTheme ds, String Function(String, String) t) {
-    return SizedBox(
-      height: ds.spacing.xl + ds.spacing.sm,
+  /// Horizontal follow-up suggestions the backend returned for the last reply.
+  Widget _suggestionsBar(DSTheme ds) {
+    if (_suggestions.isEmpty || _sending) return const SizedBox.shrink();
+    return Container(
+      constraints: const BoxConstraints(maxHeight: 44),
+      margin: EdgeInsetsDirectional.only(top: ds.spacing.xs),
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: EdgeInsetsDirectional.symmetric(horizontal: ds.spacing.md),
         children: [
-          _chip(ds, t('إرفاق مريض', 'Attach patient'), _attachPatient),
-          if (_patient != null)
-            _chip(
-                ds,
-                t('لخّص هذا المريض', 'Summarize patient'),
-                () => _send(t('لخّص حالة وتقدّم هذا المريض.',
-                    'Summarize this patient\'s case and progress.'))),
-          _chip(
-              ds,
-              t('اكتب تقرير جلسة', 'Draft session note'),
-              () {
-                _focus.requestFocus();
-                _input.text = t('اكتب تقرير جلسة عن: ', 'Draft a session note about: ');
-                _input.selection = TextSelection.collapsed(offset: _input.text.length);
-                setState(() {});
-              }),
+          for (final s in _suggestions)
+            Padding(
+              padding: EdgeInsetsDirectional.only(end: ds.spacing.sm),
+              child: _chip(ds, s, () => _send(s)),
+            ),
         ],
       ),
     );
   }
 
   Widget _chip(DSTheme ds, String label, VoidCallback onTap) {
-    return Padding(
-      padding: EdgeInsetsDirectional.only(end: ds.spacing.sm),
-      child: GestureDetector(
-        onTap: _sending ? null : onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          alignment: Alignment.center,
-          padding: EdgeInsetsDirectional.symmetric(horizontal: ds.spacing.md),
-          decoration: BoxDecoration(
-            color: ds.colors.surface,
-            borderRadius: BorderRadius.circular(ds.radii.pill),
-            border: Border.all(color: ds.colors.border),
-          ),
-          child: DSText(label, role: DSTextRole.caption, color: ds.colors.primary),
+    return GestureDetector(
+      onTap: _sending ? null : onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        alignment: Alignment.center,
+        padding: EdgeInsetsDirectional.symmetric(
+            horizontal: ds.spacing.md, vertical: ds.spacing.sm),
+        decoration: BoxDecoration(
+          color: _green.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(ds.radii.pill),
+          border: Border.all(color: _green.withValues(alpha: 0.30)),
         ),
+        child: DSText(label,
+            role: DSTextRole.caption, color: _green, maxLines: 1),
+      ),
+    );
+  }
+
+  Widget _roundButton(DSTheme ds, LineIconType icon, Color bg, Color fg,
+      VoidCallback? onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        width: 46,
+        height: 46,
+        decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+        child: Center(child: DSLineIcon(type: icon, color: fg, size: 22)),
       ),
     );
   }
 
   Widget _inputBar(
       DSTheme ds, String Function(String, String) t, double viewInsets) {
+    final canSend = _input.text.trim().isNotEmpty && !_sending;
     return Container(
       padding: EdgeInsetsDirectional.only(
         start: ds.spacing.md,
@@ -614,54 +784,62 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
       ),
       decoration: BoxDecoration(
         color: ds.colors.surface,
-        border: BorderDirectional(
-            top: BorderSide(color: ds.colors.border)),
+        border: BorderDirectional(top: BorderSide(color: ds.colors.border)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
+          // Attach a patient for context.
+          _roundButton(ds, LineIconType.search, ds.colors.surfaceAlt,
+              ds.colors.primary, _sending ? null : _attachPatient),
+          SizedBox(width: ds.spacing.xs),
           Expanded(
             child: Container(
-              constraints: const BoxConstraints(maxHeight: 120),
+              constraints: const BoxConstraints(minHeight: 46, maxHeight: 130),
+              alignment: AlignmentDirectional.centerStart,
               padding: EdgeInsetsDirectional.symmetric(
                   horizontal: ds.spacing.md, vertical: ds.spacing.sm),
               decoration: BoxDecoration(
                 color: ds.colors.surfaceAlt,
-                borderRadius: BorderRadius.circular(ds.radii.large),
-                border: Border.all(color: ds.colors.border),
+                borderRadius: BorderRadius.circular(ds.radii.xLarge),
+                border: Border.all(
+                    color: _listening ? _green : ds.colors.border,
+                    width: _listening ? 1.5 : 1),
               ),
               child: EditableText(
                 controller: _input,
                 focusNode: _focus,
-                style: ds.typography.body.copyWith(color: ds.colors.textPrimary),
+                style: ds.typography.body
+                    .copyWith(color: ds.colors.textPrimary, height: 1.35),
                 cursorColor: ds.colors.primary,
                 backgroundCursorColor: ds.colors.textMuted,
                 maxLines: null,
                 minLines: 1,
+                scrollPadding: const EdgeInsets.all(20),
+                onChanged: (_) => setState(() {}),
                 textAlign: ds.textDirection == TextDirection.rtl
                     ? TextAlign.right
                     : TextAlign.left,
               ),
             ),
           ),
-          SizedBox(width: ds.spacing.sm),
-          GestureDetector(
-            onTap: _sending ? null : () => _send(_input.text),
-            behavior: HitTestBehavior.opaque,
-            child: Container(
-              width: ds.spacing.xl + ds.spacing.xs,
-              height: ds.spacing.xl + ds.spacing.xs,
-              decoration: BoxDecoration(
-                color: _sending ? ds.colors.textMuted : _green,
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: DSLineIcon(
-                    type: LineIconType.arrowBack,
-                    color: const Color(0xFFFFFFFF),
-                    size: ds.spacing.md),
-              ),
-            ),
+          SizedBox(width: ds.spacing.xs),
+          // Voice dictation.
+          _roundButton(
+            ds,
+            LineIconType.mic,
+            _listening ? _green : ds.colors.surfaceAlt,
+            _listening ? const Color(0xFFFFFFFF) : ds.colors.primary,
+            _sending ? null : _toggleVoice,
+          ),
+          SizedBox(width: ds.spacing.xs),
+          // Send.
+          _roundButton(
+            ds,
+            LineIconType.send,
+            canSend ? _green : ds.colors.textMuted,
+            const Color(0xFFFFFFFF),
+            canSend ? () => _send(_input.text) : null,
           ),
         ],
       ),

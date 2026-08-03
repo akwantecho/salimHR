@@ -50,6 +50,7 @@ dependencies:
   equatable: ^2.0.5
   image_picker: ^1.2.3
   file_picker: ^8.1.6
+  speech_to_text: ^7.0.0
   path_provider: ^2.1.5
   open_filex: ^4.5.0
   url_launcher: ^6.3.2
@@ -88,6 +89,8 @@ flutter:
     - assets/icons/heroicons/plus.svg
     - assets/icons/heroicons/copy.svg
     - assets/icons/heroicons/refresh.svg
+    - assets/icons/heroicons/send.svg
+    - assets/icons/heroicons/mic.svg
     - assets/body/front.png
     - assets/body/back.png
     - assets/body/left.png

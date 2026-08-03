@@ -14,6 +14,10 @@
 	<string>6.0</string>
 	<key>CFBundleName</key>
 	<string>Salim HR</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>يُستخدم الميكروفون للإملاء الصوتي في المساعد الذكي.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>يُستخدم التعرّف على الكلام لتحويل صوتك إلى نص في المساعد الذكي.</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

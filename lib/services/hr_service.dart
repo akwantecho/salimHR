@@ -15,11 +15,17 @@ class AiStreamEvent {
   final String? text;
   final String? conversationId;
   final String? message;
+
+  /// Optional follow-up suggestions the backend may attach (usually on `done`
+  /// or a dedicated `suggest` event).
+  final List<String>? suggestions;
+
   const AiStreamEvent({
     required this.type,
     this.text,
     this.conversationId,
     this.message,
+    this.suggestions,
   });
 }
 
@@ -839,12 +845,16 @@ class HRService extends ChangeNotifier {
           // Non-JSON data line (e.g. legacy plain response) — ignore.
           continue;
         }
+        final rawSug = json['suggestions'];
         yield AiStreamEvent(
           type: eventName ?? 'delta',
           text: json['text'] as String?,
           conversationId:
               (json['conversation_id'] ?? json['conversationId'])?.toString(),
           message: json['message'] as String?,
+          suggestions: rawSug is List
+              ? rawSug.map((e) => e.toString()).toList()
+              : null,
         );
       }
     }
