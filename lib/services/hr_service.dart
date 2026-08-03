@@ -773,6 +773,44 @@ class HRService extends ChangeNotifier {
     }
   }
 
+  /// The authenticated user's own past assistant conversations, newest first.
+  /// Backed by `GET /api/ai/conversations/mine`. Each item:
+  /// `{id, title, preview, updated_at, message_count}`.
+  Future<List<Map<String, dynamic>>> fetchMyConversations() async {
+    try {
+      final r =
+          await _client.get<Map<String, dynamic>>('/ai/conversations/mine');
+      final data = r.data?['data'] as List<dynamic>? ?? [];
+      return data.map((e) => (e as Map).cast<String, dynamic>()).toList();
+    } on DioException catch (e) {
+      _handleError(e);
+      return [];
+    }
+  }
+
+  /// Messages of one past conversation (owned by the user), oldest first.
+  /// Backed by `GET /api/ai/conversations/{id}`. Each item: `{role, content}`.
+  Future<List<Map<String, String>>> fetchConversationMessages(
+      String conversationId) async {
+    try {
+      final r = await _client.get<Map<String, dynamic>>(
+          '/ai/conversations/$conversationId');
+      final data = r.data?['data'] as List<dynamic>? ??
+          r.data?['messages'] as List<dynamic>? ??
+          [];
+      return data.map((e) {
+        final m = (e as Map).cast<String, dynamic>();
+        return {
+          'role': (m['role'] ?? 'assistant').toString(),
+          'content': (m['content'] ?? '').toString(),
+        };
+      }).toList();
+    } on DioException catch (e) {
+      _handleError(e);
+      return [];
+    }
+  }
+
   // ==================== DAILY REPORTS ====================
 
   /// Employee (reception) submits a short end-of-day report. The server stamps

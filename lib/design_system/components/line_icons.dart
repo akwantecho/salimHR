@@ -13,6 +13,10 @@ enum LineIconType {
   arrowBack,
   trash,
   check,
+  history,
+  plus,
+  copy,
+  refresh,
 }
 
 class DSLineIcon extends StatelessWidget {
@@ -51,6 +55,14 @@ class DSLineIcon extends StatelessWidget {
         return 'assets/icons/heroicons/trash.svg';
       case LineIconType.check:
         return 'assets/icons/heroicons/check.svg';
+      case LineIconType.history:
+        return 'assets/icons/heroicons/history.svg';
+      case LineIconType.plus:
+        return 'assets/icons/heroicons/plus.svg';
+      case LineIconType.copy:
+        return 'assets/icons/heroicons/copy.svg';
+      case LineIconType.refresh:
+        return 'assets/icons/heroicons/refresh.svg';
     }
   }
 

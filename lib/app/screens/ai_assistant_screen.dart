@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 import '../../design_system/components/line_icons.dart';
@@ -6,6 +9,7 @@ import '../../design_system/primitives/ds_text.dart';
 import '../../models/reception.dart';
 import '../../services/api_provider.dart';
 import '../i18n.dart';
+import '../widgets/simple_markdown.dart';
 
 /// A single chat turn with «د. أليكس».
 class _Msg {
@@ -36,6 +40,16 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   bool _sending = false;
   String? _conversationId;
 
+  // Progressive reveal ("streaming" feel) of the latest assistant message.
+  int? _revealIndex;
+  int _revealChars = 0;
+  int _revealChunk = 4;
+  Timer? _revealTimer;
+
+  // Transient "copied" feedback per message index.
+  int? _copiedIndex;
+  Timer? _copiedTimer;
+
   static const _green = Color(0xFF059669);
 
   @override
@@ -46,6 +60,8 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
 
   @override
   void dispose() {
+    _revealTimer?.cancel();
+    _copiedTimer?.cancel();
     _input.dispose();
     _focus.dispose();
     _scroll.dispose();
@@ -69,32 +85,129 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     if (trimmed.isEmpty || _sending) return;
     setState(() {
       _messages.add(_Msg('user', trimmed));
-      _sending = true;
       _input.clear();
     });
     _scrollToEnd();
+    await _requestAssistant(trimmed);
+  }
+
+  /// Ask the assistant for [coreText] and append its reply (with progressive
+  /// reveal). Does not add a user bubble — the caller owns that.
+  Future<void> _requestAssistant(String coreText) async {
+    setState(() => _sending = true);
 
     // The backend keeps history; we only send this turn's message. When a
     // patient is attached, name them so the assistant can look them up.
     final outgoing = _patient != null
         ? '${tr(context, ar: 'بخصوص المريض', en: 'Regarding patient')} '
-            '"${_patient!.name}": $trimmed'
-        : trimmed;
+            '"${_patient!.name}": $coreText'
+        : coreText;
 
     final res = await context.hrService.askAssistant(
       message: outgoing,
       conversationId: _conversationId,
     );
     if (!mounted) return;
+    final answer = res?['answer'] ??
+        tr(context,
+            ar: 'تعذّر الرد الآن، حاول مرة أخرى.',
+            en: 'Could not reply now, please try again.');
     setState(() {
       _conversationId = res?['conversation_id'] ?? _conversationId;
-      _messages.add(_Msg(
-        'assistant',
-        res?['answer'] ??
-            tr(context,
-                ar: 'تعذّر الرد الآن، حاول مرة أخرى.',
-                en: 'Could not reply now, please try again.'),
-      ));
+      _messages.add(_Msg('assistant', answer));
+      _sending = false;
+    });
+    _startReveal(_messages.length - 1);
+    _scrollToEnd();
+  }
+
+  /// Animate the assistant message at [index] appearing chunk-by-chunk so it
+  /// reads like live typing.
+  void _startReveal(int index) {
+    _revealTimer?.cancel();
+    final full = _messages[index].content;
+    if (full.isEmpty) return;
+    // Aim for ~2s regardless of length.
+    _revealChunk = (full.length / 120).ceil().clamp(2, 40);
+    setState(() {
+      _revealIndex = index;
+      _revealChars = 0;
+    });
+    _revealTimer = Timer.periodic(const Duration(milliseconds: 16), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      setState(() {
+        _revealChars = (_revealChars + _revealChunk).clamp(0, full.length);
+        if (_revealChars >= full.length) {
+          _revealIndex = null;
+          timer.cancel();
+        }
+      });
+      if (_revealChars % 60 < _revealChunk) _scrollToEnd();
+    });
+  }
+
+  void _copy(int index) {
+    Clipboard.setData(ClipboardData(text: _messages[index].content));
+    _copiedTimer?.cancel();
+    setState(() => _copiedIndex = index);
+    _copiedTimer = Timer(const Duration(milliseconds: 1500), () {
+      if (mounted) setState(() => _copiedIndex = null);
+    });
+  }
+
+  Future<void> _regenerate() async {
+    if (_sending) return;
+    final u = _messages.lastIndexWhere((m) => m.role == 'user');
+    if (u < 0) return;
+    final text = _messages[u].content;
+    _revealTimer?.cancel();
+    setState(() {
+      _revealIndex = null;
+      if (u + 1 < _messages.length) {
+        _messages.removeRange(u + 1, _messages.length);
+      }
+    });
+    await _requestAssistant(text);
+  }
+
+  void _newChat() {
+    _revealTimer?.cancel();
+    setState(() {
+      _messages.clear();
+      _conversationId = null;
+      _revealIndex = null;
+      _sending = false;
+    });
+  }
+
+  Future<void> _openHistory() async {
+    final picked = await Navigator.of(context).push<String>(
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: const Color(0x66000000),
+        pageBuilder: (context, _, _) => const _HistorySheet(),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    await _loadConversation(picked);
+  }
+
+  Future<void> _loadConversation(String id) async {
+    _revealTimer?.cancel();
+    setState(() {
+      _sending = true;
+      _revealIndex = null;
+    });
+    final msgs = await context.hrService.fetchConversationMessages(id);
+    if (!mounted) return;
+    setState(() {
+      _messages
+        ..clear()
+        ..addAll(msgs.map((m) => _Msg(m['role'] ?? 'assistant', m['content'] ?? '')));
+      _conversationId = id;
       _sending = false;
     });
     _scrollToEnd();
@@ -134,7 +247,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                       itemCount: _messages.length + (_sending ? 1 : 0),
                       itemBuilder: (context, i) {
                         if (i >= _messages.length) return _typing(ds, t);
-                        return _bubble(ds, _messages[i]);
+                        return _bubble(ds, _messages[i], i, t);
                       },
                     ),
             ),
@@ -188,7 +301,34 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
               ],
             ),
           ),
+          _headerIcon(ds, LineIconType.history, _openHistory),
+          SizedBox(width: ds.spacing.xs),
+          _headerIcon(ds, LineIconType.plus,
+              _messages.isEmpty ? null : _newChat),
         ],
+      ),
+    );
+  }
+
+  Widget _headerIcon(DSTheme ds, LineIconType type, VoidCallback? onTap) {
+    final enabled = onTap != null;
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        width: ds.spacing.xl,
+        height: ds.spacing.xl,
+        decoration: BoxDecoration(
+          color: ds.colors.surfaceAlt,
+          shape: BoxShape.circle,
+        ),
+        child: Center(
+          child: DSLineIcon(
+            type: type,
+            color: enabled ? ds.colors.primary : ds.colors.textMuted,
+            size: ds.spacing.md,
+          ),
+        ),
       ),
     );
   }
@@ -269,35 +409,136 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
               role: DSTextRole.caption,
               color: ds.colors.textSecondary,
             ),
+            SizedBox(height: ds.spacing.lg),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: ds.spacing.sm,
+              runSpacing: ds.spacing.sm,
+              children: [
+                for (final s in _starters(t))
+                  _chip(ds, s, () => _send(s)),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _bubble(DSTheme ds, _Msg m) {
+  List<String> _starters(String Function(String, String) t) => [
+        t('كم موعد عندي اليوم؟', 'How many appointments today?'),
+        t('اكتب تقرير جلسة علاج طبيعي', 'Draft a physiotherapy session note'),
+        t('تمارين لتقوية أسفل الظهر', 'Exercises for lower-back strengthening'),
+        t('اشرح تقنية Mulligan', 'Explain the Mulligan technique'),
+      ];
+
+  Widget _bubble(DSTheme ds, _Msg m, int index, String Function(String, String) t) {
     final isUser = m.role == 'user';
-    final bg = isUser ? ds.colors.primary : _green;
+    // Progressive reveal only for the assistant message currently animating.
+    final revealing = _revealIndex == index;
+    final shown = revealing
+        ? m.content.substring(0, _revealChars.clamp(0, m.content.length))
+        : m.content;
+
+    if (isUser) {
+      return Container(
+        margin: EdgeInsetsDirectional.only(bottom: ds.spacing.sm),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Flexible(
+              child: Container(
+                padding: EdgeInsetsDirectional.all(ds.spacing.md),
+                decoration: BoxDecoration(
+                  color: ds.colors.primary,
+                  borderRadius: BorderRadius.circular(ds.radii.large),
+                ),
+                child: DSText(m.content,
+                    role: DSTextRole.body, color: const Color(0xFFFFFFFF)),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Assistant: neutral card with Markdown + action row.
     return Container(
       margin: EdgeInsetsDirectional.only(bottom: ds.spacing.sm),
       child: Row(
-        mainAxisAlignment:
-            isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Container(
+            margin: EdgeInsetsDirectional.only(
+                end: ds.spacing.sm, top: ds.spacing.xs / 2),
+            width: ds.spacing.lg,
+            height: ds.spacing.lg,
+            decoration: const BoxDecoration(
+                color: _green, shape: BoxShape.circle),
+            child: Center(
+              child: DSLineIcon(
+                  type: LineIconType.heart,
+                  color: const Color(0xFFFFFFFF),
+                  size: ds.spacing.sm),
+            ),
+          ),
           Flexible(
             child: Container(
               padding: EdgeInsetsDirectional.all(ds.spacing.md),
               decoration: BoxDecoration(
-                color: isUser ? bg : bg,
+                color: ds.colors.surface,
                 borderRadius: BorderRadius.circular(ds.radii.large),
+                border: Border.all(color: ds.colors.border),
               ),
-              child: DSText(
-                m.content,
-                role: DSTextRole.body,
-                color: const Color(0xFFFFFFFF),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SimpleMarkdown(
+                    text: shown,
+                    color: ds.colors.textPrimary,
+                    accent: _green,
+                  ),
+                  if (!revealing) ...[
+                    SizedBox(height: ds.spacing.sm),
+                    Row(
+                      children: [
+                        _msgAction(
+                          ds,
+                          _copiedIndex == index
+                              ? LineIconType.check
+                              : LineIconType.copy,
+                          _copiedIndex == index
+                              ? t('تم النسخ', 'Copied')
+                              : t('نسخ', 'Copy'),
+                          () => _copy(index),
+                        ),
+                        SizedBox(width: ds.spacing.md),
+                        if (index == _messages.length - 1)
+                          _msgAction(ds, LineIconType.refresh,
+                              t('إعادة', 'Regenerate'), _regenerate),
+                      ],
+                    ),
+                  ],
+                ],
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _msgAction(
+      DSTheme ds, LineIconType icon, String label, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: _sending ? null : onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DSLineIcon(type: icon, color: ds.colors.textMuted, size: ds.spacing.md),
+          SizedBox(width: ds.spacing.xs / 2),
+          DSText(label, role: DSTextRole.caption, color: ds.colors.textMuted),
         ],
       ),
     );
@@ -565,6 +806,128 @@ class _PatientSearchSheetState extends State<_PatientSearchSheet> {
                         );
                       },
                     ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Bottom sheet listing the user's past conversations. Pops the chosen
+/// conversation id. Backed by HRService.fetchMyConversations.
+class _HistorySheet extends StatefulWidget {
+  const _HistorySheet();
+
+  @override
+  State<_HistorySheet> createState() => _HistorySheetState();
+}
+
+class _HistorySheetState extends State<_HistorySheet> {
+  bool _loading = true;
+  List<Map<String, dynamic>> _items = [];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  Future<void> _load() async {
+    final items = await context.hrService.fetchMyConversations();
+    if (!mounted) return;
+    setState(() {
+      _items = items;
+      _loading = false;
+    });
+  }
+
+  String _title(Map<String, dynamic> c) {
+    final title = (c['title'] ?? c['preview'] ?? '').toString().trim();
+    if (title.isNotEmpty) return title;
+    return tr(context, ar: 'محادثة', en: 'Conversation');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    String t(String ar, String en) => tr(context, ar: ar, en: en);
+
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Container(
+        constraints: const BoxConstraints(maxHeight: 480),
+        width: double.infinity,
+        padding: EdgeInsetsDirectional.all(ds.spacing.lg),
+        decoration: BoxDecoration(
+          color: ds.colors.surface,
+          borderRadius:
+              BorderRadius.vertical(top: Radius.circular(ds.radii.xLarge)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            DSText(t('محادثاتي السابقة', 'My conversations'),
+                role: DSTextRole.title),
+            SizedBox(height: ds.spacing.md),
+            Flexible(
+              child: _loading
+                  ? Padding(
+                      padding: EdgeInsetsDirectional.all(ds.spacing.lg),
+                      child: Center(
+                        child: DSText(t('جارٍ التحميل…', 'Loading…'),
+                            role: DSTextRole.caption,
+                            color: ds.colors.textSecondary),
+                      ),
+                    )
+                  : _items.isEmpty
+                      ? Padding(
+                          padding: EdgeInsetsDirectional.all(ds.spacing.lg),
+                          child: Center(
+                            child: DSText(
+                                t('لا توجد محادثات سابقة',
+                                    'No past conversations'),
+                                role: DSTextRole.body,
+                                color: ds.colors.textSecondary),
+                          ),
+                        )
+                      : ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: _items.length,
+                          separatorBuilder: (_, _) =>
+                              SizedBox(height: ds.spacing.sm),
+                          itemBuilder: (context, i) {
+                            final c = _items[i];
+                            return GestureDetector(
+                              onTap: () => Navigator.of(context)
+                                  .pop(c['id']?.toString()),
+                              behavior: HitTestBehavior.opaque,
+                              child: Container(
+                                padding:
+                                    EdgeInsetsDirectional.all(ds.spacing.md),
+                                decoration: BoxDecoration(
+                                  color: ds.colors.surfaceAlt,
+                                  borderRadius:
+                                      BorderRadius.circular(ds.radii.medium),
+                                ),
+                                child: Row(
+                                  children: [
+                                    DSLineIcon(
+                                        type: LineIconType.chat,
+                                        color: _AiAssistantScreenState._green,
+                                        size: ds.spacing.md),
+                                    SizedBox(width: ds.spacing.sm),
+                                    Expanded(
+                                      child: DSText(_title(c),
+                                          role: DSTextRole.body, maxLines: 1),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
             ),
           ],
         ),
