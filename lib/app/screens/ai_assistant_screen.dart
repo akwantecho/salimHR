@@ -106,10 +106,14 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     FocusManager.instance.primaryFocus?.unfocus();
     setState(() => _listening = true);
     await _speech.listen(
+      // Keep partial results on and don't cut off on short pauses, so words
+      // appear live as the user speaks instead of only after they stop.
       listenOptions: SpeechListenOptions(
         localeId: 'ar',
         listenMode: ListenMode.dictation,
+        partialResults: true,
         cancelOnError: true,
+        pauseFor: const Duration(seconds: 4),
       ),
       onResult: (r) {
         final joined = _preVoiceText.isEmpty
@@ -857,13 +861,14 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
               SizedBox(width: ds.spacing.xs),
           Expanded(
             child: Container(
-              constraints: const BoxConstraints(minHeight: 46, maxHeight: 130),
-              alignment: AlignmentDirectional.centerStart,
+              // Hug the text (no fixed min-height) so a single line sits at the
+              // top-start instead of floating in the middle of a tall box.
+              constraints: const BoxConstraints(maxHeight: 130),
               padding: EdgeInsetsDirectional.symmetric(
-                  horizontal: ds.spacing.md, vertical: ds.spacing.sm),
+                  horizontal: ds.spacing.md, vertical: 11),
               decoration: BoxDecoration(
                 color: ds.colors.surfaceAlt,
-                borderRadius: BorderRadius.circular(ds.radii.xLarge),
+                borderRadius: BorderRadius.circular(ds.radii.large),
                 border: Border.all(
                     color: _listening ? _green : ds.colors.border,
                     width: _listening ? 1.5 : 1),
