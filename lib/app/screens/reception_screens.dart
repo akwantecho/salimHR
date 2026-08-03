@@ -16,6 +16,7 @@ import '../i18n.dart';
 import '../ui/blocks.dart';
 import '../widgets/reason_prompt.dart';
 import 'ai_assistant_screen.dart';
+import 'daily_report_screen.dart';
 import 'specialist_screens.dart' show PromoBannerCarousel;
 
 // ==================== RECEPTION HOME (dashboard) ====================
@@ -292,6 +293,17 @@ class _ReceptionHomeScreenState extends State<ReceptionHomeScreen> {
                     ),
                   ),
                 ],
+              ),
+              SizedBox(height: ds.spacing.sm),
+              _RecQuickLink(
+                label: t('تقرير اليوم', "Today's Report"),
+                icon: LineIconType.calendar,
+                color: const Color(0xFFEC4899),
+                onTap: () => Navigator.of(context).push(
+                  PageRouteBuilder(
+                    pageBuilder: (context, _, _) => const DailyReportScreen(),
+                  ),
+                ),
               ),
               SizedBox(height: ds.spacing.sm),
               _RecQuickLink(

@@ -773,6 +773,73 @@ class HRService extends ChangeNotifier {
     }
   }
 
+  // ==================== DAILY REPORTS ====================
+
+  /// Employee (reception) submits a short end-of-day report. The server stamps
+  /// the report date, author and clinic. Backed by `POST /api/reports/daily`.
+  Future<bool> submitDailyReport(String content) async {
+    _setLoading(true);
+    _error = null;
+    try {
+      await _client.post('/reports/daily', data: {'content': content});
+      _setLoading(false);
+      return true;
+    } on DioException catch (e) {
+      _handleError(e);
+      return false;
+    }
+  }
+
+  /// The authenticated employee's own daily reports (newest first) so they can
+  /// see whether the admin has read each one. Backed by
+  /// `GET /api/reports/daily/mine`.
+  Future<List<DailyReport>> fetchMyDailyReports() async {
+    try {
+      final r = await _client.get<Map<String, dynamic>>('/reports/daily/mine');
+      final data = r.data?['data'] as List<dynamic>? ?? [];
+      return data
+          .map((e) => DailyReport.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      _handleError(e);
+      return [];
+    }
+  }
+
+  /// Admin: all employees' daily reports, newest first, each dated. Backed by
+  /// `GET /api/reports/daily`.
+  Future<List<DailyReport>> fetchDailyReports() async {
+    try {
+      final r = await _client.get<Map<String, dynamic>>('/reports/daily');
+      final data = r.data?['data'] as List<dynamic>? ?? [];
+      return data
+          .map((e) => DailyReport.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      _handleError(e);
+      return [];
+    }
+  }
+
+  /// Admin marks a daily report as read (proof of having seen it). The server
+  /// stamps read_at/read_by and notifies the author. Backed by
+  /// `POST /api/reports/daily/{id}/read`. Returns the read timestamp on success.
+  Future<DateTime?> markDailyReportRead(int id) async {
+    try {
+      final r =
+          await _client.post<Map<String, dynamic>>('/reports/daily/$id/read');
+      final body = r.data ?? const {};
+      final d = (body['data'] is Map)
+          ? (body['data'] as Map).cast<String, dynamic>()
+          : body;
+      final readAt = d['read_at'] as String?;
+      return readAt != null ? DateTime.parse(readAt) : DateTime.now();
+    } on DioException catch (e) {
+      _handleError(e);
+      return null;
+    }
+  }
+
   /// Summary of the authenticated employee's own leaves.
   /// Returns a map: `{pending: int, approved: int, rejected: int,
   /// approved_this_month: int}`. Empty map on failure (error set on service).

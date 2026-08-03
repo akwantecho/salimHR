@@ -12,6 +12,7 @@ enum LineIconType {
   home,
   arrowBack,
   trash,
+  check,
 }
 
 class DSLineIcon extends StatelessWidget {
@@ -48,6 +49,8 @@ class DSLineIcon extends StatelessWidget {
         return 'assets/icons/heroicons/arrow-back.svg';
       case LineIconType.trash:
         return 'assets/icons/heroicons/trash.svg';
+      case LineIconType.check:
+        return 'assets/icons/heroicons/check.svg';
     }
   }
 

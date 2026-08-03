@@ -83,6 +83,7 @@ flutter:
     - assets/icons/heroicons/bookmark.svg
     - assets/icons/heroicons/arrow-back.svg
     - assets/icons/heroicons/trash.svg
+    - assets/icons/heroicons/check.svg
     - assets/body/front.png
     - assets/body/back.png
     - assets/body/left.png

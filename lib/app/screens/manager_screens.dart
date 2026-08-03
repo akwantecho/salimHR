@@ -17,6 +17,7 @@ import '../widgets/attachment_picker.dart';
 import '../widgets/confirm_dialog.dart';
 import '../widgets/reason_prompt.dart';
 import 'ai_assistant_screen.dart';
+import 'daily_report_screen.dart';
 import 'reception_screens.dart'
     show
         ReceptionNotifyScreen,
@@ -365,6 +366,18 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                       ),
                     ),
                   ],
+                ),
+                SizedBox(height: ds.spacing.sm),
+                _MgrLink(
+                  label: t('التقارير اليومية', 'Daily Reports'),
+                  icon: LineIconType.calendar,
+                  color: const Color(0xFF0EA5E9),
+                  onTap: () => Navigator.of(context).push(
+                    PageRouteBuilder(
+                      pageBuilder: (context, _, _) =>
+                          const DailyReportsInboxScreen(),
+                    ),
+                  ),
                 ),
                 SizedBox(height: ds.spacing.lg),
 
