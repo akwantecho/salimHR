@@ -281,7 +281,7 @@ class _SpecialistHomeScreenState extends State<SpecialistHomeScreen> {
               ),
               SizedBox(height: ds.spacing.sm),
               _QuickLinkCard(
-                label: t('د. يوسف — المساعد الذكي', 'Dr. Yousef — AI Assistant'),
+                label: t('د. إليكس — المساعد الذكي', 'Dr. Alex — AI Assistant'),
                 icon: LineIconType.chat,
                 color: const Color(0xFF059669),
                 onTap: () => Navigator.of(context).push(

@@ -741,7 +741,7 @@ class HRService extends ChangeNotifier {
     }
   }
 
-  /// Ask the "د. يوسف" AI assistant. The backend keeps conversation state, so
+  /// Ask the "د. إليكس" AI assistant. The backend keeps conversation state, so
   /// we send a single [message] plus the [conversationId] returned from the
   /// first turn (null on the first message). Backend maintains history, tools
   /// and per-role permissions. Returns {'answer', 'conversation_id'}, or null

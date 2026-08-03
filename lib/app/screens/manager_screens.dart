@@ -353,7 +353,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                     SizedBox(width: ds.spacing.sm),
                     Expanded(
                       child: _MgrLink(
-                        label: t('د. يوسف', 'Dr. Yousef'),
+                        label: t('د. إليكس', 'Dr. Alex'),
                         icon: LineIconType.chat,
                         color: const Color(0xFF059669),
                         onTap: () => Navigator.of(context).push(
