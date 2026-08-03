@@ -14,8 +14,8 @@ import '../widgets/simple_markdown.dart';
 /// A single chat turn with «د. أليكس».
 class _Msg {
   final String role; // 'user' | 'assistant'
-  final String content;
-  const _Msg(this.role, this.content);
+  String content; // mutable so streamed deltas can append live
+  _Msg(this.role, this.content);
 }
 
 /// Chat screen for the internal AI assistant «د. أليكس» — a physiotherapy aide
@@ -40,11 +40,9 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   bool _sending = false;
   String? _conversationId;
 
-  // Progressive reveal ("streaming" feel) of the latest assistant message.
-  int? _revealIndex;
-  int _revealChars = 0;
-  int _revealChunk = 4;
-  Timer? _revealTimer;
+  // Index of the assistant message currently being streamed (deltas append to
+  // it live). Null when no stream is in flight.
+  int? _streamingIndex;
 
   // Transient "copied" feedback per message index.
   int? _copiedIndex;
@@ -60,7 +58,6 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
 
   @override
   void dispose() {
-    _revealTimer?.cancel();
     _copiedTimer?.cancel();
     _input.dispose();
     _focus.dispose();
@@ -91,11 +88,9 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     await _requestAssistant(trimmed);
   }
 
-  /// Ask the assistant for [coreText] and append its reply (with progressive
-  /// reveal). Does not add a user bubble — the caller owns that.
+  /// Ask the assistant for [coreText] and stream its reply live into a fresh
+  /// assistant bubble. Does not add a user bubble — the caller owns that.
   Future<void> _requestAssistant(String coreText) async {
-    setState(() => _sending = true);
-
     // The backend keeps history; we only send this turn's message. When a
     // patient is attached, name them so the assistant can look them up.
     final outgoing = _patient != null
@@ -103,50 +98,71 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
             '"${_patient!.name}": $coreText'
         : coreText;
 
-    final res = await context.hrService.askAssistant(
-      message: outgoing,
-      conversationId: _conversationId,
-    );
-    if (!mounted) return;
-    final answer = res?['answer'] ??
-        tr(context,
-            ar: 'تعذّر الرد الآن، حاول مرة أخرى.',
-            en: 'Could not reply now, please try again.');
+    final errorText = tr(context,
+        ar: 'تعذّر الرد الآن، حاول مرة أخرى.',
+        en: 'Could not reply now, please try again.');
+
+    // Placeholder bubble that deltas append to.
+    final idx = _messages.length;
     setState(() {
+      _messages.add(_Msg('assistant', ''));
+      _streamingIndex = idx;
+      _sending = true;
+    });
+    _scrollToEnd();
+
+    bool gotDelta = false;
+    bool sawError = false;
+    int sinceScroll = 0;
+    try {
+      await for (final ev in context.hrService.askAssistantStream(
+        message: outgoing,
+        conversationId: _conversationId,
+      )) {
+        if (!mounted) return;
+        switch (ev.type) {
+          case 'meta':
+          case 'done':
+            if (ev.conversationId != null) _conversationId = ev.conversationId;
+            break;
+          case 'delta':
+            final chunk = ev.text ?? '';
+            if (chunk.isEmpty) break;
+            gotDelta = true;
+            setState(() => _messages[idx].content += chunk);
+            if ((sinceScroll += chunk.length) >= 40) {
+              sinceScroll = 0;
+              _scrollToEnd();
+            }
+            break;
+          case 'error':
+            sawError = true;
+            setState(() => _messages[idx].content = ev.message ?? errorText);
+            break;
+        }
+      }
+    } catch (_) {
+      // Network/parse failure → fall back to the plain JSON endpoint below.
+    }
+    if (!mounted) return;
+
+    // If streaming yielded nothing usable (e.g. backend not streaming yet),
+    // fall back to the non-stream JSON endpoint so replies never come back empty.
+    if (!gotDelta && !sawError && _messages[idx].content.isEmpty) {
+      final res = await context.hrService.askAssistant(
+        message: outgoing,
+        conversationId: _conversationId,
+      );
+      if (!mounted) return;
       _conversationId = res?['conversation_id'] ?? _conversationId;
-      _messages.add(_Msg('assistant', answer));
+      setState(() => _messages[idx].content = res?['answer'] ?? errorText);
+    }
+
+    setState(() {
+      _streamingIndex = null;
       _sending = false;
     });
-    _startReveal(_messages.length - 1);
     _scrollToEnd();
-  }
-
-  /// Animate the assistant message at [index] appearing chunk-by-chunk so it
-  /// reads like live typing.
-  void _startReveal(int index) {
-    _revealTimer?.cancel();
-    final full = _messages[index].content;
-    if (full.isEmpty) return;
-    // Aim for ~2s regardless of length.
-    _revealChunk = (full.length / 120).ceil().clamp(2, 40);
-    setState(() {
-      _revealIndex = index;
-      _revealChars = 0;
-    });
-    _revealTimer = Timer.periodic(const Duration(milliseconds: 16), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-      setState(() {
-        _revealChars = (_revealChars + _revealChunk).clamp(0, full.length);
-        if (_revealChars >= full.length) {
-          _revealIndex = null;
-          timer.cancel();
-        }
-      });
-      if (_revealChars % 60 < _revealChunk) _scrollToEnd();
-    });
   }
 
   void _copy(int index) {
@@ -163,9 +179,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     final u = _messages.lastIndexWhere((m) => m.role == 'user');
     if (u < 0) return;
     final text = _messages[u].content;
-    _revealTimer?.cancel();
     setState(() {
-      _revealIndex = null;
       if (u + 1 < _messages.length) {
         _messages.removeRange(u + 1, _messages.length);
       }
@@ -174,11 +188,10 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   }
 
   void _newChat() {
-    _revealTimer?.cancel();
     setState(() {
       _messages.clear();
       _conversationId = null;
-      _revealIndex = null;
+      _streamingIndex = null;
       _sending = false;
     });
   }
@@ -196,10 +209,9 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   }
 
   Future<void> _loadConversation(String id) async {
-    _revealTimer?.cancel();
     setState(() {
       _sending = true;
-      _revealIndex = null;
+      _streamingIndex = null;
     });
     final msgs = await context.hrService.fetchConversationMessages(id);
     if (!mounted) return;
@@ -244,11 +256,9 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                   : ListView.builder(
                       controller: _scroll,
                       padding: EdgeInsetsDirectional.all(ds.spacing.md),
-                      itemCount: _messages.length + (_sending ? 1 : 0),
-                      itemBuilder: (context, i) {
-                        if (i >= _messages.length) return _typing(ds, t);
-                        return _bubble(ds, _messages[i], i, t);
-                      },
+                      itemCount: _messages.length,
+                      itemBuilder: (context, i) =>
+                          _bubble(ds, _messages[i], i, t),
                     ),
             ),
             _quickActions(ds, t),
@@ -434,11 +444,8 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
 
   Widget _bubble(DSTheme ds, _Msg m, int index, String Function(String, String) t) {
     final isUser = m.role == 'user';
-    // Progressive reveal only for the assistant message currently animating.
-    final revealing = _revealIndex == index;
-    final shown = revealing
-        ? m.content.substring(0, _revealChars.clamp(0, m.content.length))
-        : m.content;
+    // The assistant message currently receiving streamed deltas.
+    final streaming = _streamingIndex == index;
 
     if (isUser) {
       return Container(
@@ -493,12 +500,16 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SimpleMarkdown(
-                    text: shown,
-                    color: ds.colors.textPrimary,
-                    accent: _green,
-                  ),
-                  if (!revealing) ...[
+                  if (streaming && m.content.isEmpty)
+                    DSText(t('د. أليكس يكتب…', 'Dr. Alex is typing…'),
+                        role: DSTextRole.caption, color: _green)
+                  else
+                    SimpleMarkdown(
+                      text: m.content,
+                      color: ds.colors.textPrimary,
+                      accent: _green,
+                    ),
+                  if (!streaming) ...[
                     SizedBox(height: ds.spacing.sm),
                     Row(
                       children: [
@@ -539,25 +550,6 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
           DSLineIcon(type: icon, color: ds.colors.textMuted, size: ds.spacing.md),
           SizedBox(width: ds.spacing.xs / 2),
           DSText(label, role: DSTextRole.caption, color: ds.colors.textMuted),
-        ],
-      ),
-    );
-  }
-
-  Widget _typing(DSTheme ds, String Function(String, String) t) {
-    return Container(
-      margin: EdgeInsetsDirectional.only(bottom: ds.spacing.sm),
-      child: Row(
-        children: [
-          Container(
-            padding: EdgeInsetsDirectional.all(ds.spacing.md),
-            decoration: BoxDecoration(
-              color: _green.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(ds.radii.large),
-            ),
-            child: DSText(t('د. أليكس يكتب…', 'Dr. Alex is typing…'),
-                role: DSTextRole.caption, color: _green),
-          ),
         ],
       ),
     );

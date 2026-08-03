@@ -41,7 +41,8 @@ class SimpleMarkdown extends StatelessWidget {
       codeBuf.clear();
     }
 
-    for (final raw in lines) {
+    for (int li = 0; li < lines.length; li++) {
+      final raw = lines[li];
       final line = raw.trimRight();
       final trimmed = line.trim();
 
@@ -63,6 +64,22 @@ class SimpleMarkdown extends StatelessWidget {
       // Blank line → small gap.
       if (trimmed.isEmpty) {
         blocks.add(SizedBox(height: ds.spacing.xs));
+        continue;
+      }
+
+      // Table: a row with pipes followed by a |---|---| separator line.
+      if (trimmed.contains('|') &&
+          li + 1 < lines.length &&
+          _isTableSeparator(lines[li + 1])) {
+        final header = _tableCells(trimmed);
+        final rows = <List<String>>[];
+        int j = li + 2;
+        while (j < lines.length && lines[j].contains('|') && lines[j].trim().isNotEmpty) {
+          rows.add(_tableCells(lines[j].trim()));
+          j++;
+        }
+        blocks.add(_table(ds, base, accent, header, rows));
+        li = j - 1;
         continue;
       }
 
@@ -120,6 +137,83 @@ class SimpleMarkdown extends StatelessWidget {
       crossAxisAlignment:
           rtl ? CrossAxisAlignment.end : CrossAxisAlignment.start,
       children: blocks,
+    );
+  }
+
+  /// True for a Markdown table separator like `|---|:--:|`.
+  bool _isTableSeparator(String line) {
+    final t = line.trim();
+    if (!t.contains('-') || !t.contains('|')) return false;
+    return RegExp(r'^\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?$').hasMatch(t);
+  }
+
+  /// Split a table row into trimmed cells, dropping the optional outer pipes.
+  List<String> _tableCells(String line) {
+    var t = line.trim();
+    if (t.startsWith('|')) t = t.substring(1);
+    if (t.endsWith('|')) t = t.substring(0, t.length - 1);
+    return t.split('|').map((c) => c.trim()).toList();
+  }
+
+  Widget _table(DSTheme ds, TextStyle base, Color accent,
+      List<String> header, List<List<String>> rows) {
+    final align = ds.textDirection == TextDirection.rtl
+        ? TextAlign.right
+        : TextAlign.left;
+
+    Widget cell(String text, TextStyle style) => Padding(
+          padding: EdgeInsetsDirectional.symmetric(
+              horizontal: ds.spacing.sm, vertical: ds.spacing.xs),
+          child: RichText(
+            textDirection: ds.textDirection,
+            textAlign: align,
+            text: TextSpan(children: _inline(text, style)),
+          ),
+        );
+
+    Widget row(List<String> cells, {required bool head}) {
+      final style = head
+          ? base.copyWith(fontWeight: FontWeight.w700)
+          : base;
+      final n = header.length;
+      return Row(
+        textDirection: ds.textDirection,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (int i = 0; i < n; i++)
+            Expanded(child: cell(i < cells.length ? cells[i] : '', style)),
+        ],
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      margin: EdgeInsetsDirectional.symmetric(vertical: ds.spacing.xs),
+      decoration: BoxDecoration(
+        border: Border.all(color: accent.withValues(alpha: 0.30)),
+        borderRadius: BorderRadius.circular(ds.radii.medium),
+      ),
+      child: Column(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(ds.radii.medium)),
+            ),
+            child: row(header, head: true),
+          ),
+          for (int r = 0; r < rows.length; r++)
+            Container(
+              decoration: BoxDecoration(
+                border: BorderDirectional(
+                  top: BorderSide(color: accent.withValues(alpha: 0.15)),
+                ),
+              ),
+              child: row(rows[r], head: false),
+            ),
+        ],
+      ),
     );
   }
 

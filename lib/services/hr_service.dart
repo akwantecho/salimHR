@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
@@ -5,6 +7,21 @@ import '../models/models.dart';
 import '../models/reception.dart';
 import 'api_client.dart';
 import 'api_exceptions.dart';
+
+/// One Server-Sent Event from the streaming assistant endpoint.
+/// [type] is one of: meta | delta | done | error.
+class AiStreamEvent {
+  final String type;
+  final String? text;
+  final String? conversationId;
+  final String? message;
+  const AiStreamEvent({
+    required this.type,
+    this.text,
+    this.conversationId,
+    this.message,
+  });
+}
 
 /// Service for HR operations including dashboard, approvals, and employee management
 class HRService extends ChangeNotifier {
@@ -770,6 +787,66 @@ class HRService extends ChangeNotifier {
     } on DioException catch (e) {
       _handleError(e);
       return null;
+    }
+  }
+
+  /// Streamed assistant reply over Server-Sent Events. Sends
+  /// `Accept: text/event-stream` to `POST /ai/assistant` and yields
+  /// [AiStreamEvent]s (meta → delta* → done, or error). The caller appends each
+  /// `delta.text` to the visible bubble for a true live-typing effect.
+  Stream<AiStreamEvent> askAssistantStream({
+    required String message,
+    String? conversationId,
+  }) async* {
+    final res = await _client.post<ResponseBody>(
+      '/ai/assistant',
+      data: {
+        'message': message,
+        if (conversationId != null) 'conversation_id': conversationId,
+      },
+      options: Options(
+        responseType: ResponseType.stream,
+        // Long-lived stream: don't abort while the model is thinking.
+        receiveTimeout: const Duration(minutes: 5),
+        headers: {'Accept': 'text/event-stream'},
+      ),
+    );
+
+    String? eventName;
+    // utf8.decoder handles multi-byte chars split across chunks; LineSplitter
+    // yields whole lines (and '' for the blank line that terminates an event).
+    final lines = res.data!.stream
+        .cast<List<int>>()
+        .transform(utf8.decoder)
+        .transform(const LineSplitter());
+
+    await for (final line in lines) {
+      if (line.isEmpty) {
+        eventName = null;
+        continue;
+      }
+      if (line.startsWith('event:')) {
+        eventName = line.substring(6).trim();
+        continue;
+      }
+      if (line.startsWith('data:')) {
+        final payload = line.substring(5).trim();
+        Map<String, dynamic> json = const {};
+        try {
+          final decoded = jsonDecode(payload);
+          if (decoded is Map<String, dynamic>) json = decoded;
+        } catch (_) {
+          // Non-JSON data line (e.g. legacy plain response) — ignore.
+          continue;
+        }
+        yield AiStreamEvent(
+          type: eventName ?? 'delta',
+          text: json['text'] as String?,
+          conversationId:
+              (json['conversation_id'] ?? json['conversationId'])?.toString(),
+          message: json['message'] as String?,
+        );
+      }
     }
   }
 
