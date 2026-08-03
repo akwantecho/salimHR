@@ -365,19 +365,21 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                         ),
                       ),
                     ),
-                  ],
-                ),
-                SizedBox(height: ds.spacing.sm),
-                _MgrLink(
-                  label: t('التقارير اليومية', 'Daily Reports'),
-                  icon: LineIconType.calendar,
-                  color: const Color(0xFF0EA5E9),
-                  onTap: () => Navigator.of(context).push(
-                    PageRouteBuilder(
-                      pageBuilder: (context, _, _) =>
-                          const DailyReportsInboxScreen(),
+                    SizedBox(width: ds.spacing.sm),
+                    Expanded(
+                      child: _MgrLink(
+                        label: t('التقارير اليومية', 'Daily Reports'),
+                        icon: LineIconType.calendar,
+                        color: const Color(0xFF0EA5E9),
+                        onTap: () => Navigator.of(context).push(
+                          PageRouteBuilder(
+                            pageBuilder: (context, _, _) =>
+                                const DailyReportsInboxScreen(),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
                 SizedBox(height: ds.spacing.lg),
 

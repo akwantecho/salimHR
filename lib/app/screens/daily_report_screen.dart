@@ -468,7 +468,7 @@ class _AdminReportCard extends StatelessWidget {
             DSButton(
               label: marking
                   ? t('جاري الحفظ...', 'Saving...')
-                  : t('تأكيد الاطلاع', 'Mark as Read'),
+                  : t('تم الاطلاع', 'Mark as Read'),
               variant: DSButtonVariant.primary,
               leading: DSLineIcon(
                 type: LineIconType.check,
