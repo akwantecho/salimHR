@@ -411,25 +411,44 @@ class HRService extends ChangeNotifier {
     }
   }
 
-  /// Fetch the admin-controlled app-open messages (announcement + update
-  /// prompt) from `GET /api/app/config`. Returns an empty [AppMeta] on failure
-  /// so startup never blocks on it.
+  /// Fetch the admin-controlled app-open signals: the announcement from
+  /// `GET /api/app/config`, and the version/maintenance status from the public
+  /// `GET /api/app/status`. Returns an empty [AppMeta] on failure so startup
+  /// never blocks on it.
   Future<AppMeta> fetchAppMeta({String lang = 'ar'}) async {
+    AppNotice? notice;
+    AppStatus? status;
     try {
-      final response = await _client.get<Map<String, dynamic>>(
+      final r = await _client.get<Map<String, dynamic>>(
         '/app/config',
         queryParameters: {'lang': lang},
       );
-      final root = response.data ?? const {};
+      final root = r.data ?? const {};
       final inner = root['data'];
       final m = (inner is Map ? inner : root).cast<String, dynamic>();
-      return AppMeta(
-        notice: AppNotice.fromJson(
-            (m['announcement'] ?? m['notice']) as Map<String, dynamic>?),
-        update: AppUpdateInfo.fromJson(m['update'] as Map<String, dynamic>?),
+      notice = AppNotice.fromJson(
+          (m['announcement'] ?? m['notice']) as Map<String, dynamic>?);
+    } on DioException catch (_) {}
+    try {
+      status = await fetchAppStatus(lang: lang);
+    } on DioException catch (_) {}
+    return AppMeta(notice: notice, status: status);
+  }
+
+  /// Public app status (version gate + maintenance). Backed by
+  /// `GET /api/app/status` — reachable before login.
+  Future<AppStatus?> fetchAppStatus({String lang = 'ar'}) async {
+    try {
+      final r = await _client.get<Map<String, dynamic>>(
+        '/app/status',
+        queryParameters: {'lang': lang},
       );
+      final root = r.data ?? const {};
+      final inner = root['data'];
+      final m = (inner is Map ? inner : root).cast<String, dynamic>();
+      return AppStatus.fromJson(m);
     } on DioException catch (_) {
-      return const AppMeta();
+      return null;
     }
   }
 

@@ -14,6 +14,8 @@ import '../i18n.dart';
 const _storage = FlutterSecureStorage();
 const _kDismissedNotice = 'notice_dismissed_id';
 const _kSkippedUpdate = 'update_skipped_code';
+const _defaultStoreUrl =
+    'https://play.google.com/store/apps/details?id=com.akwan.salimerp';
 
 /// After login, fetch the admin-controlled app-open messages and show, in
 /// order: a blocking "must update" prompt, else a dismissible "update
@@ -25,36 +27,39 @@ Future<void> runAppMessageGate(BuildContext context) async {
   );
   if (!context.mounted) return;
 
-  int current = 0;
+  String current = '0.0.0';
   try {
     final info = await PackageInfo.fromPlatform();
-    current = int.tryParse(info.buildNumber) ?? 0;
+    current = info.version; // e.g. "1.0.0"
   } catch (_) {}
   if (!context.mounted) return;
 
-  final update = meta.update;
-  if (update != null) {
-    // 1) Force update — blocking, cannot be dismissed.
-    if (update.forceRequired(current)) {
-      await _showUpdateDialog(context, update, force: true);
-      return; // stay on the blocking dialog; skip the rest
+  final status = meta.status;
+  if (status != null) {
+    // 1) Maintenance — blocking, cannot be dismissed.
+    if (status.maintenanceEnabled) {
+      await _showMaintenanceDialog(context, status);
+      return;
     }
-    // 2) Soft update — dismissible, remembered per version.
-    if (update.softAvailable(current)) {
-      final skipped = int.tryParse(await _storage.read(key: _kSkippedUpdate) ?? '');
-      if (skipped == null || (update.latestVersionCode ?? 0) > skipped) {
+    // 2) Force update — blocking.
+    if (status.forceRequired(current)) {
+      await _showUpdateDialog(context, status, force: true);
+      return;
+    }
+    // 3) Soft update — dismissible, remembered per version.
+    if (status.softAvailable(current)) {
+      final skipped = await _storage.read(key: _kSkippedUpdate);
+      if (skipped != status.latest) {
         if (!context.mounted) return;
-        final updated = await _showUpdateDialog(context, update, force: false);
+        final updated = await _showUpdateDialog(context, status, force: false);
         if (!updated) {
-          await _storage.write(
-              key: _kSkippedUpdate,
-              value: '${update.latestVersionCode ?? 0}');
+          await _storage.write(key: _kSkippedUpdate, value: status.latest ?? '');
         }
       }
     }
   }
 
-  // 3) Announcement — shown once per id.
+  // 4) Announcement — shown once per id.
   final notice = meta.notice;
   if (notice != null && context.mounted) {
     final dismissed = await _storage.read(key: _kDismissedNotice);
@@ -86,7 +91,7 @@ Future<void> _openStore(String? url) async {
 /// Returns true if the user tapped "Update".
 Future<bool> _showUpdateDialog(
   BuildContext context,
-  AppUpdateInfo update, {
+  AppStatus status, {
   required bool force,
 }) async {
   final result = await Navigator.of(context).push<bool>(
@@ -101,7 +106,7 @@ Future<bool> _showUpdateDialog(
         title: tr(ctx,
             ar: force ? 'تحديث مطلوب' : 'تحديث متوفّر',
             en: force ? 'Update required' : 'Update available'),
-        message: update.message ??
+        message: status.updateMessage ??
             tr(ctx,
                 ar: force
                     ? 'يجب تحديث التطبيق للمتابعة.'
@@ -111,7 +116,7 @@ Future<bool> _showUpdateDialog(
                     : 'A new version of the app is available.'),
         primaryLabel: tr(ctx, ar: 'تحديث الآن', en: 'Update now'),
         onPrimary: () async {
-          await _openStore(update.storeUrl);
+          await _openStore(status.androidUrl ?? _defaultStoreUrl);
         },
         secondaryLabel:
             force ? null : tr(ctx, ar: 'لاحقاً', en: 'Later'),
@@ -119,6 +124,35 @@ Future<bool> _showUpdateDialog(
     ),
   );
   return result ?? false;
+}
+
+Future<void> _showMaintenanceDialog(BuildContext context, AppStatus status) {
+  return Navigator.of(context).push<void>(
+    PageRouteBuilder<void>(
+      opaque: false,
+      barrierDismissible: false,
+      barrierColor: const Color(0xCC000000),
+      transitionDuration: const Duration(milliseconds: 150),
+      pageBuilder: (ctx, _, _) => _MessageCard(
+        tone: const Color(0xFFF59E0B),
+        force: true,
+        title: tr(ctx, ar: 'صيانة مؤقتة', en: 'Under maintenance'),
+        message: status.maintenanceMessage ??
+            tr(ctx,
+                ar: 'التطبيق تحت الصيانة حالياً، يرجى المحاولة لاحقاً.',
+                en: 'The app is under maintenance. Please try again later.'),
+        primaryLabel: tr(ctx, ar: 'إعادة المحاولة', en: 'Retry'),
+        onPrimary: () async {
+          // Re-run the gate; if maintenance is over, this dialog is replaced.
+          if (ctx.mounted) {
+            Navigator.of(ctx).pop();
+            await runAppMessageGate(ctx);
+          }
+        },
+        secondaryLabel: null,
+      ),
+    ),
+  );
 }
 
 Future<void> _showNoticeDialog(BuildContext context, AppNotice notice) {

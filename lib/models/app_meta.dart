@@ -46,57 +46,82 @@ class AppNotice extends Equatable {
   List<Object?> get props => [id, message, type];
 }
 
-/// Admin-controlled update prompt, also from `GET /api/app/config` under
-/// `update`. The app compares the installed build number against these.
-class AppUpdateInfo extends Equatable {
-  /// Newest available build. If the installed build is lower, a dismissible
-  /// "update available" prompt is shown.
-  final int? latestVersionCode;
+/// Public app status from `GET /api/app/status` (version gate + maintenance).
+/// Shape: `{version: {latest, min_supported, force_update, update_message,
+/// android_url, ios_url}, maintenance: {enabled, message}}`.
+class AppStatus extends Equatable {
+  final String? latest;        // e.g. "1.1.0"
+  final String? minSupported;  // e.g. "1.0.0" or null
+  final bool forceUpdate;      // admin override to force everyone
+  final String? updateMessage;
+  final String? androidUrl;
+  final String? iosUrl;
+  final bool maintenanceEnabled;
+  final String? maintenanceMessage;
 
-  /// Minimum allowed build. If the installed build is lower, a blocking
-  /// "must update" prompt is shown (no dismiss).
-  final int? minVersionCode;
-
-  final String? message;
-
-  /// Where the update button sends the user (store page).
-  final String? storeUrl;
-
-  const AppUpdateInfo({
-    this.latestVersionCode,
-    this.minVersionCode,
-    this.message,
-    this.storeUrl,
+  const AppStatus({
+    this.latest,
+    this.minSupported,
+    this.forceUpdate = false,
+    this.updateMessage,
+    this.androidUrl,
+    this.iosUrl,
+    this.maintenanceEnabled = false,
+    this.maintenanceMessage,
   });
 
-  static AppUpdateInfo? fromJson(Map<String, dynamic>? json) {
+  static AppStatus? fromJson(Map<String, dynamic>? json) {
     if (json == null) return null;
-    int? toInt(dynamic v) => v is int ? v : int.tryParse('${v ?? ''}');
-    final info = AppUpdateInfo(
-      latestVersionCode: toInt(json['latest_version_code']),
-      minVersionCode: toInt(json['min_version_code']),
-      message: (json['message'] as String?)?.trim(),
-      storeUrl: (json['store_url'] as String?)?.trim(),
+    final v = (json['version'] as Map?)?.cast<String, dynamic>() ?? const {};
+    final m = (json['maintenance'] as Map?)?.cast<String, dynamic>() ?? const {};
+    return AppStatus(
+      latest: (v['latest'] as String?)?.trim(),
+      minSupported: (v['min_supported'] as String?)?.trim(),
+      forceUpdate: v['force_update'] as bool? ?? false,
+      updateMessage: (v['update_message'] as String?)?.trim(),
+      androidUrl: (v['android_url'] as String?)?.trim(),
+      iosUrl: (v['ios_url'] as String?)?.trim(),
+      maintenanceEnabled: m['enabled'] as bool? ?? false,
+      maintenanceMessage: (m['message'] as String?)?.trim(),
     );
-    if (info.latestVersionCode == null && info.minVersionCode == null) {
-      return null;
-    }
-    return info;
   }
 
-  bool forceRequired(int current) =>
-      minVersionCode != null && current < minVersionCode!;
-  bool softAvailable(int current) =>
-      latestVersionCode != null && current < latestVersionCode!;
+  /// Compare dotted version strings ("1.2.0"). Returns <0, 0, >0.
+  static int compareVersions(String a, String b) {
+    final pa = a.split('.').map((e) => int.tryParse(e.trim()) ?? 0).toList();
+    final pb = b.split('.').map((e) => int.tryParse(e.trim()) ?? 0).toList();
+    for (var i = 0; i < (pa.length > pb.length ? pa.length : pb.length); i++) {
+      final x = i < pa.length ? pa[i] : 0;
+      final y = i < pb.length ? pb[i] : 0;
+      if (x != y) return x - y;
+    }
+    return 0;
+  }
+
+  /// Blocking update needed: admin forced it, or the installed [current]
+  /// version is below the minimum supported.
+  bool forceRequired(String current) {
+    if (forceUpdate) return true;
+    if (minSupported != null && minSupported!.isNotEmpty) {
+      return compareVersions(current, minSupported!) < 0;
+    }
+    return false;
+  }
+
+  /// A newer version exists (soft, dismissible prompt).
+  bool softAvailable(String current) {
+    if (latest == null || latest!.isEmpty) return false;
+    return compareVersions(current, latest!) < 0;
+  }
 
   @override
   List<Object?> get props =>
-      [latestVersionCode, minVersionCode, message, storeUrl];
+      [latest, minSupported, forceUpdate, maintenanceEnabled];
 }
 
-/// Bundle of the admin-controlled app-open messages from `/app/config`.
+/// Bundle of the admin-controlled app-open signals.
 class AppMeta {
-  final AppNotice? notice;
-  final AppUpdateInfo? update;
-  const AppMeta({this.notice, this.update});
+  final AppNotice? notice;   // from /app/config
+  final AppStatus? status;   // from /app/status
+  const AppMeta({this.notice, this.status});
 }
