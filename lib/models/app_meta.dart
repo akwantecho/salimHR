@@ -17,6 +17,9 @@ class AppNotice extends Equatable {
   final bool dismissible;
   final bool active;
 
+  /// Admin-controlled label for the dismiss button (e.g. "طاف", "تمام").
+  final String? buttonLabel;
+
   const AppNotice({
     required this.id,
     this.title,
@@ -24,6 +27,7 @@ class AppNotice extends Equatable {
     this.type = 'info',
     this.dismissible = true,
     this.active = true,
+    this.buttonLabel,
   });
 
   static AppNotice? fromJson(Map<String, dynamic>? json) {
@@ -39,6 +43,7 @@ class AppNotice extends Equatable {
       type: (json['type'] as String?) ?? 'info',
       dismissible: json['dismissible'] as bool? ?? true,
       active: active,
+      buttonLabel: (json['button_label'] as String?)?.trim(),
     );
   }
 
@@ -59,6 +64,10 @@ class AppStatus extends Equatable {
   final bool maintenanceEnabled;
   final String? maintenanceMessage;
 
+  /// Admin-controlled button labels for the update prompt.
+  final String? primaryLabel;   // e.g. "حدّث الآن"
+  final String? secondaryLabel; // e.g. "طاف"
+
   const AppStatus({
     this.latest,
     this.minSupported,
@@ -68,21 +77,26 @@ class AppStatus extends Equatable {
     this.iosUrl,
     this.maintenanceEnabled = false,
     this.maintenanceMessage,
+    this.primaryLabel,
+    this.secondaryLabel,
   });
 
   static AppStatus? fromJson(Map<String, dynamic>? json) {
     if (json == null) return null;
     final v = (json['version'] as Map?)?.cast<String, dynamic>() ?? const {};
     final m = (json['maintenance'] as Map?)?.cast<String, dynamic>() ?? const {};
+    String? s(dynamic x) => (x as String?)?.trim();
     return AppStatus(
-      latest: (v['latest'] as String?)?.trim(),
-      minSupported: (v['min_supported'] as String?)?.trim(),
+      latest: s(v['latest']),
+      minSupported: s(v['min_supported']),
       forceUpdate: v['force_update'] as bool? ?? false,
-      updateMessage: (v['update_message'] as String?)?.trim(),
-      androidUrl: (v['android_url'] as String?)?.trim(),
-      iosUrl: (v['ios_url'] as String?)?.trim(),
+      updateMessage: s(v['update_message']),
+      androidUrl: s(v['android_url']),
+      iosUrl: s(v['ios_url']),
       maintenanceEnabled: m['enabled'] as bool? ?? false,
-      maintenanceMessage: (m['message'] as String?)?.trim(),
+      maintenanceMessage: s(m['message']),
+      primaryLabel: s(v['primary_label']) ?? s(v['update_button']),
+      secondaryLabel: s(v['secondary_label']) ?? s(v['later_button']),
     );
   }
 

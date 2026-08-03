@@ -46,15 +46,14 @@ Future<void> runAppMessageGate(BuildContext context) async {
       await _showUpdateDialog(context, status, force: true);
       return;
     }
-    // 3) Soft update — dismissible, remembered per version.
+    // 3) Soft update — dismissible, shown once per version (either button
+    //    dismisses it for this version so it doesn't nag on every launch).
     if (status.softAvailable(current)) {
       final skipped = await _storage.read(key: _kSkippedUpdate);
       if (skipped != status.latest) {
         if (!context.mounted) return;
-        final updated = await _showUpdateDialog(context, status, force: false);
-        if (!updated) {
-          await _storage.write(key: _kSkippedUpdate, value: status.latest ?? '');
-        }
+        await _showUpdateDialog(context, status, force: false);
+        await _storage.write(key: _kSkippedUpdate, value: status.latest ?? '');
       }
     }
   }
@@ -114,12 +113,14 @@ Future<bool> _showUpdateDialog(
                 en: force
                     ? 'You must update the app to continue.'
                     : 'A new version of the app is available.'),
-        primaryLabel: tr(ctx, ar: 'تحديث الآن', en: 'Update now'),
+        primaryLabel: status.primaryLabel ??
+            tr(ctx, ar: 'تحديث الآن', en: 'Update now'),
         onPrimary: () async {
           await _openStore(status.androidUrl ?? _defaultStoreUrl);
         },
-        secondaryLabel:
-            force ? null : tr(ctx, ar: 'لاحقاً', en: 'Later'),
+        secondaryLabel: force
+            ? null
+            : (status.secondaryLabel ?? tr(ctx, ar: 'لاحقاً', en: 'Later')),
       ),
     ),
   );
@@ -167,7 +168,7 @@ Future<void> _showNoticeDialog(BuildContext context, AppNotice notice) {
         force: !notice.dismissible,
         title: notice.title ?? tr(ctx, ar: 'إشعار', en: 'Notice'),
         message: notice.message,
-        primaryLabel: tr(ctx, ar: 'حسناً', en: 'OK'),
+        primaryLabel: notice.buttonLabel ?? tr(ctx, ar: 'حسناً', en: 'OK'),
         onPrimary: () async {},
         secondaryLabel: null,
       ),
