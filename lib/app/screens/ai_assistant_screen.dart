@@ -10,13 +10,15 @@ import '../../design_system/primitives/ds_text.dart';
 import '../../models/reception.dart';
 import '../../services/api_provider.dart';
 import '../i18n.dart';
+import '../widgets/attachment_picker.dart';
 import '../widgets/simple_markdown.dart';
 
 /// A single chat turn with «د. أليكس».
 class _Msg {
   final String role; // 'user' | 'assistant'
   String content; // mutable so streamed deltas can append live
-  _Msg(this.role, this.content);
+  final Uint8List? image; // optional attached image (user turns)
+  _Msg(this.role, this.content, {this.image});
 }
 
 /// Chat screen for the internal AI assistant «د. أليكس» — a physiotherapy aide
@@ -57,6 +59,9 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
 
   // Follow-up suggestions returned by the backend for the latest reply.
   List<String> _suggestions = [];
+
+  // Image the user attached for the next question (multimodal).
+  PickedAttachment? _attachedImage;
 
   static const _green = Color(0xFF059669);
 
@@ -133,18 +138,25 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
 
   Future<void> _send(String text) async {
     final trimmed = text.trim();
-    if (trimmed.isEmpty || _sending) return;
+    final image = _attachedImage;
+    if ((trimmed.isEmpty && image == null) || _sending) return;
+    // If only an image is sent, imply a description request.
+    final coreText = trimmed.isEmpty
+        ? tr(context, ar: 'صف هذه الصورة.', en: 'Describe this image.')
+        : trimmed;
     setState(() {
-      _messages.add(_Msg('user', trimmed));
+      _messages.add(_Msg('user', trimmed, image: image?.bytes));
       _input.clear();
+      _attachedImage = null;
     });
     _scrollToEnd();
-    await _requestAssistant(trimmed);
+    await _requestAssistant(coreText, image: image);
   }
 
   /// Ask the assistant for [coreText] and stream its reply live into a fresh
   /// assistant bubble. Does not add a user bubble — the caller owns that.
-  Future<void> _requestAssistant(String coreText) async {
+  Future<void> _requestAssistant(String coreText,
+      {PickedAttachment? image}) async {
     // The backend keeps history; we only send this turn's message. When a
     // patient is attached, name them so the assistant can look them up.
     final outgoing = _patient != null
@@ -173,6 +185,8 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
       await for (final ev in context.hrService.askAssistantStream(
         message: outgoing,
         conversationId: _conversationId,
+        imageBytes: image?.bytes,
+        imageFilename: image?.filename,
       )) {
         if (!mounted) return;
         if (ev.suggestions != null && ev.suggestions!.isNotEmpty) {
@@ -205,8 +219,12 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     if (!mounted) return;
 
     // If streaming yielded nothing usable (e.g. backend not streaming yet),
-    // fall back to the non-stream JSON endpoint so replies never come back empty.
-    if (!gotDelta && !sawError && _messages[idx].content.isEmpty) {
+    // fall back to the non-stream JSON endpoint so replies never come back
+    // empty. Skipped when an image was attached (JSON path can't carry it).
+    if (image == null &&
+        !gotDelta &&
+        !sawError &&
+        _messages[idx].content.isEmpty) {
       final res = await context.hrService.askAssistant(
         message: outgoing,
         conversationId: _conversationId,
@@ -309,6 +327,30 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
       ),
     );
     if (picked != null && mounted) setState(() => _patient = picked);
+  }
+
+  Future<void> _attachImage() async {
+    final picked = await pickAttachment(context);
+    if (picked == null || !mounted) return;
+    if (!picked.isImage) return; // assistant vision handles images only
+    setState(() => _attachedImage = picked);
+  }
+
+  /// Small menu offering to attach a patient or an image.
+  Future<void> _openAttachMenu() async {
+    final choice = await Navigator.of(context).push<String>(
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: const Color(0x66000000),
+        barrierDismissible: true,
+        pageBuilder: (context, _, _) => const _AttachMenuSheet(),
+      ),
+    );
+    if (choice == 'patient') {
+      await _attachPatient();
+    } else if (choice == 'image') {
+      await _attachImage();
+    }
   }
 
   @override
@@ -624,8 +666,23 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                   color: ds.colors.primary,
                   borderRadius: BorderRadius.circular(ds.radii.large),
                 ),
-                child: DSText(m.content,
-                    role: DSTextRole.body, color: const Color(0xFFFFFFFF)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (m.image != null)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(ds.radii.medium),
+                        child: Image.memory(m.image!,
+                            width: 160, fit: BoxFit.cover),
+                      ),
+                    if (m.image != null && m.content.isNotEmpty)
+                      SizedBox(height: ds.spacing.xs),
+                    if (m.content.isNotEmpty)
+                      DSText(m.content,
+                          role: DSTextRole.body,
+                          color: const Color(0xFFFFFFFF)),
+                  ],
+                ),
               ),
             ),
           ],
@@ -774,7 +831,8 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
 
   Widget _inputBar(
       DSTheme ds, String Function(String, String) t, double viewInsets) {
-    final canSend = _input.text.trim().isNotEmpty && !_sending;
+    final canSend =
+        (_input.text.trim().isNotEmpty || _attachedImage != null) && !_sending;
     return Container(
       padding: EdgeInsetsDirectional.only(
         start: ds.spacing.md,
@@ -786,13 +844,17 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
         color: ds.colors.surface,
         border: BorderDirectional(top: BorderSide(color: ds.colors.border)),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Attach a patient for context.
-          _roundButton(ds, LineIconType.search, ds.colors.surfaceAlt,
-              ds.colors.primary, _sending ? null : _attachPatient),
-          SizedBox(width: ds.spacing.xs),
+          if (_attachedImage != null) _imagePreview(ds, t),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              // Attach a patient or an image.
+              _roundButton(ds, LineIconType.plus, ds.colors.surfaceAlt,
+                  ds.colors.primary, _sending ? null : _openAttachMenu),
+              SizedBox(width: ds.spacing.xs),
           Expanded(
             child: Container(
               constraints: const BoxConstraints(minHeight: 46, maxHeight: 130),
@@ -832,14 +894,51 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
             _listening ? const Color(0xFFFFFFFF) : ds.colors.primary,
             _sending ? null : _toggleVoice,
           ),
-          SizedBox(width: ds.spacing.xs),
-          // Send.
-          _roundButton(
-            ds,
-            LineIconType.send,
-            canSend ? _green : ds.colors.textMuted,
-            const Color(0xFFFFFFFF),
-            canSend ? () => _send(_input.text) : null,
+              SizedBox(width: ds.spacing.xs),
+              // Send.
+              _roundButton(
+                ds,
+                LineIconType.send,
+                canSend ? _green : ds.colors.textMuted,
+                const Color(0xFFFFFFFF),
+                canSend ? () => _send(_input.text) : null,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Thumbnail preview of the image queued to send, with a remove button.
+  Widget _imagePreview(DSTheme ds, String Function(String, String) t) {
+    return Padding(
+      padding: EdgeInsetsDirectional.only(bottom: ds.spacing.sm),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(ds.radii.medium),
+            child: Image.memory(_attachedImage!.bytes,
+                width: 52, height: 52, fit: BoxFit.cover),
+          ),
+          SizedBox(width: ds.spacing.sm),
+          Expanded(
+            child: DSText(
+              t('صورة مرفقة — اكتب سؤالك أو أرسل مباشرة',
+                  'Image attached — type your question or send'),
+              role: DSTextRole.caption,
+              color: ds.colors.textSecondary,
+              maxLines: 2,
+            ),
+          ),
+          SizedBox(width: ds.spacing.sm),
+          GestureDetector(
+            onTap: () => setState(() => _attachedImage = null),
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              padding: EdgeInsetsDirectional.all(ds.spacing.xs),
+              child: DSText('✕', color: ds.colors.textMuted),
+            ),
           ),
         ],
       ),
@@ -1100,6 +1199,92 @@ class _HistorySheetState extends State<_HistorySheet> {
                         ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Bottom sheet offering to attach a patient (for context) or an image (for
+/// the assistant to analyze). Pops 'patient' or 'image'.
+class _AttachMenuSheet extends StatelessWidget {
+  const _AttachMenuSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = DSProvider.of(context);
+    String t(String ar, String en) => tr(context, ar: ar, en: en);
+
+    Widget option(LineIconType icon, String title, String sub, String value) {
+      return GestureDetector(
+        onTap: () => Navigator.of(context).pop(value),
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          margin: EdgeInsetsDirectional.only(bottom: ds.spacing.sm),
+          padding: EdgeInsetsDirectional.all(ds.spacing.md),
+          decoration: BoxDecoration(
+            color: ds.colors.surfaceAlt,
+            borderRadius: BorderRadius.circular(ds.radii.large),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF059669).withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: DSLineIcon(
+                      type: icon,
+                      color: const Color(0xFF059669),
+                      size: 22),
+                ),
+              ),
+              SizedBox(width: ds.spacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    DSText(title, role: DSTextRole.title),
+                    DSText(sub,
+                        role: DSTextRole.caption,
+                        color: ds.colors.textSecondary),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsetsDirectional.all(ds.spacing.lg),
+        decoration: BoxDecoration(
+          color: ds.colors.surface,
+          borderRadius:
+              BorderRadius.vertical(top: Radius.circular(ds.radii.xLarge)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              DSText(t('إرفاق', 'Attach'), role: DSTextRole.headline),
+              SizedBox(height: ds.spacing.md),
+              option(LineIconType.search, t('مريض', 'Patient'),
+                  t('لسياق السؤال', 'For question context'), 'patient'),
+              option(LineIconType.heart, t('صورة', 'Image'),
+                  t('تقرير أو أشعة ليحلّلها', 'A report or scan to analyze'),
+                  'image'),
+            ],
+          ),
         ),
       ),
     );

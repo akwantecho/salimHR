@@ -803,13 +803,28 @@ class HRService extends ChangeNotifier {
   Stream<AiStreamEvent> askAssistantStream({
     required String message,
     String? conversationId,
+    Uint8List? imageBytes,
+    String? imageFilename,
   }) async* {
-    final res = await _client.post<ResponseBody>(
-      '/ai/assistant',
-      data: {
+    // When an image is attached, send multipart/form-data so the backend can
+    // pass it to Claude as an image content block; otherwise plain JSON.
+    final Object body;
+    if (imageBytes != null) {
+      body = FormData.fromMap({
         'message': message,
         if (conversationId != null) 'conversation_id': conversationId,
-      },
+        'image': MultipartFile.fromBytes(imageBytes,
+            filename: imageFilename ?? 'image.jpg'),
+      });
+    } else {
+      body = {
+        'message': message,
+        if (conversationId != null) 'conversation_id': conversationId,
+      };
+    }
+    final res = await _client.post<ResponseBody>(
+      '/ai/assistant',
+      data: body,
       options: Options(
         responseType: ResponseType.stream,
         // Long-lived stream: don't abort while the model is thinking.
