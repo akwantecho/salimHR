@@ -39,6 +39,9 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   final _focus = FocusNode();
   final _scroll = ScrollController();
   final List<_Msg> _messages = [];
+  // Tracks whether the input has text — drives the send button WITHOUT
+  // rebuilding the whole screen on every keystroke (that caused typing lag).
+  final ValueNotifier<bool> _hasText = ValueNotifier(false);
   Patient? _patient;
   bool _sending = false;
   String? _conversationId;
@@ -46,6 +49,9 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   // Index of the assistant message currently being streamed (deltas append to
   // it live). Null when no stream is in flight.
   int? _streamingIndex;
+  // Coalesces rapid deltas into ~16 fps repaints so the Markdown isn't
+  // re-parsed on every token (that caused lag on long replies).
+  Timer? _flushTimer;
 
   // Transient "copied" feedback per message index.
   int? _copiedIndex;
@@ -74,8 +80,10 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   @override
   void dispose() {
     _copiedTimer?.cancel();
+    _flushTimer?.cancel();
     _speech.cancel();
     _input.dispose();
+    _hasText.dispose();
     _focus.dispose();
     _scroll.dispose();
     super.dispose();
@@ -123,7 +131,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
           text: joined,
           selection: TextSelection.collapsed(offset: joined.length),
         );
-        setState(() {});
+        _hasText.value = joined.trim().isNotEmpty;
       },
     );
   }
@@ -148,9 +156,12 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     final coreText = trimmed.isEmpty
         ? tr(context, ar: 'صف هذه الصورة.', en: 'Describe this image.')
         : trimmed;
+    // Clear the field fully (text + any IME composing region) so the sent
+    // question doesn't linger in the box.
+    _input.value = TextEditingValue.empty;
+    _hasText.value = false;
     setState(() {
       _messages.add(_Msg('user', trimmed, image: image?.bytes));
-      _input.clear();
       _attachedImage = null;
     });
     _scrollToEnd();
@@ -184,7 +195,6 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
 
     bool gotDelta = false;
     bool sawError = false;
-    int sinceScroll = 0;
     try {
       await for (final ev in context.hrService.askAssistantStream(
         message: outgoing,
@@ -205,11 +215,8 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
             final chunk = ev.text ?? '';
             if (chunk.isEmpty) break;
             gotDelta = true;
-            setState(() => _messages[idx].content += chunk);
-            if ((sinceScroll += chunk.length) >= 40) {
-              sinceScroll = 0;
-              _scrollToEnd();
-            }
+            _messages[idx].content += chunk; // data only
+            _scheduleFlush(); // throttled repaint
             break;
           case 'error':
             sawError = true;
@@ -238,11 +245,25 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
       setState(() => _messages[idx].content = res?['answer'] ?? errorText);
     }
 
+    _flushTimer?.cancel();
+    _flushTimer = null;
     setState(() {
       _streamingIndex = null;
       _sending = false;
     });
     _scrollToEnd();
+  }
+
+  /// Coalesce rapid streamed deltas into ~16 fps repaints.
+  void _scheduleFlush() {
+    if (_flushTimer != null) return;
+    _flushTimer = Timer(const Duration(milliseconds: 60), () {
+      _flushTimer = null;
+      if (mounted) {
+        setState(() {});
+        _scrollToEnd();
+      }
+    });
   }
 
   void _copy(int index) {
@@ -835,8 +856,6 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
 
   Widget _inputBar(
       DSTheme ds, String Function(String, String) t, double viewInsets) {
-    final canSend =
-        (_input.text.trim().isNotEmpty || _attachedImage != null) && !_sending;
     return Container(
       padding: EdgeInsetsDirectional.only(
         start: ds.spacing.md,
@@ -883,7 +902,8 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                 maxLines: null,
                 minLines: 1,
                 scrollPadding: const EdgeInsets.all(20),
-                onChanged: (_) => setState(() {}),
+                // Update only the send button — no full-screen rebuild per key.
+                onChanged: (v) => _hasText.value = v.trim().isNotEmpty,
                 textAlign: ds.textDirection == TextDirection.rtl
                     ? TextAlign.right
                     : TextAlign.left,
@@ -900,13 +920,20 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
             _sending ? null : _toggleVoice,
           ),
               SizedBox(width: ds.spacing.xs),
-              // Send.
-              _roundButton(
-                ds,
-                LineIconType.send,
-                canSend ? _green : ds.colors.textMuted,
-                const Color(0xFFFFFFFF),
-                canSend ? () => _send(_input.text) : null,
+              // Send — rebuilds only itself as the text/state changes.
+              ValueListenableBuilder<bool>(
+                valueListenable: _hasText,
+                builder: (context, hasText, _) {
+                  final canSend =
+                      (hasText || _attachedImage != null) && !_sending;
+                  return _roundButton(
+                    ds,
+                    LineIconType.send,
+                    canSend ? _green : ds.colors.textMuted,
+                    const Color(0xFFFFFFFF),
+                    canSend ? () => _send(_input.text) : null,
+                  );
+                },
               ),
             ],
           ),
