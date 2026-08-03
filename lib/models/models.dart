@@ -17,3 +17,4 @@ export 'physical_exam.dart';
 export 'incoming_transfer.dart';
 export 'schedule_acknowledgement.dart';
 export 'daily_report.dart';
+export 'app_meta.dart';

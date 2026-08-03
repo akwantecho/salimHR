@@ -411,6 +411,28 @@ class HRService extends ChangeNotifier {
     }
   }
 
+  /// Fetch the admin-controlled app-open messages (announcement + update
+  /// prompt) from `GET /api/app/config`. Returns an empty [AppMeta] on failure
+  /// so startup never blocks on it.
+  Future<AppMeta> fetchAppMeta({String lang = 'ar'}) async {
+    try {
+      final response = await _client.get<Map<String, dynamic>>(
+        '/app/config',
+        queryParameters: {'lang': lang},
+      );
+      final root = response.data ?? const {};
+      final inner = root['data'];
+      final m = (inner is Map ? inner : root).cast<String, dynamic>();
+      return AppMeta(
+        notice: AppNotice.fromJson(
+            (m['announcement'] ?? m['notice']) as Map<String, dynamic>?),
+        update: AppUpdateInfo.fromJson(m['update'] as Map<String, dynamic>?),
+      );
+    } on DioException catch (_) {
+      return const AppMeta();
+    }
+  }
+
   /// Fetch HR reports
   Future<Map<String, dynamic>> fetchReport({
     required String type,

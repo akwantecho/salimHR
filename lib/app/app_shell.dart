@@ -19,6 +19,7 @@ import 'screens/reception_screens.dart';
 import 'screens/specialist_requests.dart';
 import 'screens/specialist_screens.dart';
 import 'screens/worker_screens.dart';
+import 'widgets/app_message_gate.dart';
 
 class AppRoot extends StatelessWidget {
   const AppRoot({super.key});
@@ -67,6 +68,8 @@ class _RoleShellState extends State<RoleShell> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.notificationsService.fetchUnreadCount();
+      // Admin-controlled app-open messages (announcement / update prompt).
+      runAppMessageGate(context);
     });
   }
 
